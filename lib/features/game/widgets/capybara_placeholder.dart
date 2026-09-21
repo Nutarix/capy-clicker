@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/balance.dart';
 
-/// Pixel-sprite capybara; size + warmer tint grow with [level].
+/// Pixel-sprite capybara; size + warmer tint + badge grow with [level].
 class CapybaraPlaceholder extends StatelessWidget {
   const CapybaraPlaceholder({
     super.key,
@@ -30,12 +30,24 @@ class CapybaraPlaceholder extends StatelessWidget {
   /// Warm amber ColorFilter strength for higher levels (up to Lv.6).
   double get _warmth {
     final t = ((level - 1) / (BalanceV0.maxVisualLevel - 1)).clamp(0.0, 1.0);
-    return t * 0.35;
+    return t * 0.48;
+  }
+
+  Color get _badgeColor {
+    final t = ((level - 1) / (BalanceV0.maxVisualLevel - 1)).clamp(0.0, 1.0);
+    return Color.lerp(const Color(0xFFF5E6C8), const Color(0xFFFFC14A), t)!;
   }
 
   Color get _borderColor {
     final t = ((level - 1) / (BalanceV0.maxVisualLevel - 1)).clamp(0.0, 1.0);
     return Color.lerp(const Color(0xFF8B6914), const Color(0xFFC87820), t)!;
+  }
+
+  /// Soft glow ring strength for high levels (visual ladder clarity).
+  double get _halo {
+    if (level < 3) return 0;
+    final t = ((level - 2) / (BalanceV0.maxVisualLevel - 2)).clamp(0.0, 1.0);
+    return 0.12 + t * 0.28;
   }
 
   @override
@@ -77,6 +89,12 @@ class CapybaraPlaceholder extends StatelessWidget {
                 blurRadius: 12,
                 offset: const Offset(0, 5),
               ),
+              if (_halo > 0)
+                BoxShadow(
+                  color: const Color(0xFFFFB74D).withValues(alpha: _halo),
+                  blurRadius: 10 + level * 2.0,
+                  spreadRadius: 1 + level * 0.4,
+                ),
               if (flash)
                 BoxShadow(
                   color: const Color(0xFFFFD54F).withValues(alpha: 0.85),
@@ -86,7 +104,12 @@ class CapybaraPlaceholder extends StatelessWidget {
             ],
             border: flash
                 ? Border.all(color: const Color(0xFFFFE082), width: 3.5)
-                : null,
+                : (level >= 4
+                      ? Border.all(
+                          color: _borderColor.withValues(alpha: 0.55),
+                          width: 2,
+                        )
+                      : null),
           ),
           clipBehavior: Clip.none,
           child: sprite,
@@ -94,21 +117,29 @@ class CapybaraPlaceholder extends StatelessWidget {
         if (showLabel) ...[
           const SizedBox(height: 5),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.72),
+              color: _badgeColor.withValues(alpha: 0.92),
               borderRadius: BorderRadius.circular(10),
               border: Border.all(
-                color: _borderColor.withValues(alpha: 0.45),
-                width: 1,
+                color: _borderColor.withValues(alpha: 0.55),
+                width: 1.2,
               ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.12),
+                  blurRadius: 4,
+                  offset: const Offset(0, 1),
+                ),
+              ],
             ),
             child: Text(
               'Lv.$level',
               style: TextStyle(
-                color: const Color(0xFF5C3D1E).withValues(alpha: 0.9),
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
+                color: const Color(0xFF5C3D1E).withValues(alpha: 0.95),
+                fontSize: level >= 5 ? 12 : 11,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.2,
               ),
             ),
           ),

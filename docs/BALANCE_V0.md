@@ -1,6 +1,6 @@
-# Balance v0 — Capy Clicker (Phase 1)
+# Balance v0 — Capy Clicker (Phase 1–2)
 
-Числа для короткой (~60 с) cozy-сессии. Источник правды в коде:
+Числа для короткой cozy-сессии + лёгкий offline. Источник правды в коде:
 `lib/features/game/models/balance.dart` (`BalanceV0`).
 
 ## Авто-прогресс (трава)
@@ -24,7 +24,7 @@
 |---|---|---|
 | `spawnThreshold` | **1.0** (100%) | |
 | Overflow | переносится на следующий цикл | |
-| `maxHerdSize` | **10** | soft-cap (был 8) |
+| `maxHerdSize` | **12** | soft-cap (Phase 2; был 10) |
 | Старт | 1× Lv.1 | |
 | Позиции | случайные, `minSpawnSeparation = 0.14` | |
 
@@ -36,8 +36,8 @@
 |---|---|
 | Условие | два капибары **одинакового** уровня |
 | Результат | оба удаляются → один Lv+1 на позиции цели |
-| Визуал | `baseCapySize=72`, `scalePerLevel=0.28` |
-| Визуальный потолок | **Lv.5–6** (крупнее + теплее amber tint) |
+| Визуал | `baseCapySize=70`, `scalePerLevel=0.34` (ярче ступени Lv) |
+| Визуальный потолок | **Lv.5–6** (крупнее + теплее amber tint + halo/badge) |
 | Juice | золотой flash + scale punch ~520 мс |
 
 ## Камера (zoom)
@@ -47,9 +47,30 @@
 | 1–2 | **1.00** (близко) |
 | 3–5 | **0.82** (середина) |
 | 6–8 | **0.66** (далеко) |
-| 9+ | **0.58** (шире под soft-cap 10) |
+| 9–11 | **0.56** (широко) |
+| 12+ | **0.50** (под soft-cap 12) |
 
 Плавный `AnimatedScale` ~450 мс.
+
+## Offline progress (Phase 2)
+
+| Параметр | Значение | Комментарий |
+|---|---|---|
+| `offlineMinSeconds` | **8** | игнор коротких пауз |
+| `offlineCapSeconds` | **180** (~3 мин) | soft-cap 2–5 мин worth |
+| Формула | `autoProgressPerSecond × cappedSeconds` | без mud-буста |
+| UI | snackbar «Пока тебя не было…» | один раз на запуск |
+| Персист | `savedAtMs` в JSON сейва | |
+
+## Декор луга (visual unlock)
+
+| Декор | Порог стада |
+|---|---|
+| Куст 1 | **3** |
+| Камень | **6** |
+| Куст 2 | **9** |
+
+Только визуал (CustomPaint), без новой механики.
 
 ## Грязевая лужа (mud wallow)
 
@@ -71,7 +92,7 @@
 | Респаун после сбора | **22–38 с** |
 | Тап | **+18% … +25%** прогресса |
 | Позиция (норм.) | (0.78, 0.72) |
-| Визуал | плейсхолдер «корзина + ягоды», лёгкий bob |
+| Визуал | спрайт корзины, лёгкий bob |
 
 Редкий ресурс: не всегда на экране.
 
@@ -87,9 +108,9 @@
 ## Персист
 
 - `shared_preferences`, ключ `capy_clicker_game_state_v1`
-- Сохраняется: `herdProgress`, `herd[]` (id/level/x/y), `nextId`
+- Сохраняется: `herdProgress`, `herd[]` (id/level/x/y), `nextId`, `savedAtMs`
 - Debounce **400 мс**; буст/ягоды — сессионные (не пишутся)
 
 ## Вне скоупа v0
 
-Пиксель-спрайты, полноценный SFX/audioplayers, IAP, daily rewards, новые биомы.
+Полноценный SFX/audioplayers, IAP, daily rewards, новые биомы.

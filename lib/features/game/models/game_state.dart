@@ -6,6 +6,7 @@ class GameState {
     required this.herdProgress,
     required this.herd,
     this.nextId = 1,
+    this.savedAtMs,
   });
 
   /// Herd progress in range 0.0–1.0 (fills toward next spawn).
@@ -17,17 +18,22 @@ class GameState {
   /// Monotonic id counter for new entities.
   final int nextId;
 
+  /// Epoch ms when this snapshot was last persisted (for offline progress).
+  final int? savedAtMs;
+
   int get herdCount => herd.length;
 
   GameState copyWith({
     double? herdProgress,
     List<Capybara>? herd,
     int? nextId,
+    int? savedAtMs,
   }) {
     return GameState(
       herdProgress: herdProgress ?? this.herdProgress,
       herd: herd ?? this.herd,
       nextId: nextId ?? this.nextId,
+      savedAtMs: savedAtMs ?? this.savedAtMs,
     );
   }
 
@@ -35,6 +41,7 @@ class GameState {
     'herdProgress': herdProgress,
     'nextId': nextId,
     'herd': herd.map((c) => c.toJson()).toList(),
+    if (savedAtMs != null) 'savedAtMs': savedAtMs,
   };
 
   factory GameState.fromJson(Map<String, dynamic> json) {
@@ -45,6 +52,7 @@ class GameState {
       herd: rawHerd
           .map((e) => Capybara.fromJson(Map<String, dynamic>.from(e as Map)))
           .toList(),
+      savedAtMs: (json['savedAtMs'] as num?)?.toInt(),
     );
   }
 

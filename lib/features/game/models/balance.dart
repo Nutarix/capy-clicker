@@ -1,4 +1,4 @@
-/// Tunable balance constants for Phase 1 (v0).
+/// Tunable balance constants for Phase 1–2 (v0).
 /// See docs/BALANCE_V0.md for rationale.
 abstract final class BalanceV0 {
   /// Auto grass-eat fill rate: fraction of herd progress per second.
@@ -14,31 +14,34 @@ abstract final class BalanceV0 {
   /// Progress required to spawn one new level-1 capybara.
   static const double spawnThreshold = 1.0;
 
-  /// Soft herd size cap (raised in polish pass for roomier meadow play).
-  static const int maxHerdSize = 10;
+  /// Soft herd size cap (Phase 2: roomier meadow).
+  static const int maxHerdSize = 12;
 
   /// Starting herd: one level-1 capybara.
   static const int startingHerdSize = 1;
   static const int startingLevel = 1;
 
-  /// Highest level we polish visually in Phase 1 (scale + warmer tint).
+  /// Highest level we polish visually (scale + warmer tint + badge).
   static const int maxVisualLevel = 6;
 
   /// Visual scale multiplier per level: base * (1 + (level-1)*scalePerLevel).
-  static const double baseCapySize = 72;
-  static const double scalePerLevel = 0.28;
+  /// Raised in Phase 2 so Lv.1 vs Lv.6 reads clearly at a glance.
+  static const double baseCapySize = 70;
+  static const double scalePerLevel = 0.34;
 
   /// Camera zoom steps by herd count (Transform.scale).
-  /// 1–2 close, 3–5 mid, 6–8 farther, 9+ widest.
+  /// 1–2 close, 3–5 mid, 6–8 farther, 9–11 wide, 12+ widest.
   static const double zoomClose = 1.0;
   static const double zoomMid = 0.82;
   static const double zoomFar = 0.66;
-  static const double zoomWidest = 0.58;
+  static const double zoomWide = 0.56;
+  static const double zoomWidest = 0.50;
 
   static double zoomForHerdCount(int count) {
     if (count <= 2) return zoomClose;
     if (count <= 5) return zoomMid;
     if (count <= 8) return zoomFar;
+    if (count <= 11) return zoomWide;
     return zoomWidest;
   }
 
@@ -53,6 +56,15 @@ abstract final class BalanceV0 {
 
   /// How often to debounce-persist to disk (ms).
   static const int persistDebounceMs = 400;
+
+  // --- Offline progress (Phase 2) ---
+
+  /// Soft cap on offline auto-progress (seconds of live auto rate).
+  /// ~3 min ≈ 2.7 full bars at autoProgressPerSecond.
+  static const int offlineCapSeconds = 180;
+
+  /// Hard floor: ignore tiny gaps (app background flicker).
+  static const int offlineMinSeconds = 8;
 
   // --- Mud wallow / puddle ---
 
@@ -87,6 +99,13 @@ abstract final class BalanceV0 {
   /// Normalized meadow position for the berry basket.
   static const double berryPosX = 0.78;
   static const double berryPosY = 0.72;
+
+  // --- Meadow decor unlocks (visual only) ---
+
+  /// Herd-size milestones that unlock static bush/rock decorations.
+  static const int decorBush1At = 3;
+  static const int decorRockAt = 6;
+  static const int decorBush2At = 9;
 
   // --- Juice / tips ---
 

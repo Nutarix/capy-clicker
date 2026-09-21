@@ -9,14 +9,20 @@ import '../models/capybara.dart';
 import '../models/game_state.dart';
 import '../persistence/game_persistence.dart';
 
-/// Owns [GameState], tick loop, spawn/merge, mud boost, berry basket, persist.
+/// Owns [GameState], tick loop, spawn/merge, mud boost, berry basket,
+/// offline progress, persist.
 class GameController extends ChangeNotifier {
-  GameController({GamePersistence? persistence, Random? random})
-    : _persistence = persistence ?? GamePersistence(),
-      _random = random ?? Random();
+  GameController({
+    GamePersistence? persistence,
+    Random? random,
+    DateTime Function()? now,
+  }) : _persistence = persistence ?? GamePersistence(),
+       _random = random ?? Random(),
+       _now = now ?? DateTime.now;
 
   final GamePersistence _persistence;
   final Random _random;
+  final DateTime Function() _now;
 
   GameState _state = GameState.initial();
   Timer? _tickTimer;
@@ -39,37 +45,74 @@ class GameController extends ChangeNotifier {
   String? _mergeFlashId;
   Timer? _mergeFlashTimer;
 
+  /// Progress granted on this launch from offline elapsed time (0 if none).
+  double _offlineProgressGranted = 0;
+
+  /// Elapsed seconds used for the offline grant (capped).
+  int _offlineSecondsApplied = 0;
+
   GameState get state => _state;
   bool get isReady => _ready;
   double get cameraZoom => BalanceV0.zoomForHerdCount(_state.herdCount);
 
   bool get isMudBoostActive =>
-      _mudBoostUntil != null && DateTime.now().isBefore(_mudBoostUntil!);
+      _mudBoostUntil != null && _now().isBefore(_mudBoostUntil!);
 
   double get mudBoostRemainingSeconds {
     if (!isMudBoostActive) return 0;
-    return _mudBoostUntil!.difference(DateTime.now()).inMilliseconds / 1000.0;
+    return _mudBoostUntil!.difference(_now()).inMilliseconds / 1000.0;
   }
 
   String? get wallowingCapyId => _wallowingCapyId;
   bool get isBerryVisible => _berryVisible;
   String? get mergeFlashId => _mergeFlashId;
 
-  /// Load save (or bootstrap) then start the auto-progress ticker.
+  /// Offline grant from this session's [init] (consume once for UI).
+  double get offlineProgressGranted => _offlineProgressGranted;
+  int get offlineSecondsApplied => _offlineSecondsApplied;
+
+  bool get hasOfflineWelcome => _offlineProgressGranted > 0.001;
+
+  /// Clear the one-shot offline welcome flag after UI shows it.
+  void acknowledgeOfflineWelcome() {
+    _offlineProgressGranted = 0;
+    _offlineSecondsApplied = 0;
+  }
+
+  /// Load save (or bootstrap), grant capped offline progress, start ticker.
   Future<void> init() async {
     final loaded = await _persistence.load();
     if (loaded != null && loaded.herd.isNotEmpty) {
       _state = loaded;
+      _applyOfflineProgress();
     } else {
       _state = _bootstrap();
-      await _persistence.save(_state);
+      await _persistence.save(_withSavedAt(_state));
     }
     _ready = true;
-    _lastTick = DateTime.now();
+    _lastTick = _now();
     _tickTimer?.cancel();
     _tickTimer = Timer.periodic(const Duration(milliseconds: 50), _onTick);
     _scheduleFirstBerry();
     notifyListeners();
+  }
+
+  void _applyOfflineProgress() {
+    final savedMs = _state.savedAtMs;
+    if (savedMs == null) return;
+    final elapsed = _now().difference(
+      DateTime.fromMillisecondsSinceEpoch(savedMs),
+    );
+    var seconds = elapsed.inSeconds;
+    if (seconds < BalanceV0.offlineMinSeconds) return;
+    if (seconds > BalanceV0.offlineCapSeconds) {
+      seconds = BalanceV0.offlineCapSeconds;
+    }
+    final amount = BalanceV0.autoProgressPerSecond * seconds;
+    _offlineProgressGranted = amount;
+    _offlineSecondsApplied = seconds;
+    // Apply without live-tick dt guards; may spawn under herd cap.
+    addProgress(amount, fromTap: false);
   }
 
   GameState _bootstrap() {
@@ -80,8 +123,11 @@ class GameController extends ChangeNotifier {
     return state;
   }
 
+  GameState _withSavedAt(GameState state) =>
+      state.copyWith(savedAtMs: _now().millisecondsSinceEpoch);
+
   void _onTick(Timer _) {
-    final now = DateTime.now();
+    final now = _now();
     final dt = now.difference(_lastTick).inMilliseconds / 1000.0;
     _lastTick = now;
     if (dt <= 0 || dt > 1.0) return;
@@ -163,7 +209,7 @@ class GameController extends ChangeNotifier {
       notifyListeners();
     });
 
-    _mudBoostUntil = DateTime.now().add(BalanceV0.mudBoostDuration);
+    _mudBoostUntil = _now().add(BalanceV0.mudBoostDuration);
     notifyListeners();
     return true;
   }
@@ -299,7 +345,7 @@ class GameController extends ChangeNotifier {
     _persistTimer?.cancel();
     _persistTimer = Timer(
       const Duration(milliseconds: BalanceV0.persistDebounceMs),
-      () => _persistence.save(_state),
+      () => _persistence.save(_withSavedAt(_state)),
     );
   }
 
@@ -310,7 +356,7 @@ class GameController extends ChangeNotifier {
     _wallowTimer?.cancel();
     _berryTimer?.cancel();
     _mergeFlashTimer?.cancel();
-    unawaited(_persistence.save(_state));
+    unawaited(_persistence.save(_withSavedAt(_state)));
     super.dispose();
   }
 }

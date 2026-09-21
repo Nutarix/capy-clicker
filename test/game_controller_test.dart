@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:capy_clicker/features/game/controllers/game_controller.dart';
 import 'package:capy_clicker/features/game/models/balance.dart';
+import 'package:capy_clicker/features/game/models/game_state.dart';
 import 'package:capy_clicker/features/game/persistence/game_persistence.dart';
 
 void main() {
@@ -73,11 +74,16 @@ void main() {
       BalanceV0.capySizeForLevel(6),
       greaterThan(BalanceV0.capySizeForLevel(5)),
     );
+    // Phase 2: clearer visual ladder (scalePerLevel 0.34)
+    expect(
+      BalanceV0.capySizeForLevel(6) / BalanceV0.capySizeForLevel(1),
+      greaterThan(2.5),
+    );
     c.dispose();
   });
 
-  test('herd soft-cap is 10', () async {
-    expect(BalanceV0.maxHerdSize, 10);
+  test('herd soft-cap is 12', () async {
+    expect(BalanceV0.maxHerdSize, 12);
     final c = GameController(persistence: GamePersistence());
     await c.init();
     for (var i = 0; i < 20; i++) {
@@ -112,6 +118,72 @@ void main() {
     expect(BalanceV0.zoomForHerdCount(1), BalanceV0.zoomClose);
     expect(BalanceV0.zoomForHerdCount(4), BalanceV0.zoomMid);
     expect(BalanceV0.zoomForHerdCount(7), BalanceV0.zoomFar);
-    expect(BalanceV0.zoomForHerdCount(10), BalanceV0.zoomWidest);
+    expect(BalanceV0.zoomForHerdCount(10), BalanceV0.zoomWide);
+    expect(BalanceV0.zoomForHerdCount(12), BalanceV0.zoomWidest);
+  });
+
+  test('offline progress grants capped auto fill and sets welcome', () async {
+    final now = DateTime(2026, 9, 21, 22, 0, 0);
+    final savedAt = now.subtract(const Duration(minutes: 10));
+    SharedPreferences.setMockInitialValues({
+      'capy_clicker_game_state_v1':
+          '{"herdProgress":0.1,"nextId":2,"savedAtMs":${savedAt.millisecondsSinceEpoch},'
+          '"herd":[{"id":"c1","level":1,"x":0.5,"y":0.5}]}',
+    });
+
+    var clock = now;
+    final c = GameController(
+      persistence: GamePersistence(),
+      now: () => clock,
+    );
+    await c.init();
+
+    // Cap = 180s * 0.015 = 2.7 → progress 0.1 + 2.7 = 2.8 → 2 spawns + 0.8 left
+    expect(c.offlineSecondsApplied, BalanceV0.offlineCapSeconds);
+    expect(c.hasOfflineWelcome, isTrue);
+    expect(c.state.herdCount, 3); // 1 + 2 spawns from offline
+    expect(c.state.herdProgress, closeTo(0.8, 0.01));
+
+    c.acknowledgeOfflineWelcome();
+    expect(c.hasOfflineWelcome, isFalse);
+    c.dispose();
+  });
+
+  test('short offline gaps are ignored', () async {
+    final now = DateTime(2026, 9, 21, 22, 0, 0);
+    final savedAt = now.subtract(const Duration(seconds: 3));
+    SharedPreferences.setMockInitialValues({
+      'capy_clicker_game_state_v1':
+          '{"herdProgress":0.2,"nextId":2,"savedAtMs":${savedAt.millisecondsSinceEpoch},'
+          '"herd":[{"id":"c1","level":1,"x":0.5,"y":0.5}]}',
+    });
+
+    final c = GameController(
+      persistence: GamePersistence(),
+      now: () => now,
+    );
+    await c.init();
+    expect(c.hasOfflineWelcome, isFalse);
+    expect(c.state.herdProgress, closeTo(0.2, 0.001));
+    expect(c.state.herdCount, 1);
+    c.dispose();
+  });
+
+  test('GameState round-trips savedAtMs', () {
+    final s = GameState(
+      herdProgress: 0.4,
+      herd: const [],
+      nextId: 3,
+      savedAtMs: 1234567890,
+    );
+    final back = GameState.fromJson(s.toJson());
+    expect(back.savedAtMs, 1234567890);
+    expect(back.herdProgress, 0.4);
+  });
+
+  test('decor milestones are ordered', () {
+    expect(BalanceV0.decorBush1At, lessThan(BalanceV0.decorRockAt));
+    expect(BalanceV0.decorRockAt, lessThan(BalanceV0.decorBush2At));
+    expect(BalanceV0.decorBush2At, lessThanOrEqualTo(BalanceV0.maxHerdSize));
   });
 }

@@ -7,6 +7,7 @@ import 'widgets/berry_basket.dart';
 import 'widgets/draggable_capybara.dart';
 import 'widgets/flower_dot.dart';
 import 'widgets/meadow_background.dart';
+import 'widgets/meadow_decor.dart';
 import 'widgets/mud_puddle.dart';
 import 'widgets/progress_bar.dart';
 import 'widgets/tip_overlay.dart';
@@ -26,6 +27,7 @@ class _GameScreenState extends State<GameScreen> {
   late final GameController _controller;
   late final bool _ownsController;
   final GlobalKey _meadowKey = GlobalKey();
+  bool _offlineWelcomeShown = false;
 
   static const _flowerLayouts = <({double left, double top, Color color})>[
     (left: 0.18, top: 0.42, color: Color(0xFFE87AA0)),
@@ -45,7 +47,41 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   void _onControllerChanged() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    setState(() {});
+    _maybeShowOfflineWelcome();
+  }
+
+  void _maybeShowOfflineWelcome() {
+    if (_offlineWelcomeShown) return;
+    if (!_controller.isReady || !_controller.hasOfflineWelcome) return;
+    _offlineWelcomeShown = true;
+    final seconds = _controller.offlineSecondsApplied;
+    final progress = _controller.offlineProgressGranted;
+    _controller.acknowledgeOfflineWelcome();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final mins = seconds ~/ 60;
+      final secs = seconds % 60;
+      final timeLabel = mins > 0 ? '$mins мин $secs с' : '$secs с';
+      final bars = (progress / BalanceV0.spawnThreshold).clamp(0.0, 99.0);
+      final barsLabel = bars >= 1
+          ? '≈${bars.toStringAsFixed(1)} шкалы'
+          : '+${(progress * 100).round()}%';
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 4),
+          backgroundColor: const Color(0xFF5C3D1E).withValues(alpha: 0.92),
+          content: Text(
+            'Пока тебя не было… стадо подросло ($timeLabel → $barsLabel)',
+            style: const TextStyle(color: Colors.white, fontSize: 14),
+          ),
+        ),
+      );
+    });
   }
 
   @override
@@ -124,6 +160,10 @@ class _GameScreenState extends State<GameScreen> {
                               child: Stack(
                                 clipBehavior: Clip.none,
                                 children: [
+                                  MeadowDecorLayer(
+                                    herdCount: state.herdCount,
+                                    meadowSize: Size(w, h),
+                                  ),
                                   // Mud puddle (behind capys)
                                   Positioned(
                                     left: BalanceV0.mudCenterX * w - 55,
