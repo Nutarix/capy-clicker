@@ -166,6 +166,21 @@ abstract final class BalanceV0 {
   /// Alternate flavor (docs): mud-boost equivalent duration if we ever switch reward.
   static const Duration dailyBonusMudBoostEquivalent = Duration(seconds: 30);
 
+  // --- Soft magnetic merge (drag assist only) ---
+
+  /// Normalized meadow distance within which a dragged capy gently attracts
+  /// toward the nearest same-level neighbour and can complete a merge.
+  /// Tuned local (~1/10 meadow) — does NOT magnet across the whole field.
+  /// Compare: minSpawnSeparation = 0.14; mudHitRadius = 0.11.
+  static const double magnetRadius = 0.10;
+
+  /// Mid-drag auto-complete when distance ≤ magnetRadius * this fraction.
+  /// Drag-end still merges for any hit within the full [magnetRadius].
+  static const double magnetSnapFraction = 0.55;
+
+  /// How strongly the drag feedback eases toward the magnet target (0–1).
+  static const double magnetPullLerp = 0.28;
+
   // --- Juice / tips ---
 
   /// Brief merge flash duration on the new merged capy.

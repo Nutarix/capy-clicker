@@ -3,14 +3,17 @@ import 'package:flutter/services.dart';
 
 import '../models/balance.dart';
 import '../models/capybara.dart';
+import '../models/merge_magnet.dart';
 import 'capybara_placeholder.dart';
 import 'mud_puddle.dart';
 
-/// Meadow-aware draggable: merge on same-level drop, wallow on mud drop.
-class MeadowDraggableCapybara extends StatelessWidget {
+/// Meadow-aware draggable: merge on same-level drop, soft magnet assist,
+/// wallow on mud drop.
+class MeadowDraggableCapybara extends StatefulWidget {
   const MeadowDraggableCapybara({
     super.key,
     required this.capybara,
+    required this.herd,
     required this.meadowSize,
     required this.meadowOriginGlobal,
     required this.onMerge,
@@ -19,9 +22,12 @@ class MeadowDraggableCapybara extends StatelessWidget {
     required this.isOverMud,
     this.isWallowing = false,
     this.mergeFlash = false,
+    this.magnetAttractedId,
+    this.onMagnetTargetChanged,
   });
 
   final Capybara capybara;
+  final List<Capybara> herd;
   final Size meadowSize;
   final Offset meadowOriginGlobal;
   final bool Function(String draggedId, String targetId) onMerge;
@@ -31,27 +37,161 @@ class MeadowDraggableCapybara extends StatelessWidget {
   final bool isWallowing;
   final bool mergeFlash;
 
-  double get _bodyWidth => BalanceV0.capySizeForLevel(capybara.level);
+  /// Herd id currently being soft-pulled toward (set by the dragged sibling).
+  final String? magnetAttractedId;
+
+  /// Reports magnet target changes so the parent can glow the attracted capy.
+  final ValueChanged<String?>? onMagnetTargetChanged;
+
+  @override
+  State<MeadowDraggableCapybara> createState() =>
+      _MeadowDraggableCapybaraState();
+}
+
+class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara> {
+  /// Soft-magnet target id while dragging (for subtle pull glow).
+  String? _magnetTargetId;
+
+  /// True after a mid-drag magnet merge so onDragEnd skips drop/mud.
+  bool _mergedDuringDrag = false;
+
+  /// Extra offset applied to feedback when soft-pulling toward a magnet.
+  Offset _pullOffset = Offset.zero;
+
+  double get _bodyWidth => BalanceV0.capySizeForLevel(widget.capybara.level);
 
   Size get _footprint {
     final w = _bodyWidth;
     return Size(w + 8, w * 0.95 + 26);
   }
 
+  Offset _normalizedFromFeedbackTopLeft(Offset feedbackTopLeft) {
+    final footprint = _footprint;
+    final local = feedbackTopLeft - widget.meadowOriginGlobal;
+    final nx = (local.dx + footprint.width / 2) / widget.meadowSize.width;
+    final ny = (local.dy + footprint.height / 2) / widget.meadowSize.height;
+    return Offset(nx, ny);
+  }
+
+  Offset _normalizedFromPointer(Offset globalPointer) {
+    final local = globalPointer - widget.meadowOriginGlobal;
+    return Offset(
+      local.dx / widget.meadowSize.width,
+      local.dy / widget.meadowSize.height,
+    );
+  }
+
+  MergeMagnetHit? _hitAt(Offset dragNormalized) {
+    return MergeMagnet.nearestEligible(
+      draggedId: widget.capybara.id,
+      draggedLevel: widget.capybara.level,
+      dragNormalized: dragNormalized,
+      herd: widget.herd,
+    );
+  }
+
+  bool _tryMagnetMerge(MergeMagnetHit hit) {
+    // Haptics live in the parent's onMerge callback (same juice as manual).
+    return widget.onMerge(widget.capybara.id, hit.target.id);
+  }
+
+  void _notifyMagnet(String? id) {
+    if (_magnetTargetId == id) return;
+    _magnetTargetId = id;
+    widget.onMagnetTargetChanged?.call(id);
+  }
+
+  void _updateMagnetVisual(MergeMagnetHit? hit, Offset dragNormalized) {
+    if (hit == null) {
+      _notifyMagnet(null);
+      if (_pullOffset != Offset.zero && mounted) {
+        setState(() => _pullOffset = Offset.zero);
+      }
+      return;
+    }
+
+    // Subtle pull: lerp feedback toward target in meadow pixel space.
+    final pulled = MergeMagnet.lerpToward(
+      dragNormalized,
+      hit.target.position,
+      BalanceV0.magnetPullLerp,
+    );
+    final dx = (pulled.dx - dragNormalized.dx) * widget.meadowSize.width;
+    final dy = (pulled.dy - dragNormalized.dy) * widget.meadowSize.height;
+    final nextPull = Offset(dx, dy);
+    _notifyMagnet(hit.target.id);
+    if (_pullOffset != nextPull && mounted) {
+      setState(() => _pullOffset = nextPull);
+    }
+  }
+
+  void _onDragStarted() {
+    _mergedDuringDrag = false;
+    _pullOffset = Offset.zero;
+    _notifyMagnet(null);
+  }
+
+  void _onDragUpdate(DragUpdateDetails details) {
+    if (_mergedDuringDrag) return;
+    final normalized = _normalizedFromPointer(details.globalPosition);
+    final hit = _hitAt(normalized);
+    _updateMagnetVisual(hit, normalized);
+
+    // Mid-drag complete only when clearly inside the snap band.
+    if (hit != null && MergeMagnet.withinSnapDistance(hit.distance)) {
+      if (_tryMagnetMerge(hit)) {
+        _mergedDuringDrag = true;
+        _notifyMagnet(null);
+        if (mounted) setState(() => _pullOffset = Offset.zero);
+      }
+    }
+  }
+
+  void _onDragEnd(DraggableDetails details) {
+    final mergedAlready = _mergedDuringDrag;
+    _mergedDuringDrag = false;
+    _notifyMagnet(null);
+    if (mounted) setState(() => _pullOffset = Offset.zero);
+
+    if (mergedAlready || details.wasAccepted) return;
+
+    final normalized = _normalizedFromFeedbackTopLeft(details.offset);
+
+    // Soft magnet on release: any same-level within full magnetRadius.
+    final hit = _hitAt(normalized);
+    if (hit != null && _tryMagnetMerge(hit)) return;
+
+    if (widget.isOverMud(normalized)) {
+      final ok = widget.onMudDrop(widget.capybara.id);
+      if (ok) {
+        HapticFeedback.mediumImpact();
+        return;
+      }
+    }
+    widget.onDropPosition(widget.capybara.id, normalized);
+  }
+
   @override
   Widget build(BuildContext context) {
     final footprint = _footprint;
-    final left = capybara.position.dx * meadowSize.width - footprint.width / 2;
-    final top = capybara.position.dy * meadowSize.height - footprint.height / 2;
+    final left =
+        widget.capybara.position.dx * widget.meadowSize.width -
+        footprint.width / 2;
+    final top =
+        widget.capybara.position.dy * widget.meadowSize.height -
+        footprint.height / 2;
+
+    final magnetHighlight =
+        widget.magnetAttractedId == widget.capybara.id;
 
     Widget visual = CapybaraPlaceholder(
-      level: capybara.level,
-      flash: mergeFlash,
+      level: widget.capybara.level,
+      flash: widget.mergeFlash,
     );
-    if (isWallowing) {
+    if (widget.isWallowing) {
       visual = WallowOverlay(child: visual);
     }
-    if (mergeFlash) {
+    if (widget.mergeFlash) {
       visual = _MergePunch(child: visual);
     }
 
@@ -59,41 +199,32 @@ class MeadowDraggableCapybara extends StatelessWidget {
       left: left,
       top: top,
       child: DragTarget<String>(
-        onWillAcceptWithDetails: (details) => details.data != capybara.id,
+        onWillAcceptWithDetails: (details) => details.data != widget.capybara.id,
         onAcceptWithDetails: (details) {
-          final ok = onMerge(details.data, capybara.id);
+          final ok = widget.onMerge(details.data, widget.capybara.id);
           if (ok) HapticFeedback.mediumImpact();
         },
         builder: (context, candidate, _) {
-          final highlight = candidate.isNotEmpty;
+          final highlight = candidate.isNotEmpty || magnetHighlight;
           return Draggable<String>(
-            data: capybara.id,
-            feedback: Material(
-              color: Colors.transparent,
-              child: Opacity(
-                opacity: 0.92,
-                child: CapybaraPlaceholder(level: capybara.level),
+            data: widget.capybara.id,
+            feedback: Transform.translate(
+              offset: _pullOffset,
+              child: Material(
+                color: Colors.transparent,
+                child: Opacity(
+                  opacity: 0.92,
+                  child: CapybaraPlaceholder(level: widget.capybara.level),
+                ),
               ),
             ),
             childWhenDragging: Opacity(
               opacity: 0.22,
-              child: CapybaraPlaceholder(level: capybara.level),
+              child: CapybaraPlaceholder(level: widget.capybara.level),
             ),
-            onDragEnd: (details) {
-              if (details.wasAccepted) return;
-              final local = details.offset - meadowOriginGlobal;
-              final nx = (local.dx + footprint.width / 2) / meadowSize.width;
-              final ny = (local.dy + footprint.height / 2) / meadowSize.height;
-              final normalized = Offset(nx, ny);
-              if (isOverMud(normalized)) {
-                final ok = onMudDrop(capybara.id);
-                if (ok) {
-                  HapticFeedback.mediumImpact();
-                  return;
-                }
-              }
-              onDropPosition(capybara.id, normalized);
-            },
+            onDragStarted: _onDragStarted,
+            onDragUpdate: _onDragUpdate,
+            onDragEnd: _onDragEnd,
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 120),
               decoration: highlight
@@ -101,9 +232,11 @@ class MeadowDraggableCapybara extends StatelessWidget {
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.amber.withValues(alpha: 0.6),
-                          blurRadius: 18,
-                          spreadRadius: 3,
+                          color: Colors.amber.withValues(
+                            alpha: magnetHighlight ? 0.75 : 0.6,
+                          ),
+                          blurRadius: magnetHighlight ? 22 : 18,
+                          spreadRadius: magnetHighlight ? 4 : 3,
                         ),
                       ],
                     )

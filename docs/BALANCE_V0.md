@@ -40,6 +40,20 @@
 | Визуальный потолок | **Lv.5–6** (крупнее + теплее amber tint + halo/badge) |
 | Juice | золотой flash + scale punch ~520 мс |
 
+### Soft magnetic merge (drag assist)
+
+**Нет** полного auto-merge в idle. Магнит работает только во время жеста игрока.
+
+| Параметр | Значение | Комментарий |
+|---|---|---|
+| `magnetRadius` | **0.10** (норм. луг) | локальный snap; не тянет через весь луг |
+| `magnetSnapFraction` | **0.55** | mid-drag complete при ≤ 55% радиуса |
+| `magnetPullLerp` | **0.28** | лёгкий lerp feedback к цели |
+| Условие | тот же уровень + distance ≤ radius | |
+| Поведение | lerp к ближайшему → merge (тот же juice) | assist жеста, не AI |
+
+Сравнение: `minSpawnSeparation = 0.14`, `mudHitRadius = 0.11`.
+
 ## «Солнечные поляны» + камера
 
 Тёплая опушка → Ягодная поляна → Солнечный прогал → Большой луг.

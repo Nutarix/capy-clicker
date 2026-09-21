@@ -33,6 +33,9 @@ class _GameScreenState extends State<GameScreen> {
   bool _dailyPromptShown = false;
   bool _dailySheetOpen = false;
 
+  /// Soft-magnet target while a capy is being dragged (glow on attracted).
+  String? _magnetAttractedId;
+
   /// Colors paired with [WorldZones.flowerPositions] (meadow grass only).
   static const _flowerColors = <Color>[
     Color(0xFFE87AA0),
@@ -350,6 +353,7 @@ class _GameScreenState extends State<GameScreen> {
                                     return MeadowDraggableCapybara(
                                       key: ValueKey(capy.id),
                                       capybara: capy,
+                                      herd: state.herd,
                                       meadowSize: Size(w, h),
                                       meadowOriginGlobal: _meadowOriginGlobal(),
                                       onMerge: _onMerge,
@@ -362,6 +366,11 @@ class _GameScreenState extends State<GameScreen> {
                                           capy.id,
                                       mergeFlash:
                                           _controller.mergeFlashId == capy.id,
+                                      magnetAttractedId: _magnetAttractedId,
+                                      onMagnetTargetChanged: (id) {
+                                        if (_magnetAttractedId == id) return;
+                                        setState(() => _magnetAttractedId = id);
+                                      },
                                     );
                                   }),
                                 ],
