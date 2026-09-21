@@ -31,7 +31,7 @@ flutter run -d <device> # телефон / эмулятор
 flutter analyze
 ```
 
-## Что работает сейчас (Phase 1–2 / v0)
+## Что работает сейчас (Phase 1–3 / v0)
 
 - Авто-прогресс стада (~1.5%/с) без тапов
 - Тап по цветкам: +3–6% прогресса
@@ -42,12 +42,15 @@ flutter analyze
 - **Грязевая лужа**: перетащи капибару → анимация wallow + ×2 авто на 10 с
 - **Корзина ягод**: редкий спавн, тап даёт +18–25%, потом респаун 22–38 с
 - **Offline**: при запуске capped прогресс (до ~3 мин авто) + snackbar «Пока тебя не было…»
+- **Утренний уют**: soft daily +25% раз в локальный день (sheet + чип), без energy-gate
+- **Haptics**: light/medium на тап, merge, wallow (SFX/audioplayers отложены)
 - **Декор луга**: кусты/камень unlock на стаде 3 / 6 / 9
 - Первый запуск: tip overlay (merge + лужа)
 - Пиксель-спрайты с прозрачным фоном (chroma-key)
 - Juice: petal burst на цветке, soft cream progress bar, hills meadow
 - Сохранение стада и прогресса через `shared_preferences`
 - Портретная ориентация
+- Store prep: [`store/README.md`](store/README.md) (icon brief + 3 screenshot captions RU/EN)
 
 Баланс: [`docs/BALANCE_V0.md`](docs/BALANCE_V0.md).
 
@@ -73,12 +76,14 @@ lib/
     widgets/         # meadow, decor, flowers, capy, mud, berry, progress, tips
 docs/
   BALANCE_V0.md
+store/
+  README.md          # icon + screenshot captions (placeholders)
 assets/images/       # chroma-keyed PNG sprites
 ```
 
 ## Следующие шаги (вне этого пасса)
 
-Полноценный SFX, daily rewards, IAP, Flame (по необходимости).
+Полноценный SFX (audioplayers), IAP, Flame (по необходимости).
 
 ## Репозиторий
 

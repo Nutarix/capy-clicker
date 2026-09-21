@@ -10,6 +10,7 @@ import 'widgets/meadow_background.dart';
 import 'widgets/meadow_decor.dart';
 import 'widgets/mud_puddle.dart';
 import 'widgets/progress_bar.dart';
+import 'widgets/morning_cozy_sheet.dart';
 import 'widgets/tip_overlay.dart';
 
 /// Live game screen: auto progress, flowers, herd, merge, mud, berries, zoom.
@@ -28,6 +29,8 @@ class _GameScreenState extends State<GameScreen> {
   late final bool _ownsController;
   final GlobalKey _meadowKey = GlobalKey();
   bool _offlineWelcomeShown = false;
+  bool _dailyPromptShown = false;
+  bool _dailySheetOpen = false;
 
   static const _flowerLayouts = <({double left, double top, Color color})>[
     (left: 0.18, top: 0.42, color: Color(0xFFE87AA0)),
@@ -50,6 +53,7 @@ class _GameScreenState extends State<GameScreen> {
     if (!mounted) return;
     setState(() {});
     _maybeShowOfflineWelcome();
+    _maybeShowDailyBonus();
   }
 
   void _maybeShowOfflineWelcome() {
@@ -101,6 +105,85 @@ class _GameScreenState extends State<GameScreen> {
   void _onBerryTap() {
     HapticFeedback.mediumImpact();
     _controller.onBerryTap();
+  }
+
+  void _maybeShowDailyBonus() {
+    if (_dailyPromptShown || _dailySheetOpen) return;
+    if (!_controller.isReady || !_controller.isDailyBonusAvailable) return;
+    // Soft: wait a beat so tips / offline snackbar settle first.
+    _dailyPromptShown = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      // Delay slightly so first-launch tips can appear above without stacking.
+      await Future<void>.delayed(const Duration(milliseconds: 700));
+      if (!mounted || !_controller.isDailyBonusAvailable) return;
+      _dailySheetOpen = true;
+      final claimed = await MorningCozySheet.show(
+        context,
+        onClaim: () {
+          _controller.claimDailyBonus();
+        },
+      );
+      _dailySheetOpen = false;
+      if (!mounted) return;
+      if (claimed) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
+            backgroundColor: const Color(0xFF5C3D1E).withValues(alpha: 0.92),
+            content: Text(
+              'Уют получен: +${(BalanceV0.dailyBonusProgress * 100).round()}% прогресса',
+              style: const TextStyle(color: Colors.white, fontSize: 14),
+            ),
+          ),
+        );
+      }
+      setState(() {});
+    });
+  }
+
+  Future<void> _openDailyBonusManually() async {
+    if (!_controller.isDailyBonusAvailable || _dailySheetOpen) return;
+    _dailySheetOpen = true;
+    final claimed = await MorningCozySheet.show(
+      context,
+      onClaim: () {
+        _controller.claimDailyBonus();
+      },
+    );
+    _dailySheetOpen = false;
+    if (!mounted) return;
+    if (claimed) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+          backgroundColor: const Color(0xFF5C3D1E).withValues(alpha: 0.92),
+          content: Text(
+            'Уют получен: +${(BalanceV0.dailyBonusProgress * 100).round()}% прогресса',
+            style: const TextStyle(color: Colors.white, fontSize: 14),
+          ),
+        ),
+      );
+    }
+    setState(() {});
+  }
+
+  bool _onMerge(String a, String b) {
+    final ok = _controller.tryMerge(a, b);
+    if (ok) {
+      HapticFeedback.mediumImpact();
+    }
+    return ok;
+  }
+
+  bool _onMudDrop(String id) {
+    final ok = _controller.tryMudWallow(id);
+    if (ok) {
+      HapticFeedback.lightImpact();
+    }
+    return ok;
   }
 
   Offset _meadowOriginGlobal() {
@@ -196,10 +279,10 @@ class _GameScreenState extends State<GameScreen> {
                                       capybara: capy,
                                       meadowSize: Size(w, h),
                                       meadowOriginGlobal: _meadowOriginGlobal(),
-                                      onMerge: _controller.tryMerge,
+                                      onMerge: _onMerge,
                                       onDropPosition:
                                           _controller.updatePosition,
-                                      onMudDrop: _controller.tryMudWallow,
+                                      onMudDrop: _onMudDrop,
                                       isOverMud: _controller.isOverMud,
                                       isWallowing:
                                           _controller.wallowingCapyId ==
@@ -234,6 +317,58 @@ class _GameScreenState extends State<GameScreen> {
                 ],
               ),
               const Positioned.fill(child: FirstLaunchTipOverlay()),
+              if (_controller.isDailyBonusAvailable)
+                Positioned(
+                  right: 16,
+                  bottom: 48,
+                  child: Material(
+                    color: Colors.transparent,
+                    child: Tooltip(
+                      message: 'Утренний уют',
+                      child: InkWell(
+                        onTap: _openDailyBonusManually,
+                        borderRadius: BorderRadius.circular(20),
+                        child: Ink(
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFF8EC),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: const Color(0xFFE2CFA8),
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.12),
+                                blurRadius: 8,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          child: const Padding(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text('🎁', style: TextStyle(fontSize: 16)),
+                                SizedBox(width: 6),
+                                Text(
+                                  'Уют',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF5C3D1E),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
         ),

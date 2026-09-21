@@ -107,6 +107,14 @@ abstract final class BalanceV0 {
   static const int decorRockAt = 6;
   static const int decorBush2At = 9;
 
+  // --- Soft daily bonus (Phase 2–3) ---
+
+  /// Once-per-local-calendar-day claimable progress gift (not an energy gate).
+  static const double dailyBonusProgress = 0.25;
+
+  /// Alternate flavor (docs): mud-boost equivalent duration if we ever switch reward.
+  static const Duration dailyBonusMudBoostEquivalent = Duration(seconds: 30);
+
   // --- Juice / tips ---
 
   /// Brief merge flash duration on the new merged capy.

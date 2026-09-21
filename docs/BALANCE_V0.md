@@ -1,4 +1,4 @@
-# Balance v0 — Capy Clicker (Phase 1–2)
+# Balance v0 — Capy Clicker (Phase 1–3)
 
 Числа для короткой cozy-сессии + лёгкий offline. Источник правды в коде:
 `lib/features/game/models/balance.dart` (`BalanceV0`).
@@ -96,6 +96,15 @@
 
 Редкий ресурс: не всегда на экране.
 
+## Soft daily bonus — «Утренний уют» (Phase 2–3)
+
+| Параметр | Значение | Комментарий |
+|---|---|---|
+| Частота | **1× / локальный календарный день** | не energy-gate, не FOMO-спам |
+| Награда | **+25%** прогресса (`dailyBonusProgress = 0.25`) | эквивалент ~30 с грязевого буста задокументирован как альтернатива |
+| Персист | `lastDailyClaimYmd` (`YYYY-MM-DD`) в сейве | |
+| UI | bottom sheet «Утренний уют» + чип «Уют» пока не забрано | dismiss = «Позже», можно открыть снова |
+
 ## Первый запуск (tips)
 
 | Параметр | Значение |
@@ -108,9 +117,17 @@
 ## Персист
 
 - `shared_preferences`, ключ `capy_clicker_game_state_v1`
-- Сохраняется: `herdProgress`, `herd[]` (id/level/x/y), `nextId`, `savedAtMs`
+- Сохраняется: `herdProgress`, `herd[]` (id/level/x/y), `nextId`, `savedAtMs`, `lastDailyClaimYmd`
 - Debounce **400 мс**; буст/ягоды — сессионные (не пишутся)
+
+## Feedback / audio (Phase 2–3)
+
+| Платформа | Что |
+|---|---|
+| Mobile | `HapticFeedback.lightImpact` на тап цветка / wallow; `mediumImpact` на ягоды и merge |
+| Web / desktop | без SFX (визуальный juice остаётся) |
+| audioplayers | **отложен** — упаковка web+mobile без hassle; см. `store/README.md` |
 
 ## Вне скоупа v0
 
-Полноценный SFX/audioplayers, IAP, daily rewards, новые биомы.
+IAP, полноценный SFX/audioplayers, новые биомы.

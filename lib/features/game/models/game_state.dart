@@ -7,6 +7,7 @@ class GameState {
     required this.herd,
     this.nextId = 1,
     this.savedAtMs,
+    this.lastDailyClaimYmd,
   });
 
   /// Herd progress in range 0.0–1.0 (fills toward next spawn).
@@ -21,6 +22,9 @@ class GameState {
   /// Epoch ms when this snapshot was last persisted (for offline progress).
   final int? savedAtMs;
 
+  /// Local calendar day of last soft daily claim as `YYYY-MM-DD`, or null.
+  final String? lastDailyClaimYmd;
+
   int get herdCount => herd.length;
 
   GameState copyWith({
@@ -28,12 +32,17 @@ class GameState {
     List<Capybara>? herd,
     int? nextId,
     int? savedAtMs,
+    String? lastDailyClaimYmd,
+    bool clearLastDailyClaimYmd = false,
   }) {
     return GameState(
       herdProgress: herdProgress ?? this.herdProgress,
       herd: herd ?? this.herd,
       nextId: nextId ?? this.nextId,
       savedAtMs: savedAtMs ?? this.savedAtMs,
+      lastDailyClaimYmd: clearLastDailyClaimYmd
+          ? null
+          : (lastDailyClaimYmd ?? this.lastDailyClaimYmd),
     );
   }
 
@@ -42,6 +51,7 @@ class GameState {
     'nextId': nextId,
     'herd': herd.map((c) => c.toJson()).toList(),
     if (savedAtMs != null) 'savedAtMs': savedAtMs,
+    if (lastDailyClaimYmd != null) 'lastDailyClaimYmd': lastDailyClaimYmd,
   };
 
   factory GameState.fromJson(Map<String, dynamic> json) {
@@ -53,6 +63,7 @@ class GameState {
           .map((e) => Capybara.fromJson(Map<String, dynamic>.from(e as Map)))
           .toList(),
       savedAtMs: (json['savedAtMs'] as num?)?.toInt(),
+      lastDailyClaimYmd: json['lastDailyClaimYmd'] as String?,
     );
   }
 

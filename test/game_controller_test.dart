@@ -186,4 +186,55 @@ void main() {
     expect(BalanceV0.decorRockAt, lessThan(BalanceV0.decorBush2At));
     expect(BalanceV0.decorBush2At, lessThanOrEqualTo(BalanceV0.maxHerdSize));
   });
+
+  test('daily bonus available once per local calendar day', () async {
+    final day = DateTime(2026, 9, 21, 10, 0, 0);
+    var clock = day;
+    final c = GameController(
+      persistence: GamePersistence(),
+      now: () => clock,
+    );
+    await c.init();
+    expect(c.isDailyBonusAvailable, isTrue);
+    final before = c.state.herdProgress;
+    expect(c.claimDailyBonus(), isTrue);
+    expect(c.isDailyBonusAvailable, isFalse);
+    expect(
+      c.state.herdProgress,
+      closeTo(before + BalanceV0.dailyBonusProgress, 0.001),
+    );
+    expect(c.state.lastDailyClaimYmd, '2026-09-21');
+
+    // Same day: no re-claim.
+    expect(c.claimDailyBonus(), isFalse);
+
+    // Next calendar day unlocks again.
+    clock = DateTime(2026, 9, 22, 8, 0, 0);
+    expect(c.isDailyBonusAvailable, isTrue);
+    expect(c.claimDailyBonus(), isTrue);
+    expect(c.state.lastDailyClaimYmd, '2026-09-22');
+    c.dispose();
+  });
+
+  test('daily claim date round-trips through GameState JSON', () {
+    final s = GameState(
+      herdProgress: 0.1,
+      herd: const [],
+      nextId: 1,
+      lastDailyClaimYmd: '2026-09-21',
+    );
+    final back = GameState.fromJson(s.toJson());
+    expect(back.lastDailyClaimYmd, '2026-09-21');
+  });
+
+  test('calendarDayKey pads month and day', () {
+    expect(
+      GameController.calendarDayKey(DateTime(2026, 9, 21)),
+      '2026-09-21',
+    );
+    expect(
+      GameController.calendarDayKey(DateTime(2026, 1, 5)),
+      '2026-01-05',
+    );
+  });
 }

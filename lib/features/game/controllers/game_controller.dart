@@ -10,7 +10,7 @@ import '../models/game_state.dart';
 import '../persistence/game_persistence.dart';
 
 /// Owns [GameState], tick loop, spawn/merge, mud boost, berry basket,
-/// offline progress, persist.
+/// offline progress, soft daily bonus, persist.
 class GameController extends ChangeNotifier {
   GameController({
     GamePersistence? persistence,
@@ -77,6 +77,30 @@ class GameController extends ChangeNotifier {
   void acknowledgeOfflineWelcome() {
     _offlineProgressGranted = 0;
     _offlineSecondsApplied = 0;
+  }
+
+  /// Local calendar day key `YYYY-MM-DD` for [instant].
+  static String calendarDayKey(DateTime instant) {
+    final y = instant.year.toString().padLeft(4, '0');
+    final m = instant.month.toString().padLeft(2, '0');
+    final d = instant.day.toString().padLeft(2, '0');
+    return '$y-$m-$d';
+  }
+
+  String get _todayKey => calendarDayKey(_now());
+
+  /// Soft daily gift available (once per local calendar day, not claimed yet).
+  bool get isDailyBonusAvailable =>
+      _ready && _state.lastDailyClaimYmd != _todayKey;
+
+  /// Claim today's soft daily: +[BalanceV0.dailyBonusProgress] progress.
+  /// Returns false if already claimed today.
+  bool claimDailyBonus() {
+    if (!isDailyBonusAvailable) return false;
+    final day = _todayKey;
+    _setState(_state.copyWith(lastDailyClaimYmd: day));
+    addProgress(BalanceV0.dailyBonusProgress, fromTap: false);
+    return true;
   }
 
   /// Load save (or bootstrap), grant capped offline progress, start ticker.
