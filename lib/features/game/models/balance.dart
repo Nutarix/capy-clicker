@@ -8,7 +8,8 @@ import 'world_zones.dart';
 /// Walkable meadow bounds: `world_zones.dart` / docs/WORLD_ZONES.md.
 abstract final class BalanceV0 {
   /// Auto grass-eat fill rate: fraction of herd progress per second.
-  static const double autoProgressPerSecond = 0.015;
+  /// Playtest P0: bumped 0.015 → 0.020 so the bar clearly crawls (~50 с/шкала).
+  static const double autoProgressPerSecond = 0.020;
 
   /// Progress gained when tapping a flower (fraction 0–1).
   static const double flowerTapGainMin = 0.03;
@@ -172,11 +173,13 @@ abstract final class BalanceV0 {
   /// toward the nearest same-level neighbour and can complete a merge.
   /// Tuned local (~1/10 meadow) — does NOT magnet across the whole field.
   /// Compare: minSpawnSeparation = 0.14; mudHitRadius = 0.11.
-  static const double magnetRadius = 0.10;
+  /// Playtest P1: slightly tighter than 0.10 to cut accidental mid-drag merges.
+  static const double magnetRadius = 0.085;
 
   /// Mid-drag auto-complete when distance ≤ magnetRadius * this fraction.
   /// Drag-end still merges for any hit within the full [magnetRadius].
-  static const double magnetSnapFraction = 0.55;
+  /// Mid-drag auto-complete band (tighter → more release-to-snap).
+  static const double magnetSnapFraction = 0.42;
 
   /// How strongly the drag feedback eases toward the magnet target (0–1).
   static const double magnetPullLerp = 0.28;

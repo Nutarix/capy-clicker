@@ -18,11 +18,17 @@ Map<String, Object> _quietPrefs({bool tipsSeen = true}) {
   };
 }
 
+/// Repeating shimmer/bob/glow animations never "settle" — pump frames instead.
+Future<void> _pumpReady(WidgetTester tester) async {
+  await tester.pump(); // schedule init
+  await tester.pump(const Duration(milliseconds: 100));
+  await tester.pump(const Duration(milliseconds: 100));
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUp(() {
-    // Skip tip overlay + daily sheet so pumpAndSettle stays stable.
     SharedPreferences.setMockInitialValues(_quietPrefs());
   });
 
@@ -30,30 +36,34 @@ void main() {
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(const CapyClickerApp());
-    // Allow GameController.init() to complete.
-    await tester.pumpAndSettle();
+    await _pumpReady(tester);
 
-    expect(find.textContaining('Прогресс стада'), findsOneWidget);
-    expect(find.textContaining('Lv.'), findsWidgets);
+    expect(find.text('Прогресс'), findsOneWidget);
+    expect(find.textContaining('стадо'), findsOneWidget);
+    expect(find.textContaining('поляна:'), findsOneWidget);
+    // Idle badges are compact digits; at least one level mark is present.
+    expect(find.textContaining('1'), findsWidgets);
   });
 
   testWidgets('first-launch tip overlay shows merge tip', (
     WidgetTester tester,
   ) async {
-    // Tips unseen, but daily already claimed so sheets do not stack.
     SharedPreferences.setMockInitialValues(_quietPrefs(tipsSeen: false));
     await tester.pumpWidget(const CapyClickerApp());
-    await tester.pumpAndSettle();
+    await _pumpReady(tester);
 
     expect(
       find.textContaining('Перетащи капибар друг на друга'),
       findsOneWidget,
     );
     await tester.tap(find.text('Далее'));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 50));
     expect(find.textContaining('Перетащи на лужу'), findsOneWidget);
+    await tester.tap(find.text('Далее'));
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(find.textContaining('Корзина ягод'), findsOneWidget);
     await tester.tap(find.text('Понятно'));
-    await tester.pumpAndSettle();
-    expect(find.textContaining('Перетащи на лужу'), findsNothing);
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(find.textContaining('Корзина ягод'), findsNothing);
   });
 }

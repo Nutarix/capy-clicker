@@ -8,12 +8,16 @@ class CapybaraPlaceholder extends StatelessWidget {
     super.key,
     this.level = 1,
     this.showLabel = true,
+    this.compactLabel = false,
     this.sizeOverride,
     this.flash = false,
   });
 
   final int level;
   final bool showLabel;
+
+  /// Smaller / quieter Lv badge (idle herd). Full badge when dragged / merged.
+  final bool compactLabel;
 
   /// Optional absolute width; otherwise derived from [level].
   final double? sizeOverride;
@@ -115,31 +119,41 @@ class CapybaraPlaceholder extends StatelessWidget {
           child: sprite,
         ),
         if (showLabel) ...[
-          const SizedBox(height: 5),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
-            decoration: BoxDecoration(
-              color: _badgeColor.withValues(alpha: 0.92),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: _borderColor.withValues(alpha: 0.55),
-                width: 1.2,
+          SizedBox(height: compactLabel ? 2 : 5),
+          Opacity(
+            opacity: compactLabel ? 0.55 : 1.0,
+            child: Container(
+              padding: EdgeInsets.symmetric(
+                horizontal: compactLabel ? 5 : 9,
+                vertical: compactLabel ? 1 : 3,
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.12),
-                  blurRadius: 4,
-                  offset: const Offset(0, 1),
+              decoration: BoxDecoration(
+                color: _badgeColor.withValues(alpha: compactLabel ? 0.7 : 0.92),
+                borderRadius: BorderRadius.circular(compactLabel ? 7 : 10),
+                border: Border.all(
+                  color: _borderColor.withValues(alpha: compactLabel ? 0.35 : 0.55),
+                  width: compactLabel ? 0.8 : 1.2,
                 ),
-              ],
-            ),
-            child: Text(
-              'Lv.$level',
-              style: TextStyle(
-                color: const Color(0xFF5C3D1E).withValues(alpha: 0.95),
-                fontSize: level >= 5 ? 12 : 11,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.2,
+                boxShadow: compactLabel
+                    ? null
+                    : [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.12),
+                          blurRadius: 4,
+                          offset: const Offset(0, 1),
+                        ),
+                      ],
+              ),
+              child: Text(
+                compactLabel ? '$level' : 'Lv.$level',
+                style: TextStyle(
+                  color: const Color(0xFF5C3D1E).withValues(
+                    alpha: compactLabel ? 0.75 : 0.95,
+                  ),
+                  fontSize: compactLabel ? 9 : (level >= 5 ? 12 : 11),
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.2,
+                ),
               ),
             ),
           ),

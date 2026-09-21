@@ -23,6 +23,8 @@ class MeadowDraggableCapybara extends StatefulWidget {
     this.isWallowing = false,
     this.mergeFlash = false,
     this.magnetAttractedId,
+    this.promoteLevelBadge = false,
+    this.onDragBadge,
     this.onMagnetTargetChanged,
   });
 
@@ -39,6 +41,12 @@ class MeadowDraggableCapybara extends StatefulWidget {
 
   /// Herd id currently being soft-pulled toward (set by the dragged sibling).
   final String? magnetAttractedId;
+
+  /// Show full Lv badge (dragged / recently merged / magnet target).
+  final bool promoteLevelBadge;
+
+  /// Called when this capy starts being dragged (promote its badge).
+  final VoidCallback? onDragBadge;
 
   /// Reports magnet target changes so the parent can glow the attracted capy.
   final ValueChanged<String?>? onMagnetTargetChanged;
@@ -129,6 +137,7 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara> {
     _mergedDuringDrag = false;
     _pullOffset = Offset.zero;
     _notifyMagnet(null);
+    widget.onDragBadge?.call();
   }
 
   void _onDragUpdate(DragUpdateDetails details) {
@@ -183,10 +192,12 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara> {
 
     final magnetHighlight =
         widget.magnetAttractedId == widget.capybara.id;
+    final fullBadge = widget.promoteLevelBadge || magnetHighlight;
 
     Widget visual = CapybaraPlaceholder(
       level: widget.capybara.level,
       flash: widget.mergeFlash,
+      compactLabel: !fullBadge,
     );
     if (widget.isWallowing) {
       visual = WallowOverlay(child: visual);
@@ -214,13 +225,19 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara> {
                 color: Colors.transparent,
                 child: Opacity(
                   opacity: 0.92,
-                  child: CapybaraPlaceholder(level: widget.capybara.level),
+                  child: CapybaraPlaceholder(
+                    level: widget.capybara.level,
+                    compactLabel: false,
+                  ),
                 ),
               ),
             ),
             childWhenDragging: Opacity(
               opacity: 0.22,
-              child: CapybaraPlaceholder(level: widget.capybara.level),
+              child: CapybaraPlaceholder(
+                level: widget.capybara.level,
+                compactLabel: true,
+              ),
             ),
             onDragStarted: _onDragStarted,
             onDragUpdate: _onDragUpdate,
@@ -230,13 +247,19 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara> {
               decoration: highlight
                   ? BoxDecoration(
                       borderRadius: BorderRadius.circular(20),
+                      border: magnetHighlight
+                          ? Border.all(
+                              color: const Color(0xFFFFD54F),
+                              width: 2.5,
+                            )
+                          : null,
                       boxShadow: [
                         BoxShadow(
                           color: Colors.amber.withValues(
-                            alpha: magnetHighlight ? 0.75 : 0.6,
+                            alpha: magnetHighlight ? 0.85 : 0.55,
                           ),
-                          blurRadius: magnetHighlight ? 22 : 18,
-                          spreadRadius: magnetHighlight ? 4 : 3,
+                          blurRadius: magnetHighlight ? 26 : 16,
+                          spreadRadius: magnetHighlight ? 5 : 2,
                         ),
                       ],
                     )

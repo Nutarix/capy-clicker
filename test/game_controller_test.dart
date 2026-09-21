@@ -22,7 +22,7 @@ void main() {
 
     // Simulate ~2 seconds of auto progress without waiting real time.
     c.addProgress(BalanceV0.autoProgressPerSecond * 2, fromTap: false);
-    expect(c.state.herdProgress, closeTo(0.03, 0.001));
+    expect(c.state.herdProgress, closeTo(BalanceV0.autoProgressPerSecond * 2, 0.001));
     c.dispose();
   });
 
@@ -163,11 +163,15 @@ void main() {
     );
     await c.init();
 
-    // Cap = 180s * 0.015 = 2.7 → progress 0.1 + 2.7 = 2.8 → 2 spawns + 0.8 left
+    // Cap = 180s * autoProgressPerSecond → progress 0.1 + grant
     expect(c.offlineSecondsApplied, BalanceV0.offlineCapSeconds);
     expect(c.hasOfflineWelcome, isTrue);
-    expect(c.state.herdCount, 3); // 1 + 2 spawns from offline
-    expect(c.state.herdProgress, closeTo(0.8, 0.01));
+    final grant = BalanceV0.autoProgressPerSecond * BalanceV0.offlineCapSeconds;
+    final total = 0.1 + grant;
+    final spawns = total.floor();
+    final rem = total - spawns;
+    expect(c.state.herdCount, 1 + spawns);
+    expect(c.state.herdProgress, closeTo(rem, 0.01));
 
     c.acknowledgeOfflineWelcome();
     expect(c.hasOfflineWelcome, isFalse);
@@ -326,4 +330,25 @@ void main() {
     expect(c.cameraZoom, greaterThanOrEqualTo(BalanceV0.zoomWidest));
     c.dispose();
   });
+
+  test('unlocked glade stays open after merge shrinks herd', () async {
+    final c = GameController(persistence: GamePersistence());
+    await c.init();
+    // Grow to 3 → Berry Glade unlocks.
+    c.addProgress(1.0, fromTap: true);
+    c.addProgress(1.0, fromTap: true);
+    expect(c.state.herdCount, 3);
+    expect(c.currentGlade.id, 'berry_glade');
+    expect(c.state.sunnyGladeAnnounced, 1);
+
+    // Merge 3 → 2: herd shrinks but Berry Glade stays (no Warm Edge regression).
+    final a = c.state.herd[0].id;
+    final b = c.state.herd[1].id;
+    expect(c.tryMerge(a, b), isTrue);
+    expect(c.state.herdCount, 2);
+    expect(c.currentGlade.id, 'berry_glade');
+    expect(c.currentGlade.nameRu, 'Ягодная поляна');
+    c.dispose();
+  });
+
 }

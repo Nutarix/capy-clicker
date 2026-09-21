@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, kIsWeb, TargetPlatform;
 import 'package:flutter/material.dart';
@@ -29,35 +31,37 @@ class PortraitPhoneFrame extends StatelessWidget {
     if (!useFrame) return child;
 
     final size = MediaQuery.sizeOf(context);
-    final maxH = size.height * 0.90;
+    // Playtest P2: use more of the window (was 0.90 height-only → huge bars).
+    final maxW = size.width * 0.97;
+    final maxH = size.height * 0.97;
+    // Largest 9:16 rect that fits in the available box.
+    final byHeight = maxH * 9 / 16;
+    final byWidth = maxW;
+    final frameW = math.min(byWidth, byHeight);
+    final frameH = frameW * 16 / 9;
 
     return ColoredBox(
       color: _letterbox,
       child: Center(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxHeight: maxH,
-            maxWidth: maxH * 9 / 16,
-          ),
-          child: AspectRatio(
-            aspectRatio: 9 / 16,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: Colors.black,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: _frameBorder, width: 2),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.45),
-                    blurRadius: 28,
-                    offset: const Offset(0, 12),
-                  ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: child,
-              ),
+        child: SizedBox(
+          width: frameW,
+          height: frameH,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: Colors.black,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: _frameBorder, width: 1.5),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.4),
+                  blurRadius: 22,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12.5),
+              child: child,
             ),
           ),
         ),

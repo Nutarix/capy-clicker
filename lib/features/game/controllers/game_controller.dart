@@ -57,8 +57,14 @@ class GameController extends ChangeNotifier {
 
   GameState get state => _state;
   bool get isReady => _ready;
+
+  /// Live auto fill rate (fraction/sec), including mud boost — for HUD «+X%/с».
+  double get autoRatePerSecond {
+    final mult = isMudBoostActive ? BalanceV0.mudBoostMultiplier : 1.0;
+    return BalanceV0.autoProgressPerSecond * mult;
+  }
   double get cameraZoom => BalanceV0.cameraZoomForHerd(
-        _state.herdCount,
+        _meadowKeyForCount(_state.herdCount),
         _state.herd.map((c) => c.position),
       );
 
@@ -77,8 +83,19 @@ class GameController extends ChangeNotifier {
   /// Pending «Солнечные поляны» unlock line (e.g. «Открылась Ягодная поляна»).
   String? get gladeUnlockToast => _gladeUnlockToast;
 
-  /// Active Sunny Glade for the current herd.
-  SunnyGlade get currentGlade => WorldZones.gladeForHerd(_state.herdCount);
+  /// Active Sunny Glade — herd band, but once unlocked it stays open after merge.
+  SunnyGlade get currentGlade =>
+      WorldZones.gladeForHerd(_meadowKeyForCount(_state.herdCount));
+
+  /// Meadow / camera key: never below the unlocked glade's minHerd.
+  /// Fixes playtest "Berry 3/12 → Warm 2/12" feel: merge shrinks herd (correct)
+  /// but must not revoke an already-opened Sunny Glade.
+  int _meadowKeyForCount(int herdCount) {
+    final idx =
+        _state.sunnyGladeAnnounced.clamp(0, WorldZones.glades.length - 1);
+    final unlockedMin = WorldZones.glades[idx].minHerd;
+    return herdCount < unlockedMin ? unlockedMin : herdCount;
+  }
 
   /// Clear unlock toast after the UI shows it (once).
   void acknowledgeGladeUnlock() {
@@ -216,16 +233,19 @@ class GameController extends ChangeNotifier {
     );
   }
 
-  void onFlowerTap() {
+  /// Returns progress fraction granted (for floating «+N%» feedback).
+  double onFlowerTap() {
     final gain =
         BalanceV0.flowerTapGainMin +
         _random.nextDouble() *
             (BalanceV0.flowerTapGainMax - BalanceV0.flowerTapGainMin);
     addProgress(gain, fromTap: true);
+    return gain;
   }
 
-  void onBerryTap() {
-    if (!_berryVisible) return;
+  /// Returns progress fraction granted, or null if basket not visible.
+  double? onBerryTap() {
+    if (!_berryVisible) return null;
     final gain =
         BalanceV0.berryTapGainMin +
         _random.nextDouble() *
@@ -234,6 +254,7 @@ class GameController extends ChangeNotifier {
     _berryVisible = false;
     _scheduleBerryRespawn();
     notifyListeners();
+    return gain;
   }
 
   /// Drop a capybara onto the mud puddle → wallow anim + temporary boost.
@@ -246,7 +267,7 @@ class GameController extends ChangeNotifier {
       capyId,
       WorldZones.clampToMeadow(
         const Offset(BalanceV0.mudCenterX, BalanceV0.mudCenterY),
-        herdCount: _state.herdCount,
+        herdCount: _meadowKeyForCount(_state.herdCount),
       ),
     );
 
@@ -287,7 +308,7 @@ class GameController extends ChangeNotifier {
       level: newLevel,
       position: WorldZones.clampToMeadow(
         target.position,
-        herdCount: remaining.length + 1,
+        herdCount: _meadowKeyForCount(remaining.length + 1),
       ),
     );
 
@@ -311,7 +332,7 @@ class GameController extends ChangeNotifier {
   void updatePosition(String id, Offset normalized) {
     final clamped = WorldZones.clampToMeadow(
       normalized,
-      herdCount: _state.herdCount,
+      herdCount: _meadowKeyForCount(_state.herdCount),
     );
     final herd = _state.herd.map((c) {
       if (c.id != id) return c;
@@ -360,8 +381,8 @@ class GameController extends ChangeNotifier {
   }
 
   Offset _pickSpawnPosition(List<Capybara> existing) {
-    // Meadow expands with the herd that will exist after this spawn.
-    final herdCount = existing.length + 1;
+    // Meadow expands with herd after spawn; never below unlocked glade.
+    final herdCount = _meadowKeyForCount(existing.length + 1);
     const attempts = 24;
     for (var i = 0; i < attempts; i++) {
       final candidate = WorldZones.clampToMeadow(
@@ -400,7 +421,9 @@ class GameController extends ChangeNotifier {
   /// Re-seat positions onto the active Sunny Glade
   /// (trees/canopy stay blocked; shrinks after merge, expands after spawn).
   GameState _clampHerdToMeadow(GameState state) {
-    final n = state.herd.length;
+    final idx = state.sunnyGladeAnnounced.clamp(0, WorldZones.glades.length - 1);
+    final unlockedMin = WorldZones.glades[idx].minHerd;
+    final n = state.herd.length < unlockedMin ? unlockedMin : state.herd.length;
     final herd = [
       for (final c in state.herd)
         c.copyWith(

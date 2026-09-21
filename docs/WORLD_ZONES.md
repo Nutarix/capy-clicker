@@ -45,8 +45,14 @@ When a new glade opens for the first time (persisted
 - «Открылся Солнечный прогал»
 - «Открылся Большой луг»
 
-No toast on relaunch. A small 🌿 chip shows the current glade name under
-the progress bar.
+No toast on relaunch. HUD chips under the progress bar are split:
+
+- **«стадо N/12»** — herd size only
+- **«поляна: …»** — current Sunny Glade name only
+
+Once a glade is unlocked (`sunnyGladeAnnounced`), merge that shrinks the herd
+does **not** revoke it — walkable rect / camera baseline stay on the opened
+glade (fixes playtest “Berry 3/12 → Warm 2/12” regression feel).
 
 ## Entities clamped / placed on meadow only
 

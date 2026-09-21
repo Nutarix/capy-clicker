@@ -13,7 +13,7 @@ void main() {
     test('returns nearest same-level within magnetRadius', () {
       final herd = [
         capy('a', 1, 0.40, 0.50),
-        capy('b', 1, 0.48, 0.50), // dist 0.08 < 0.10
+        capy('b', 1, 0.48, 0.50), // dist 0.08 < magnetRadius
         capy('c', 1, 0.70, 0.50), // far
       ];
       final hit = MergeMagnet.nearestEligible(
@@ -53,7 +53,7 @@ void main() {
     });
 
     test('rejects candidates beyond magnetRadius (no map-wide magnet)', () {
-      // 0.15 > magnetRadius 0.10
+      // 0.15 > magnetRadius (tightened playtest P1)
       final herd = [
         capy('a', 1, 0.30, 0.50),
         capy('b', 1, 0.45, 0.50),
@@ -65,7 +65,7 @@ void main() {
         herd: herd,
         radius: BalanceV0.magnetRadius,
       );
-      expect(BalanceV0.magnetRadius, 0.10);
+      expect(BalanceV0.magnetRadius, lessThanOrEqualTo(0.10));
       expect(hit, isNull);
     });
 

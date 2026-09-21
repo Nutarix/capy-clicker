@@ -2,12 +2,18 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-/// Small tappable flower with scale punch + petal particle burst.
+/// Tappable flower with enlarged hitbox, scale punch + petal burst.
 class FlowerDot extends StatefulWidget {
   const FlowerDot({super.key, required this.color, required this.onTap});
 
   final Color color;
-  final VoidCallback onTap;
+
+  /// Called with the global anchor of the flower (for floating «+N%»).
+  final ValueChanged<Offset> onTap;
+
+  /// Playtest P1: larger standardized hitbox (was 48).
+  static const double hitSize = 68;
+  static const double spriteSize = 40;
 
   @override
   State<FlowerDot> createState() => _FlowerDotState();
@@ -18,6 +24,7 @@ class _FlowerDotState extends State<FlowerDot>
   late final AnimationController _controller;
   late final Animation<double> _scale;
   bool _burst = false;
+  final GlobalKey _key = GlobalKey();
 
   @override
   void initState() {
@@ -27,9 +34,9 @@ class _FlowerDotState extends State<FlowerDot>
       duration: const Duration(milliseconds: 420),
     );
     _scale = TweenSequence<double>([
-      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.45), weight: 28),
-      TweenSequenceItem(tween: Tween(begin: 1.45, end: 0.92), weight: 22),
-      TweenSequenceItem(tween: Tween(begin: 0.92, end: 1.0), weight: 50),
+      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.55), weight: 28),
+      TweenSequenceItem(tween: Tween(begin: 1.55, end: 0.90), weight: 22),
+      TweenSequenceItem(tween: Tween(begin: 0.90, end: 1.0), weight: 50),
     ]).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
     _controller.addStatusListener((status) {
       if (status == AnimationStatus.completed && mounted) {
@@ -44,10 +51,16 @@ class _FlowerDotState extends State<FlowerDot>
     super.dispose();
   }
 
+  Offset _anchorGlobal() {
+    final box = _key.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize) return Offset.zero;
+    return box.localToGlobal(box.size.center(Offset.zero));
+  }
+
   void _handleTap() {
     setState(() => _burst = true);
     _controller.forward(from: 0);
-    widget.onTap();
+    widget.onTap(_anchorGlobal());
   }
 
   @override
@@ -56,8 +69,9 @@ class _FlowerDotState extends State<FlowerDot>
       onTap: _handleTap,
       behavior: HitTestBehavior.opaque,
       child: SizedBox(
-        width: 48,
-        height: 48,
+        key: _key,
+        width: FlowerDot.hitSize,
+        height: FlowerDot.hitSize,
         child: AnimatedBuilder(
           animation: _controller,
           builder: (context, _) {
@@ -65,6 +79,15 @@ class _FlowerDotState extends State<FlowerDot>
               alignment: Alignment.center,
               clipBehavior: Clip.none,
               children: [
+                // Soft invisible hit pad (helps fat-finger taps).
+                Container(
+                  width: FlowerDot.hitSize,
+                  height: FlowerDot.hitSize,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: widget.color.withValues(alpha: 0.06),
+                  ),
+                ),
                 if (_burst)
                   for (var i = 0; i < 6; i++)
                     _PetalParticle(
@@ -76,8 +99,8 @@ class _FlowerDotState extends State<FlowerDot>
                   scale: _scale,
                   child: Image.asset(
                     'assets/images/flower.png',
-                    width: 36,
-                    height: 36,
+                    width: FlowerDot.spriteSize,
+                    height: FlowerDot.spriteSize,
                     fit: BoxFit.contain,
                     filterQuality: FilterQuality.none,
                   ),
@@ -104,7 +127,7 @@ class _PetalParticle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dist = 8 + progress * 22;
+    final dist = 8 + progress * 26;
     final dx = math.cos(angle) * dist;
     final dy = math.sin(angle) * dist - progress * 6;
     final size = 5.0 + (1 - progress) * 3;

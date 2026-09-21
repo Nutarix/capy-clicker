@@ -20,8 +20,9 @@ class MudPuddle extends StatefulWidget {
 }
 
 class _MudPuddleState extends State<MudPuddle>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late final AnimationController _ctrl;
+  late final AnimationController _idleGlow;
 
   @override
   void initState() {
@@ -30,6 +31,10 @@ class _MudPuddleState extends State<MudPuddle>
       vsync: this,
       duration: BalanceV0.mudWallowAnimDuration,
     );
+    _idleGlow = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1800),
+    )..repeat(reverse: true);
   }
 
   @override
@@ -43,19 +48,23 @@ class _MudPuddleState extends State<MudPuddle>
   @override
   void dispose() {
     _ctrl.dispose();
+    _idleGlow.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: _ctrl,
+      animation: Listenable.merge([_ctrl, _idleGlow]),
       builder: (context, _) {
         final t = _ctrl.value;
         final splash = widget.isWallowing ? Curves.easeOut.transform(t) : 0.0;
         final bounce = widget.isWallowing
             ? math.sin(t * math.pi * 3) * (1 - t) * 10
             : 0.0;
+        final idle = widget.boostActive
+            ? 0.45
+            : (0.16 + _idleGlow.value * 0.22);
         return SizedBox(
           width: 110,
           height: 86,
@@ -63,6 +72,21 @@ class _MudPuddleState extends State<MudPuddle>
             alignment: Alignment.center,
             clipBehavior: Clip.none,
             children: [
+              // Soft affordance glow (idle bob of light)
+              Container(
+                width: 96,
+                height: 56,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(40),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF8B5A2B).withValues(alpha: idle),
+                      blurRadius: 16,
+                      spreadRadius: 1,
+                    ),
+                  ],
+                ),
+              ),
               // Soft ground shadow
               Positioned(
                 bottom: 10,
@@ -118,7 +142,9 @@ class _MudPuddleState extends State<MudPuddle>
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    widget.boostActive ? 'грязь ×2!' : 'лужа',
+                    widget.boostActive
+                        ? 'грязь ×2!'
+                        : (widget.isWallowing ? 'лужа' : 'сюда!'),
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,

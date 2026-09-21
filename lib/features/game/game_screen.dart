@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -7,6 +8,7 @@ import 'models/world_zones.dart';
 import 'widgets/berry_basket.dart';
 import 'widgets/draggable_capybara.dart';
 import 'widgets/flower_dot.dart';
+import 'widgets/floating_gain.dart';
 import 'widgets/meadow_background.dart';
 import 'widgets/meadow_decor.dart';
 import 'widgets/mud_puddle.dart';
@@ -35,6 +37,20 @@ class _GameScreenState extends State<GameScreen> {
 
   /// Soft-magnet target while a capy is being dragged (glow on attracted).
   String? _magnetAttractedId;
+
+  /// Floating «+N%» / «×2» popups.
+  final List<FloatingGainEvent> _floats = [];
+  int _floatSeq = 0;
+
+  /// Bumps CreamProgressBar pulse on explicit gains.
+  int _progressPulseToken = 0;
+
+  /// Soft first-appearance hint on berry basket (session).
+  bool _berryHintSeen = false;
+
+  /// Capy ids that should show a prominent Lv badge (drag / recent merge).
+  final Set<String> _badgePromoted = {};
+  Timer? _badgeClearTimer;
 
   /// Colors paired with [WorldZones.flowerPositions] (meadow grass only).
   static const _flowerColors = <Color>[
@@ -128,6 +144,7 @@ class _GameScreenState extends State<GameScreen> {
 
   @override
   void dispose() {
+    _badgeClearTimer?.cancel();
     _controller.removeListener(_onControllerChanged);
     if (_ownsController) {
       _controller.dispose();
@@ -135,14 +152,44 @@ class _GameScreenState extends State<GameScreen> {
     super.dispose();
   }
 
-  void _onFlowerTap() {
-    HapticFeedback.lightImpact();
-    _controller.onFlowerTap();
+  void _spawnFloat(String label, Offset globalAnchor, {Color? color}) {
+    final id = ++_floatSeq;
+    setState(() {
+      _floats.add(
+        FloatingGainEvent(
+          id: id,
+          label: label,
+          globalAnchor: globalAnchor,
+          color: color ?? const Color(0xFF5A9A48),
+        ),
+      );
+      _progressPulseToken++;
+    });
   }
 
-  void _onBerryTap() {
+  void _onFlowerTap(Offset globalAnchor) {
+    HapticFeedback.lightImpact();
+    final gain = _controller.onFlowerTap();
+    final pct = (gain * 100).round().clamp(1, 99);
+    _spawnFloat('+$pct%', globalAnchor);
+  }
+
+  void _onBerryTap(Offset globalAnchor) {
     HapticFeedback.mediumImpact();
-    _controller.onBerryTap();
+    final gain = _controller.onBerryTap();
+    if (gain == null) return;
+    _berryHintSeen = true;
+    final pct = (gain * 100).round().clamp(1, 99);
+    _spawnFloat('+$pct%', globalAnchor, color: const Color(0xFFE03A5C));
+  }
+
+  void _promoteBadge(String id, {Duration hold = const Duration(seconds: 2)}) {
+    setState(() => _badgePromoted.add(id));
+    _badgeClearTimer?.cancel();
+    _badgeClearTimer = Timer(hold, () {
+      if (!mounted) return;
+      setState(() => _badgePromoted.clear());
+    });
   }
 
   void _maybeShowDailyBonus() {
@@ -212,6 +259,8 @@ class _GameScreenState extends State<GameScreen> {
     final ok = _controller.tryMerge(a, b);
     if (ok) {
       HapticFeedback.mediumImpact();
+      final flash = _controller.mergeFlashId;
+      if (flash != null) _promoteBadge(flash);
     }
     return ok;
   }
@@ -220,6 +269,21 @@ class _GameScreenState extends State<GameScreen> {
     final ok = _controller.tryMudWallow(id);
     if (ok) {
       HapticFeedback.lightImpact();
+      // Float near puddle center in meadow space.
+      final box = _meadowKey.currentContext?.findRenderObject() as RenderBox?;
+      if (box != null && box.hasSize) {
+        final local = Offset(
+          BalanceV0.mudCenterX * box.size.width,
+          BalanceV0.mudCenterY * box.size.height,
+        );
+        _spawnFloat(
+          '×2',
+          box.localToGlobal(local),
+          color: const Color(0xFFB8860B),
+        );
+      } else {
+        setState(() => _progressPulseToken++);
+      }
     }
     return ok;
   }
@@ -277,17 +341,23 @@ class _GameScreenState extends State<GameScreen> {
                           children: [
                             CreamProgressBar(
                               value: state.herdProgress,
-                              herdCount: state.herdCount,
                               boostActive: boost,
                               boostSeconds:
                                   _controller.mudBoostRemainingSeconds,
+                              autoRatePerSecond: _controller.autoRatePerSecond,
+                              pulseToken: _progressPulseToken,
                             ),
                             const SizedBox(height: 8),
-                            Align(
-                              alignment: Alignment.centerLeft,
-                              child: _SunnyGladeChip(
-                                nameRu: _controller.currentGlade.nameRu,
-                              ),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 6,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [
+                                _HerdSizeChip(count: state.herdCount),
+                                _SunnyGladeChip(
+                                  nameRu: _controller.currentGlade.nameRu,
+                                ),
+                              ],
                             ),
                           ],
                         ),
@@ -333,8 +403,8 @@ class _GameScreenState extends State<GameScreen> {
                                       final (fx, fy) =
                                           WorldZones.flowerPositions[i];
                                       return Positioned(
-                                        left: fx * w - 22,
-                                        top: fy * h - 22,
+                                        left: fx * w - FlowerDot.hitSize / 2,
+                                        top: fy * h - FlowerDot.hitSize / 2,
                                         child: FlowerDot(
                                           color: _flowerColors[
                                               i % _flowerColors.length],
@@ -347,9 +417,16 @@ class _GameScreenState extends State<GameScreen> {
                                     Positioned(
                                       left: BalanceV0.berryPosX * w - 32,
                                       top: BalanceV0.berryPosY * h - 37,
-                                      child: BerryBasket(onTap: _onBerryTap),
+                                      child: BerryBasket(
+                                        onTap: _onBerryTap,
+                                        showHint: !_berryHintSeen,
+                                      ),
                                     ),
                                   ...state.herd.map((capy) {
+                                    final promote =
+                                        _badgePromoted.contains(capy.id) ||
+                                        _controller.mergeFlashId == capy.id ||
+                                        _magnetAttractedId == capy.id;
                                     return MeadowDraggableCapybara(
                                       key: ValueKey(capy.id),
                                       capybara: capy,
@@ -367,6 +444,9 @@ class _GameScreenState extends State<GameScreen> {
                                       mergeFlash:
                                           _controller.mergeFlashId == capy.id,
                                       magnetAttractedId: _magnetAttractedId,
+                                      promoteLevelBadge: promote,
+                                      onDragBadge: () =>
+                                          _promoteBadge(capy.id),
                                       onMagnetTargetChanged: (id) {
                                         if (_magnetAttractedId == id) return;
                                         setState(() => _magnetAttractedId = id);
@@ -397,6 +477,14 @@ class _GameScreenState extends State<GameScreen> {
                     ),
                   ),
                 ],
+              ),
+              Positioned.fill(
+                child: FloatingGainLayer(
+                  events: List.of(_floats),
+                  onFinished: (id) {
+                    setState(() => _floats.removeWhere((e) => e.id == id));
+                  },
+                ),
               ),
               const Positioned.fill(child: FirstLaunchTipOverlay()),
               if (_controller.isDailyBonusAvailable)
@@ -460,7 +548,36 @@ class _GameScreenState extends State<GameScreen> {
 }
 
 
-/// Soft label for the active «Солнечные поляны» circle.
+/// Explicit herd size — never paired as «Glade N/12» progress.
+class _HerdSizeChip extends StatelessWidget {
+  const _HerdSizeChip({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF8EC).withValues(alpha: 0.95),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2CFA8)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        child: Text(
+          'стадо $count/${BalanceV0.maxHerdSize}',
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF5C3D1E),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Soft label for the active «Солнечные поляны» circle (name only — not N/12).
 class _SunnyGladeChip extends StatelessWidget {
   const _SunnyGladeChip({required this.nameRu});
 
@@ -482,7 +599,7 @@ class _SunnyGladeChip extends StatelessWidget {
             const Text('🌿', style: TextStyle(fontSize: 12)),
             const SizedBox(width: 5),
             Text(
-              nameRu,
+              'поляна: $nameRu',
               style: const TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
