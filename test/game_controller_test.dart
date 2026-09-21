@@ -33,7 +33,7 @@ void main() {
     c.dispose();
   });
 
-  test('merge same level yields level+1', () async {
+  test('merge same level yields level+1 with flash id', () async {
     final c = GameController(persistence: GamePersistence());
     await c.init();
     c.addProgress(1.0, fromTap: true); // now 2 capys Lv.1
@@ -43,6 +43,47 @@ void main() {
     expect(c.tryMerge(a, b), isTrue);
     expect(c.state.herdCount, 1);
     expect(c.state.herd.single.level, 2);
+    expect(c.mergeFlashId, c.state.herd.single.id);
+    c.dispose();
+  });
+
+  test('chain merge reaches higher visual levels', () async {
+    final c = GameController(persistence: GamePersistence());
+    await c.init();
+    // Spawn enough Lv.1 to merge up toward Lv.3+
+    for (var i = 0; i < 3; i++) {
+      c.addProgress(1.0, fromTap: true);
+    }
+    expect(c.state.herdCount, 4); // 1 start + 3
+    // Pairwise merge all Lv.1 → 2 Lv.2
+    while (true) {
+      final ones = c.state.herd.where((e) => e.level == 1).toList();
+      if (ones.length < 2) break;
+      expect(c.tryMerge(ones[0].id, ones[1].id), isTrue);
+    }
+    final twos = c.state.herd.where((e) => e.level == 2).toList();
+    expect(twos.length, greaterThanOrEqualTo(2));
+    expect(c.tryMerge(twos[0].id, twos[1].id), isTrue);
+    expect(c.state.herd.any((e) => e.level == 3), isTrue);
+    expect(
+      BalanceV0.capySizeForLevel(5),
+      greaterThan(BalanceV0.capySizeForLevel(1)),
+    );
+    expect(
+      BalanceV0.capySizeForLevel(6),
+      greaterThan(BalanceV0.capySizeForLevel(5)),
+    );
+    c.dispose();
+  });
+
+  test('herd soft-cap is 10', () async {
+    expect(BalanceV0.maxHerdSize, 10);
+    final c = GameController(persistence: GamePersistence());
+    await c.init();
+    for (var i = 0; i < 20; i++) {
+      c.addProgress(1.0, fromTap: true);
+    }
+    expect(c.state.herdCount, BalanceV0.maxHerdSize);
     c.dispose();
   });
 
@@ -65,5 +106,12 @@ void main() {
     );
     expect(c.isOverMud(const Offset(0.9, 0.2)), isFalse);
     c.dispose();
+  });
+
+  test('zoom widens for large herds', () {
+    expect(BalanceV0.zoomForHerdCount(1), BalanceV0.zoomClose);
+    expect(BalanceV0.zoomForHerdCount(4), BalanceV0.zoomMid);
+    expect(BalanceV0.zoomForHerdCount(7), BalanceV0.zoomFar);
+    expect(BalanceV0.zoomForHerdCount(10), BalanceV0.zoomWidest);
   });
 }

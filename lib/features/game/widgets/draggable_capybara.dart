@@ -18,6 +18,7 @@ class MeadowDraggableCapybara extends StatelessWidget {
     required this.onMudDrop,
     required this.isOverMud,
     this.isWallowing = false,
+    this.mergeFlash = false,
   });
 
   final Capybara capybara;
@@ -28,14 +29,13 @@ class MeadowDraggableCapybara extends StatelessWidget {
   final bool Function(String id) onMudDrop;
   final bool Function(Offset normalized) isOverMud;
   final bool isWallowing;
+  final bool mergeFlash;
 
-  double get _bodyWidth =>
-      BalanceV0.baseCapySize *
-      (1 + (capybara.level - 1) * BalanceV0.scalePerLevel);
+  double get _bodyWidth => BalanceV0.capySizeForLevel(capybara.level);
 
   Size get _footprint {
     final w = _bodyWidth;
-    return Size(w + 8, w * 0.72 + 22);
+    return Size(w + 8, w * 0.78 + 26);
   }
 
   @override
@@ -44,9 +44,15 @@ class MeadowDraggableCapybara extends StatelessWidget {
     final left = capybara.position.dx * meadowSize.width - footprint.width / 2;
     final top = capybara.position.dy * meadowSize.height - footprint.height / 2;
 
-    Widget visual = CapybaraPlaceholder(level: capybara.level);
+    Widget visual = CapybaraPlaceholder(
+      level: capybara.level,
+      flash: mergeFlash,
+    );
     if (isWallowing) {
       visual = WallowOverlay(child: visual);
+    }
+    if (mergeFlash) {
+      visual = _MergePunch(child: visual);
     }
 
     return Positioned(
@@ -92,12 +98,12 @@ class MeadowDraggableCapybara extends StatelessWidget {
               duration: const Duration(milliseconds: 120),
               decoration: highlight
                   ? BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.amber.withValues(alpha: 0.55),
-                          blurRadius: 16,
-                          spreadRadius: 2,
+                          color: Colors.amber.withValues(alpha: 0.6),
+                          blurRadius: 18,
+                          spreadRadius: 3,
                         ),
                       ],
                     )
@@ -108,5 +114,45 @@ class MeadowDraggableCapybara extends StatelessWidget {
         },
       ),
     );
+  }
+}
+
+/// Brief scale punch when a merge creates this capy.
+class _MergePunch extends StatefulWidget {
+  const _MergePunch({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_MergePunch> createState() => _MergePunchState();
+}
+
+class _MergePunchState extends State<_MergePunch>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _scale;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: BalanceV0.mergeFlashDuration,
+    )..forward();
+    _scale = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 0.7, end: 1.22), weight: 40),
+      TweenSequenceItem(tween: Tween(begin: 1.22, end: 1.0), weight: 60),
+    ]).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutBack));
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ScaleTransition(scale: _scale, child: widget.child);
   }
 }

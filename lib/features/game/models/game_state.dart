@@ -32,10 +32,10 @@ class GameState {
   }
 
   Map<String, dynamic> toJson() => {
-        'herdProgress': herdProgress,
-        'nextId': nextId,
-        'herd': herd.map((c) => c.toJson()).toList(),
-      };
+    'herdProgress': herdProgress,
+    'nextId': nextId,
+    'herd': herd.map((c) => c.toJson()).toList(),
+  };
 
   factory GameState.fromJson(Map<String, dynamic> json) {
     final rawHerd = json['herd'] as List<dynamic>? ?? const [];
@@ -48,9 +48,6 @@ class GameState {
     );
   }
 
-  static GameState initial() => const GameState(
-        herdProgress: 0,
-        herd: [],
-        nextId: 1,
-      );
+  static GameState initial() =>
+      const GameState(herdProgress: 0, herd: [], nextId: 1);
 }

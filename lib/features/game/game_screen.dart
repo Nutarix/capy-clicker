@@ -9,6 +9,7 @@ import 'widgets/flower_dot.dart';
 import 'widgets/meadow_background.dart';
 import 'widgets/mud_puddle.dart';
 import 'widgets/progress_bar.dart';
+import 'widgets/tip_overlay.dart';
 
 /// Live game screen: auto progress, flowers, herd, merge, mud, berries, zoom.
 class GameScreen extends StatefulWidget {
@@ -91,95 +92,108 @@ class _GameScreenState extends State<GameScreen> {
     return Scaffold(
       body: MeadowBackground(
         child: SafeArea(
-          child: Column(
+          child: Stack(
             children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
-                child: CreamProgressBar(
-                  value: state.herdProgress,
-                  herdCount: state.herdCount,
-                  boostActive: boost,
-                  boostSeconds: _controller.mudBoostRemainingSeconds,
-                ),
-              ),
-              Expanded(
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final w = constraints.maxWidth;
-                    final h = constraints.maxHeight;
-
-                    return ClipRect(
-                      child: AnimatedScale(
-                        scale: zoom,
-                        duration: const Duration(milliseconds: 450),
-                        curve: Curves.easeInOut,
-                        alignment: Alignment.center,
-                        child: SizedBox(
-                          key: _meadowKey,
-                          width: w,
-                          height: h,
-                          child: Stack(
-                            clipBehavior: Clip.none,
-                            children: [
-                              // Mud puddle (behind capys)
-                              Positioned(
-                                left: BalanceV0.mudCenterX * w - 48,
-                                top: BalanceV0.mudCenterY * h - 36,
-                                child: MudPuddle(
-                                  isWallowing:
-                                      _controller.wallowingCapyId != null,
-                                  boostActive: boost,
-                                ),
-                              ),
-                              ..._flowerLayouts.map((f) {
-                                return Positioned(
-                                  left: f.left * w - 14,
-                                  top: f.top * h - 14,
-                                  child: FlowerDot(
-                                    color: f.color,
-                                    onTap: _onFlowerTap,
-                                  ),
-                                );
-                              }),
-                              if (_controller.isBerryVisible)
-                                Positioned(
-                                  left: BalanceV0.berryPosX * w - 28,
-                                  top: BalanceV0.berryPosY * h - 32,
-                                  child: BerryBasket(onTap: _onBerryTap),
-                                ),
-                              ...state.herd.map((capy) {
-                                return MeadowDraggableCapybara(
-                                  key: ValueKey(capy.id),
-                                  capybara: capy,
-                                  meadowSize: Size(w, h),
-                                  meadowOriginGlobal: _meadowOriginGlobal(),
-                                  onMerge: _controller.tryMerge,
-                                  onDropPosition: _controller.updatePosition,
-                                  onMudDrop: _controller.tryMudWallow,
-                                  isOverMud: _controller.isOverMud,
-                                  isWallowing:
-                                      _controller.wallowingCapyId == capy.id,
-                                );
-                              }),
-                            ],
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12, left: 16, right: 16),
-                child: Text(
-                  'Цветы · ягоды · лужа (×2) · слияние одинакового уровня',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.brown.shade900.withValues(alpha: 0.55),
-                    fontSize: 11,
+              Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
+                    child: CreamProgressBar(
+                      value: state.herdProgress,
+                      herdCount: state.herdCount,
+                      boostActive: boost,
+                      boostSeconds: _controller.mudBoostRemainingSeconds,
+                    ),
                   ),
-                ),
+                  Expanded(
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final w = constraints.maxWidth;
+                        final h = constraints.maxHeight;
+
+                        return ClipRect(
+                          child: AnimatedScale(
+                            scale: zoom,
+                            duration: const Duration(milliseconds: 450),
+                            curve: Curves.easeInOut,
+                            alignment: Alignment.center,
+                            child: SizedBox(
+                              key: _meadowKey,
+                              width: w,
+                              height: h,
+                              child: Stack(
+                                clipBehavior: Clip.none,
+                                children: [
+                                  // Mud puddle (behind capys)
+                                  Positioned(
+                                    left: BalanceV0.mudCenterX * w - 55,
+                                    top: BalanceV0.mudCenterY * h - 43,
+                                    child: MudPuddle(
+                                      isWallowing:
+                                          _controller.wallowingCapyId != null,
+                                      boostActive: boost,
+                                    ),
+                                  ),
+                                  ..._flowerLayouts.map((f) {
+                                    return Positioned(
+                                      left: f.left * w - 22,
+                                      top: f.top * h - 22,
+                                      child: FlowerDot(
+                                        color: f.color,
+                                        onTap: _onFlowerTap,
+                                      ),
+                                    );
+                                  }),
+                                  if (_controller.isBerryVisible)
+                                    Positioned(
+                                      left: BalanceV0.berryPosX * w - 32,
+                                      top: BalanceV0.berryPosY * h - 37,
+                                      child: BerryBasket(onTap: _onBerryTap),
+                                    ),
+                                  ...state.herd.map((capy) {
+                                    return MeadowDraggableCapybara(
+                                      key: ValueKey(capy.id),
+                                      capybara: capy,
+                                      meadowSize: Size(w, h),
+                                      meadowOriginGlobal: _meadowOriginGlobal(),
+                                      onMerge: _controller.tryMerge,
+                                      onDropPosition:
+                                          _controller.updatePosition,
+                                      onMudDrop: _controller.tryMudWallow,
+                                      isOverMud: _controller.isOverMud,
+                                      isWallowing:
+                                          _controller.wallowingCapyId ==
+                                          capy.id,
+                                      mergeFlash:
+                                          _controller.mergeFlashId == capy.id,
+                                    );
+                                  }),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(
+                      bottom: 12,
+                      left: 16,
+                      right: 16,
+                    ),
+                    child: Text(
+                      'Цветы · ягоды · лужа (×2) · слияние одинакового уровня',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.brown.shade900.withValues(alpha: 0.55),
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+                ],
               ),
+              const Positioned.fill(child: FirstLaunchTipOverlay()),
             ],
           ),
         ),

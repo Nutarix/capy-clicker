@@ -11,11 +11,9 @@ import '../persistence/game_persistence.dart';
 
 /// Owns [GameState], tick loop, spawn/merge, mud boost, berry basket, persist.
 class GameController extends ChangeNotifier {
-  GameController({
-    GamePersistence? persistence,
-    Random? random,
-  })  : _persistence = persistence ?? GamePersistence(),
-        _random = random ?? Random();
+  GameController({GamePersistence? persistence, Random? random})
+    : _persistence = persistence ?? GamePersistence(),
+      _random = random ?? Random();
 
   final GamePersistence _persistence;
   final Random _random;
@@ -37,6 +35,10 @@ class GameController extends ChangeNotifier {
   bool _berryVisible = false;
   Timer? _berryTimer;
 
+  /// Id of the capy that just merged (for flash juice).
+  String? _mergeFlashId;
+  Timer? _mergeFlashTimer;
+
   GameState get state => _state;
   bool get isReady => _ready;
   double get cameraZoom => BalanceV0.zoomForHerdCount(_state.herdCount);
@@ -51,6 +53,7 @@ class GameController extends ChangeNotifier {
 
   String? get wallowingCapyId => _wallowingCapyId;
   bool get isBerryVisible => _berryVisible;
+  String? get mergeFlashId => _mergeFlashId;
 
   /// Load save (or bootstrap) then start the auto-progress ticker.
   Future<void> init() async {
@@ -117,15 +120,14 @@ class GameController extends ChangeNotifier {
       progress = progress.clamp(0.0, BalanceV0.spawnThreshold);
     }
 
-    _setState(state.copyWith(
-      herdProgress: progress,
-      herd: herd,
-      nextId: nextId,
-    ));
+    _setState(
+      state.copyWith(herdProgress: progress, herd: herd, nextId: nextId),
+    );
   }
 
   void onFlowerTap() {
-    final gain = BalanceV0.flowerTapGainMin +
+    final gain =
+        BalanceV0.flowerTapGainMin +
         _random.nextDouble() *
             (BalanceV0.flowerTapGainMax - BalanceV0.flowerTapGainMin);
     addProgress(gain, fromTap: true);
@@ -133,7 +135,8 @@ class GameController extends ChangeNotifier {
 
   void onBerryTap() {
     if (!_berryVisible) return;
-    final gain = BalanceV0.berryTapGainMin +
+    final gain =
+        BalanceV0.berryTapGainMin +
         _random.nextDouble() *
             (BalanceV0.berryTapGainMax - BalanceV0.berryTapGainMin);
     addProgress(gain, fromTap: true);
@@ -191,11 +194,21 @@ class GameController extends ChangeNotifier {
       position: target.position,
     );
 
-    _setState(_state.copyWith(
-      herd: [...remaining, merged],
-      nextId: _state.nextId + 1,
-    ));
+    _setState(
+      _state.copyWith(herd: [...remaining, merged], nextId: _state.nextId + 1),
+    );
+    _triggerMergeFlash(merged.id);
     return true;
+  }
+
+  void _triggerMergeFlash(String id) {
+    _mergeFlashId = id;
+    _mergeFlashTimer?.cancel();
+    _mergeFlashTimer = Timer(BalanceV0.mergeFlashDuration, () {
+      _mergeFlashId = null;
+      notifyListeners();
+    });
+    notifyListeners();
   }
 
   void updatePosition(String id, Offset normalized) {
@@ -212,20 +225,18 @@ class GameController extends ChangeNotifier {
 
   void _scheduleFirstBerry() {
     final span = BalanceV0.berryFirstSpawnMax - BalanceV0.berryFirstSpawnMin;
-    final delay = BalanceV0.berryFirstSpawnMin +
-        Duration(
-          milliseconds: _random.nextInt(span.inMilliseconds + 1),
-        );
+    final delay =
+        BalanceV0.berryFirstSpawnMin +
+        Duration(milliseconds: _random.nextInt(span.inMilliseconds + 1));
     _berryTimer?.cancel();
     _berryTimer = Timer(delay, _spawnBerry);
   }
 
   void _scheduleBerryRespawn() {
     final span = BalanceV0.berryRespawnMax - BalanceV0.berryRespawnMin;
-    final delay = BalanceV0.berryRespawnMin +
-        Duration(
-          milliseconds: _random.nextInt(span.inMilliseconds + 1),
-        );
+    final delay =
+        BalanceV0.berryRespawnMin +
+        Duration(milliseconds: _random.nextInt(span.inMilliseconds + 1));
     _berryTimer?.cancel();
     _berryTimer = Timer(delay, _spawnBerry);
   }
@@ -244,11 +255,7 @@ class GameController extends ChangeNotifier {
 
   GameState _spawnCapybara(GameState state, {required int level}) {
     final pos = _pickSpawnPosition(state.herd);
-    final capy = Capybara(
-      id: 'c${state.nextId}',
-      level: level,
-      position: pos,
-    );
+    final capy = Capybara(id: 'c${state.nextId}', level: level, position: pos);
     return state.copyWith(
       herd: [...state.herd, capy],
       nextId: state.nextId + 1,
@@ -269,7 +276,8 @@ class GameController extends ChangeNotifier {
         continue;
       }
       final ok = existing.every(
-        (c) => (c.position - candidate).distance >= BalanceV0.minSpawnSeparation,
+        (c) =>
+            (c.position - candidate).distance >= BalanceV0.minSpawnSeparation,
       );
       if (ok) return candidate;
     }
@@ -301,6 +309,7 @@ class GameController extends ChangeNotifier {
     _persistTimer?.cancel();
     _wallowTimer?.cancel();
     _berryTimer?.cancel();
+    _mergeFlashTimer?.cancel();
     unawaited(_persistence.save(_state));
     super.dispose();
   }

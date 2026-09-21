@@ -1,12 +1,10 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
-/// Small tappable flower that bumps progress and gives light feedback.
+/// Small tappable flower with scale punch + petal particle burst.
 class FlowerDot extends StatefulWidget {
-  const FlowerDot({
-    super.key,
-    required this.color,
-    required this.onTap,
-  });
+  const FlowerDot({super.key, required this.color, required this.onTap});
 
   final Color color;
   final VoidCallback onTap;
@@ -19,18 +17,25 @@ class _FlowerDotState extends State<FlowerDot>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
   late final Animation<double> _scale;
+  bool _burst = false;
 
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 160),
+      duration: const Duration(milliseconds: 420),
     );
     _scale = TweenSequence<double>([
-      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.35), weight: 50),
-      TweenSequenceItem(tween: Tween(begin: 1.35, end: 1.0), weight: 50),
+      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.45), weight: 28),
+      TweenSequenceItem(tween: Tween(begin: 1.45, end: 0.92), weight: 22),
+      TweenSequenceItem(tween: Tween(begin: 0.92, end: 1.0), weight: 50),
     ]).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
+    _controller.addStatusListener((status) {
+      if (status == AnimationStatus.completed && mounted) {
+        setState(() => _burst = false);
+      }
+    });
   }
 
   @override
@@ -40,6 +45,7 @@ class _FlowerDotState extends State<FlowerDot>
   }
 
   void _handleTap() {
+    setState(() => _burst = true);
     _controller.forward(from: 0);
     widget.onTap();
   }
@@ -49,25 +55,87 @@ class _FlowerDotState extends State<FlowerDot>
     return GestureDetector(
       onTap: _handleTap,
       behavior: HitTestBehavior.opaque,
-      child: ScaleTransition(
-        scale: _scale,
+      child: SizedBox(
+        width: 44,
+        height: 44,
+        child: AnimatedBuilder(
+          animation: _controller,
+          builder: (context, _) {
+            return Stack(
+              alignment: Alignment.center,
+              clipBehavior: Clip.none,
+              children: [
+                if (_burst)
+                  for (var i = 0; i < 6; i++)
+                    _PetalParticle(
+                      color: widget.color,
+                      angle: i * math.pi / 3,
+                      progress: Curves.easeOut.transform(_controller.value),
+                    ),
+                ScaleTransition(
+                  scale: _scale,
+                  child: Container(
+                    width: 30,
+                    height: 30,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: widget.color,
+                      boxShadow: [
+                        BoxShadow(
+                          color: widget.color.withValues(alpha: 0.5),
+                          blurRadius: 10,
+                          spreadRadius: 1,
+                        ),
+                      ],
+                      border: Border.all(color: Colors.white70, width: 2.2),
+                    ),
+                    child: const Center(
+                      child: Icon(
+                        Icons.local_florist,
+                        size: 15,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _PetalParticle extends StatelessWidget {
+  const _PetalParticle({
+    required this.color,
+    required this.angle,
+    required this.progress,
+  });
+
+  final Color color;
+  final double angle;
+  final double progress;
+
+  @override
+  Widget build(BuildContext context) {
+    final dist = 8 + progress * 22;
+    final dx = math.cos(angle) * dist;
+    final dy = math.sin(angle) * dist - progress * 6;
+    final size = 5.0 + (1 - progress) * 3;
+
+    return Transform.translate(
+      offset: Offset(dx, dy),
+      child: Opacity(
+        opacity: (1 - progress * 0.95).clamp(0.0, 1.0),
         child: Container(
-          width: 28,
-          height: 28,
+          width: size,
+          height: size,
           decoration: BoxDecoration(
+            color: color,
             shape: BoxShape.circle,
-            color: widget.color,
-            boxShadow: [
-              BoxShadow(
-                color: widget.color.withValues(alpha: 0.45),
-                blurRadius: 8,
-                spreadRadius: 1,
-              ),
-            ],
-            border: Border.all(color: Colors.white70, width: 2),
-          ),
-          child: const Center(
-            child: Icon(Icons.local_florist, size: 14, color: Colors.white),
+            border: Border.all(color: Colors.white54, width: 0.8),
           ),
         ),
       ),

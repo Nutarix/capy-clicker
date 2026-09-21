@@ -14,27 +14,38 @@ abstract final class BalanceV0 {
   /// Progress required to spawn one new level-1 capybara.
   static const double spawnThreshold = 1.0;
 
-  /// Early-game herd size soft cap.
-  static const int maxHerdSize = 8;
+  /// Soft herd size cap (raised in polish pass for roomier meadow play).
+  static const int maxHerdSize = 10;
 
   /// Starting herd: one level-1 capybara.
   static const int startingHerdSize = 1;
   static const int startingLevel = 1;
+
+  /// Highest level we polish visually in Phase 1 (scale + warmer tint).
+  static const int maxVisualLevel = 6;
 
   /// Visual scale multiplier per level: base * (1 + (level-1)*scalePerLevel).
   static const double baseCapySize = 72;
   static const double scalePerLevel = 0.28;
 
   /// Camera zoom steps by herd count (Transform.scale).
-  /// 1–2 close, 3–5 mid, 6+ farther.
+  /// 1–2 close, 3–5 mid, 6–8 farther, 9+ widest.
   static const double zoomClose = 1.0;
   static const double zoomMid = 0.82;
   static const double zoomFar = 0.66;
+  static const double zoomWidest = 0.58;
 
   static double zoomForHerdCount(int count) {
     if (count <= 2) return zoomClose;
     if (count <= 5) return zoomMid;
-    return zoomFar;
+    if (count <= 8) return zoomFar;
+    return zoomWidest;
+  }
+
+  /// Pixel size for a given level (clamped visual growth past maxVisualLevel).
+  static double capySizeForLevel(int level) {
+    final lv = level.clamp(1, maxVisualLevel + 2);
+    return baseCapySize * (1 + (lv - 1) * scalePerLevel);
   }
 
   /// Minimum normalized distance between spawn positions (0–1 meadow space).
@@ -76,4 +87,12 @@ abstract final class BalanceV0 {
   /// Normalized meadow position for the berry basket.
   static const double berryPosX = 0.78;
   static const double berryPosY = 0.72;
+
+  // --- Juice / tips ---
+
+  /// Brief merge flash duration on the new merged capy.
+  static const Duration mergeFlashDuration = Duration(milliseconds: 520);
+
+  /// SharedPreferences key: first-launch tip overlay dismissed.
+  static const String tipsSeenKey = 'capy_clicker_tips_seen_v1';
 }

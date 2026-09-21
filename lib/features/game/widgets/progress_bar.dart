@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/balance.dart';
 
-/// Rounded cream progress bar with green fill and herd / boost status.
+/// Soft cream track + leafy green fill, matching cozy key-art vibe.
 class CreamProgressBar extends StatelessWidget {
   const CreamProgressBar({
     super.key,
@@ -28,8 +28,9 @@ class CreamProgressBar extends StatelessWidget {
         : ' · ${herdCount!}/${BalanceV0.maxHerdSize}';
     final boostLabel = boostActive
         ? ' · грязь ×${BalanceV0.mudBoostMultiplier.toStringAsFixed(0)} '
-            '(${boostSeconds.ceil()}с)'
+              '(${boostSeconds.ceil()}с)'
         : '';
+    final t = value.clamp(0.0, 1.0);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -38,48 +39,77 @@ class CreamProgressBar extends StatelessWidget {
           'Прогресс стада$countLabel$boostLabel',
           textAlign: TextAlign.center,
           style: TextStyle(
-            color: Colors.brown.shade800.withValues(alpha: 0.85),
+            color: const Color(0xFF5C3D1E).withValues(alpha: 0.88),
             fontWeight: FontWeight.w600,
             fontSize: 14,
+            letterSpacing: 0.2,
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 10),
         Container(
-          height: 22,
+          height: 26,
+          padding: const EdgeInsets.all(3),
           decoration: BoxDecoration(
-            color: const Color(0xFFF5E6C8),
-            borderRadius: BorderRadius.circular(12),
+            color: const Color(0xFFF8EDD8),
+            borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.12),
-                blurRadius: 6,
-                offset: const Offset(0, 2),
+                color: Colors.black.withValues(alpha: 0.10),
+                blurRadius: 8,
+                offset: const Offset(0, 3),
+              ),
+              BoxShadow(
+                color: Colors.white.withValues(alpha: 0.55),
+                blurRadius: 0,
+                offset: const Offset(0, -1),
+                spreadRadius: 0,
               ),
             ],
-            border: Border.all(
-              color: const Color(0xFFE8D4A8),
-              width: 1.5,
-            ),
+            border: Border.all(color: const Color(0xFFE2CFA8), width: 1.5),
           ),
-          clipBehavior: Clip.antiAlias,
-          child: FractionallySizedBox(
-            alignment: Alignment.centerLeft,
-            widthFactor: value.clamp(0.0, 1.0),
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: boostActive
-                      ? const [
-                          Color(0xFFD4A017),
-                          Color(0xFFB8860B),
-                        ]
-                      : const [
-                          Color(0xFF7EC850),
-                          Color(0xFF5AA832),
-                        ],
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(13),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                // Soft empty track tint
+                const ColoredBox(color: Color(0xFFF3E4C4)),
+                FractionallySizedBox(
+                  alignment: Alignment.centerLeft,
+                  widthFactor: t,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: boostActive
+                            ? const [
+                                Color(0xFFF0D060),
+                                Color(0xFFD4A017),
+                                Color(0xFFB8860B),
+                              ]
+                            : const [
+                                Color(0xFFA8E070),
+                                Color(0xFF7EC850),
+                                Color(0xFF4F9A30),
+                              ],
+                      ),
+                    ),
+                    child: Align(
+                      alignment: Alignment.topCenter,
+                      child: FractionallySizedBox(
+                        heightFactor: 0.42,
+                        widthFactor: 1,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.28),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
-                borderRadius: BorderRadius.circular(12),
-              ),
+              ],
             ),
           ),
         ),
