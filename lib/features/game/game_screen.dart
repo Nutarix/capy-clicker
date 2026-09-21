@@ -1,22 +1,30 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import 'widgets/capybara_placeholder.dart';
+import 'controllers/game_controller.dart';
+import 'models/balance.dart';
+import 'widgets/berry_basket.dart';
+import 'widgets/draggable_capybara.dart';
 import 'widgets/flower_dot.dart';
 import 'widgets/meadow_background.dart';
+import 'widgets/mud_puddle.dart';
 import 'widgets/progress_bar.dart';
 
-/// Main game screen mock: meadow, progress, one capy, tappable flowers.
+/// Live game screen: auto progress, flowers, herd, merge, mud, berries, zoom.
 class GameScreen extends StatefulWidget {
-  const GameScreen({super.key});
+  const GameScreen({super.key, this.controller});
+
+  /// Optional injected controller (tests / DI).
+  final GameController? controller;
 
   @override
   State<GameScreen> createState() => _GameScreenState();
 }
 
 class _GameScreenState extends State<GameScreen> {
-  /// Starting fill ~55% as a visual placeholder.
-  double _progress = 0.55;
+  late final GameController _controller;
+  late final bool _ownsController;
+  final GlobalKey _meadowKey = GlobalKey();
 
   static const _flowerLayouts = <({double left, double top, Color color})>[
     (left: 0.18, top: 0.42, color: Color(0xFFE87AA0)),
@@ -26,52 +34,153 @@ class _GameScreenState extends State<GameScreen> {
     (left: 0.48, top: 0.48, color: Color(0xFF5AB8E8)),
   ];
 
+  @override
+  void initState() {
+    super.initState();
+    _ownsController = widget.controller == null;
+    _controller = widget.controller ?? GameController();
+    _controller.addListener(_onControllerChanged);
+    _controller.init();
+  }
+
+  void _onControllerChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _controller.removeListener(_onControllerChanged);
+    if (_ownsController) {
+      _controller.dispose();
+    }
+    super.dispose();
+  }
+
   void _onFlowerTap() {
     HapticFeedback.lightImpact();
-    setState(() {
-      _progress = (_progress + 0.03).clamp(0.0, 1.0);
-    });
+    _controller.onFlowerTap();
+  }
+
+  void _onBerryTap() {
+    HapticFeedback.mediumImpact();
+    _controller.onBerryTap();
+  }
+
+  Offset _meadowOriginGlobal() {
+    final box = _meadowKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize) return Offset.zero;
+    return box.localToGlobal(Offset.zero);
   }
 
   @override
   Widget build(BuildContext context) {
+    if (!_controller.isReady) {
+      return const Scaffold(
+        body: MeadowBackground(
+          child: Center(
+            child: CircularProgressIndicator(color: Color(0xFF5A9A48)),
+          ),
+        ),
+      );
+    }
+
+    final state = _controller.state;
+    final zoom = _controller.cameraZoom;
+    final boost = _controller.isMudBoostActive;
+
     return Scaffold(
       body: MeadowBackground(
         child: SafeArea(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final w = constraints.maxWidth;
-              final h = constraints.maxHeight;
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
+                child: CreamProgressBar(
+                  value: state.herdProgress,
+                  herdCount: state.herdCount,
+                  boostActive: boost,
+                  boostSeconds: _controller.mudBoostRemainingSeconds,
+                ),
+              ),
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final w = constraints.maxWidth;
+                    final h = constraints.maxHeight;
 
-              return Stack(
-                children: [
-                  Positioned(
-                    top: 16,
-                    left: 24,
-                    right: 24,
-                    child: CreamProgressBar(value: _progress),
-                  ),
-                  ..._flowerLayouts.map((f) {
-                    return Positioned(
-                      left: f.left * w - 14,
-                      top: f.top * h - 14,
-                      child: FlowerDot(
-                        color: f.color,
-                        onTap: _onFlowerTap,
+                    return ClipRect(
+                      child: AnimatedScale(
+                        scale: zoom,
+                        duration: const Duration(milliseconds: 450),
+                        curve: Curves.easeInOut,
+                        alignment: Alignment.center,
+                        child: SizedBox(
+                          key: _meadowKey,
+                          width: w,
+                          height: h,
+                          child: Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              // Mud puddle (behind capys)
+                              Positioned(
+                                left: BalanceV0.mudCenterX * w - 48,
+                                top: BalanceV0.mudCenterY * h - 36,
+                                child: MudPuddle(
+                                  isWallowing:
+                                      _controller.wallowingCapyId != null,
+                                  boostActive: boost,
+                                ),
+                              ),
+                              ..._flowerLayouts.map((f) {
+                                return Positioned(
+                                  left: f.left * w - 14,
+                                  top: f.top * h - 14,
+                                  child: FlowerDot(
+                                    color: f.color,
+                                    onTap: _onFlowerTap,
+                                  ),
+                                );
+                              }),
+                              if (_controller.isBerryVisible)
+                                Positioned(
+                                  left: BalanceV0.berryPosX * w - 28,
+                                  top: BalanceV0.berryPosY * h - 32,
+                                  child: BerryBasket(onTap: _onBerryTap),
+                                ),
+                              ...state.herd.map((capy) {
+                                return MeadowDraggableCapybara(
+                                  key: ValueKey(capy.id),
+                                  capybara: capy,
+                                  meadowSize: Size(w, h),
+                                  meadowOriginGlobal: _meadowOriginGlobal(),
+                                  onMerge: _controller.tryMerge,
+                                  onDropPosition: _controller.updatePosition,
+                                  onMudDrop: _controller.tryMudWallow,
+                                  isOverMud: _controller.isOverMud,
+                                  isWallowing:
+                                      _controller.wallowingCapyId == capy.id,
+                                );
+                              }),
+                            ],
+                          ),
+                        ),
                       ),
                     );
-                  }),
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: h * 0.12,
-                    child: const Center(
-                      child: CapybaraPlaceholder(),
-                    ),
+                  },
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12, left: 16, right: 16),
+                child: Text(
+                  'Цветы · ягоды · лужа (×2) · слияние одинакового уровня',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.brown.shade900.withValues(alpha: 0.55),
+                    fontSize: 11,
                   ),
-                ],
-              );
-            },
+                ),
+              ),
+            ],
           ),
         ),
       ),
