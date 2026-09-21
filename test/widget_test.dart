@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:capy_clicker/app.dart';
+import 'package:capy_clicker/features/game/audio/game_audio.dart';
 import 'package:capy_clicker/features/game/controllers/game_controller.dart';
 import 'package:capy_clicker/features/game/models/balance.dart';
 
@@ -29,7 +30,12 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUp(() {
+    GameAudio.forceSilent = true;
     SharedPreferences.setMockInitialValues(_quietPrefs());
+  });
+
+  tearDown(() {
+    GameAudio.forceSilent = false;
   });
 
   testWidgets('GameScreen shows progress label after init', (

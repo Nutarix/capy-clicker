@@ -151,8 +151,12 @@ Zoom target = `min(baseZoom, fitZoom)` — если bbox стада (+padding 0.
 | Платформа | Что |
 |---|---|
 | Mobile | `HapticFeedback.lightImpact` на тап цветка / wallow; `mediumImpact` на ягоды и merge |
-| Web / desktop | без SFX (визуальный juice остаётся) |
-| audioplayers | **отложен** — упаковка web+mobile без hassle; см. `store/README.md` |
+| All (audioplayers) | soft BGM loop + short SFX; mute chip in HUD |
+| BGM volume | **0.30** default (`GameAudio.defaultBgmVolume`) |
+| SFX volume | **0.55** default |
+| Mute persist | `capy_clicker_audio_muted_v1` via shared_preferences |
+| Web | BGM waits for first user gesture (autoplay policy) |
+| Assets | original procedural WAV in `assets/audio/` (`tool/gen_audio.py`) |
 
 ## Walkable meadow — «Солнечные поляны»
 
@@ -164,4 +168,4 @@ Zoom target = `min(baseZoom, fitZoom)` — если bbox стада (+padding 0.
 
 ## Вне скоупа v0
 
-IAP, полноценный SFX/audioplayers, новые биомы.
+IAP, новые биомы, richer adaptive music beds.

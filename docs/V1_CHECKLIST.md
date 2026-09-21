@@ -15,6 +15,7 @@
 - **Offline**: capped прогресс (~3 мин авто) + snackbar «Пока тебя не было…»
 - **Утренний уют**: soft daily +25% раз в локальный день (sheet + чип)
 - **Haptics**: light/medium на тап, merge, wallow (мобильные)
+- **Audio**: cozy BGM + soft SFX via audioplayers; mute в HUD (persist)
 - Декор луга: unlock на стаде 3 / 6 / 9
 - Tip overlay на первом запуске (merge + лужа)
 - Пиксель-спрайты с прозрачным фоном (chroma-key)

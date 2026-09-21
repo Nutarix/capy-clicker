@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'audio/game_audio.dart';
 import 'controllers/game_controller.dart';
 import 'models/balance.dart';
 import 'models/world_zones.dart';
@@ -18,10 +19,13 @@ import 'widgets/tip_overlay.dart';
 
 /// Live game screen: auto progress, flowers, herd, merge, mud, berries, zoom.
 class GameScreen extends StatefulWidget {
-  const GameScreen({super.key, this.controller});
+  const GameScreen({super.key, this.controller, this.audio});
 
   /// Optional injected controller (tests / DI).
   final GameController? controller;
+
+  /// Optional audio (pass [GameAudio.silent] / `silent: true` in tests).
+  final GameAudio? audio;
 
   @override
   State<GameScreen> createState() => _GameScreenState();
@@ -30,6 +34,8 @@ class GameScreen extends StatefulWidget {
 class _GameScreenState extends State<GameScreen> {
   late final GameController _controller;
   late final bool _ownsController;
+  late final GameAudio _audio;
+  late final bool _ownsAudio;
   final GlobalKey _meadowKey = GlobalKey();
   bool _offlineWelcomeShown = false;
   bool _dailyPromptShown = false;
@@ -66,8 +72,17 @@ class _GameScreenState extends State<GameScreen> {
     super.initState();
     _ownsController = widget.controller == null;
     _controller = widget.controller ?? GameController();
+    _ownsAudio = widget.audio == null;
+    _audio = widget.audio ?? GameAudio();
+    _audio.addListener(_onAudioChanged);
     _controller.addListener(_onControllerChanged);
     _controller.init();
+    _audio.init();
+  }
+
+  void _onAudioChanged() {
+    if (!mounted) return;
+    setState(() {});
   }
 
   void _onControllerChanged() {
@@ -82,6 +97,7 @@ class _GameScreenState extends State<GameScreen> {
     final msg = _controller.gladeUnlockToast;
     if (msg == null || msg.isEmpty) return;
     _controller.acknowledgeGladeUnlock();
+    _audio.playGlade();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -146,8 +162,12 @@ class _GameScreenState extends State<GameScreen> {
   void dispose() {
     _badgeClearTimer?.cancel();
     _controller.removeListener(_onControllerChanged);
+    _audio.removeListener(_onAudioChanged);
     if (_ownsController) {
       _controller.dispose();
+    }
+    if (_ownsAudio) {
+      _audio.dispose();
     }
     super.dispose();
   }
@@ -169,6 +189,8 @@ class _GameScreenState extends State<GameScreen> {
 
   void _onFlowerTap(Offset globalAnchor) {
     HapticFeedback.lightImpact();
+    unawaited(_audio.noteUserGesture());
+    _audio.playFlower();
     final gain = _controller.onFlowerTap();
     final pct = (gain * 100).round().clamp(1, 99);
     _spawnFloat('+$pct%', globalAnchor);
@@ -176,6 +198,8 @@ class _GameScreenState extends State<GameScreen> {
 
   void _onBerryTap(Offset globalAnchor) {
     HapticFeedback.mediumImpact();
+    unawaited(_audio.noteUserGesture());
+    _audio.playBerry();
     final gain = _controller.onBerryTap();
     if (gain == null) return;
     _berryHintSeen = true;
@@ -259,6 +283,8 @@ class _GameScreenState extends State<GameScreen> {
     final ok = _controller.tryMerge(a, b);
     if (ok) {
       HapticFeedback.mediumImpact();
+      unawaited(_audio.noteUserGesture());
+      _audio.playMerge();
       final flash = _controller.mergeFlashId;
       if (flash != null) _promoteBadge(flash);
     }
@@ -269,6 +295,8 @@ class _GameScreenState extends State<GameScreen> {
     final ok = _controller.tryMudWallow(id);
     if (ok) {
       HapticFeedback.lightImpact();
+      unawaited(_audio.noteUserGesture());
+      _audio.playWallow();
       // Float near puddle center in meadow space.
       final box = _meadowKey.currentContext?.findRenderObject() as RenderBox?;
       if (box != null && box.hasSize) {
@@ -356,6 +384,13 @@ class _GameScreenState extends State<GameScreen> {
                                 _HerdSizeChip(count: state.herdCount),
                                 _SunnyGladeChip(
                                   nameRu: _controller.currentGlade.nameRu,
+                                ),
+                                _MuteChip(
+                                  muted: _audio.isMuted,
+                                  onToggle: () {
+                                    unawaited(_audio.noteUserGesture());
+                                    unawaited(_audio.toggleMute());
+                                  },
                                 ),
                               ],
                             ),
@@ -607,6 +642,54 @@ class _SunnyGladeChip extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Compact mute / unmute control for BGM + SFX.
+class _MuteChip extends StatelessWidget {
+  const _MuteChip({required this.muted, required this.onToggle});
+
+  final bool muted;
+  final VoidCallback onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onToggle,
+        borderRadius: BorderRadius.circular(14),
+        child: Ink(
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFF8EC).withValues(alpha: 0.95),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFE2CFA8)),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  muted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+                  size: 16,
+                  color: const Color(0xFF5C3D1E),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  muted ? 'звук выкл' : 'звук',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF5C3D1E),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

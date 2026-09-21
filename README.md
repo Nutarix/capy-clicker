@@ -44,7 +44,9 @@ flutter analyze
 - **Корзина ягод**: редкий спавн, тап даёт +18–25%, потом респаун 22–38 с
 - **Offline**: при запуске capped прогресс (до ~3 мин авто) + snackbar «Пока тебя не было…»
 - **Утренний уют**: soft daily +25% раз в локальный день (sheet + чип), без energy-gate
-- **Haptics**: light/medium на тап, merge, wallow (SFX/audioplayers отложены)
+- **Haptics**: light/medium на тап, merge, wallow
+- **Audio**: soft cozy BGM (loop ~0.30) + gentle SFX (flower/berry/merge/wallow/glade);
+  mute в HUD, preference в `shared_preferences`; web — BGM после первого жеста
 - **Декор луга**: кусты/камень unlock на стаде 3 / 6 / 9
 - Первый запуск: tip overlay (merge + лужа)
 - Пиксель-спрайты с прозрачным фоном (chroma-key)
@@ -75,6 +77,7 @@ lib/
     models/          # balance, capybara, game_state
     controllers/     # GameController (тик, spawn, merge, mud, berry, offline)
     persistence/     # shared_preferences JSON
+    audio/           # GameAudio (audioplayers BGM+SFX, mute persist)
     widgets/         # meadow, decor, flowers, capy, mud, berry, progress, tips
 docs/
   BALANCE_V0.md
@@ -84,11 +87,31 @@ store/
   icon/app_icon.png
   screenshots/       # 01–03 portrait 1080×1920 (placeholders)
 assets/images/       # chroma-keyed PNG sprites
+assets/audio/        # original procedural WAV (tool/gen_audio.py)
 ```
+
+## Audio
+
+Пакет: [`audioplayers`](https://pub.dev/packages/audioplayers). Ассеты — **оригинальные** procedural WAV
+(`python3 tool/gen_audio.py` → `assets/audio/`), не копирайтный материал.
+
+| Слот | Файл | Громкость по умолчанию |
+|---|---|---|
+| BGM loop | `bgm_cozy.wav` | **0.30** |
+| SFX | `sfx_flower/berry/merge/wallow/glade.wav` | **0.55** |
+
+Mute-чип в HUD («звук» / «звук выкл») пишет `capy_clicker_audio_muted_v1` и глушит **и** BGM, **и** SFX.
+
+### Web quirk
+
+Браузеры блокируют autoplay: BGM стартует / resume только после **первого user gesture**
+(тап цветка, ягоды, merge, wallow или mute). На mobile/desktop BGM пробует стартовать в `init`.
+
+В тестах: `GameAudio.forceSilent = true` или `GameAudio.disabled()`.
 
 ## Следующие шаги (после v1)
 
-См. [`docs/V1_CHECKLIST.md`](docs/V1_CHECKLIST.md): реальные store shots, SFX, IAP (если одобрят), полировка спрайтов.
+См. [`docs/V1_CHECKLIST.md`](docs/V1_CHECKLIST.md): реальные store shots, IAP (если одобрят), полировка спрайтов.
 
 ## Репозиторий
 
