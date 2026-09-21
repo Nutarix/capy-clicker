@@ -13,7 +13,8 @@ import '../../widgets/portrait_menu_stage.dart';
 ///
 /// True portrait presentation: on desktop/web the UI lives in a full-height
 /// 9:16 column (forest blur gutters, no phone chrome). Hierarchy: large title
-/// top, CTA mid, capybara mascot lower.
+/// top, compact CTA close under title, large capybara hero dominating the
+/// lower half. Soft scrims behind title and under capy for readability.
 class MainMenuScreen extends StatefulWidget {
   const MainMenuScreen({
     super.key,
@@ -161,13 +162,14 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                 child: LayoutBuilder(
                   builder: (context, constraints) {
                     final h = constraints.maxHeight;
-                    final titleSize = (h * 0.075).clamp(44.0, 64.0);
-                    final capySize = (h * 0.22).clamp(140.0, 180.0);
+                    final titleSize = (h * 0.072).clamp(44.0, 62.0);
+                    // Hero capy — dominates lower half, not a tiny footer mascot.
+                    final capySize = (h * 0.38).clamp(220.0, 300.0);
 
                     return Stack(
                       fit: StackFit.expand,
                       children: [
-                        // Soft cream wash — atmospheric, low chrome.
+                        // Subtle atmospheric wash (kept light).
                         Positioned.fill(
                           child: DecoratedBox(
                             decoration: BoxDecoration(
@@ -175,22 +177,64 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                                 begin: Alignment.topCenter,
                                 end: Alignment.bottomCenter,
                                 colors: [
-                                  const Color(0xFFF8EDD8).withValues(alpha: 0.32),
+                                  const Color(0xFFF8EDD8).withValues(alpha: 0.18),
                                   Colors.transparent,
-                                  const Color(0xFFF8EDD8).withValues(alpha: 0.22),
+                                  const Color(0xFFF8EDD8).withValues(alpha: 0.12),
                                 ],
-                                stops: const [0.0, 0.42, 1.0],
+                                stops: const [0.0, 0.4, 1.0],
                               ),
                             ),
                           ),
                         ),
-                        // Discrete mute — top-right of the portrait column.
+                        // Soft scrim behind title — readability, not heavy vignette.
+                        Positioned(
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          height: h * 0.32,
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  Colors.black.withValues(alpha: 0.20),
+                                  Colors.black.withValues(alpha: 0.08),
+                                  Colors.transparent,
+                                ],
+                                stops: const [0.0, 0.55, 1.0],
+                              ),
+                            ),
+                          ),
+                        ),
+                        // Soft ground scrim behind/under capy — ground anchor.
+                        Positioned(
+                          bottom: 0,
+                          left: 0,
+                          right: 0,
+                          height: h * 0.48,
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.bottomCenter,
+                                end: Alignment.topCenter,
+                                colors: [
+                                  Colors.black.withValues(alpha: 0.26),
+                                  Colors.black.withValues(alpha: 0.10),
+                                  Colors.transparent,
+                                ],
+                                stops: const [0.0, 0.45, 1.0],
+                              ),
+                            ),
+                          ),
+                        ),
+                        // Icon-only mute — top-right of the portrait column.
                         SafeArea(
                           child: Align(
                             alignment: Alignment.topRight,
                             child: Padding(
-                              padding: const EdgeInsets.only(top: 10, right: 14),
-                              child: _MenuMuteChip(
+                              padding: const EdgeInsets.only(top: 8, right: 10),
+                              child: _MenuMuteIcon(
                                 muted: _audio.isMuted,
                                 onToggle: () {
                                   unawaited(_audio.noteUserGesture());
@@ -200,13 +244,13 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                             ),
                           ),
                         ),
-                        // Vertical stack: title top → CTA → capy bottom.
+                        // Vertical stack: title top → CTA tight under → hero capy.
                         SafeArea(
                           child: Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 20),
                             child: Column(
                               children: [
-                                const SizedBox(height: 28),
+                                const SizedBox(height: 36),
                                 // Title — TOP
                                 Text(
                                   'Grow! Capy!',
@@ -215,21 +259,21 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                                     fontSize: titleSize,
                                   ),
                                 ),
-                                const Spacer(flex: 2),
-                                // Primary CTA — mid
+                                // Tight gap — CTA close under title (no empty mid).
+                                const SizedBox(height: 18),
                                 _CozyPrimaryButton(
                                   label: _hasSave ? 'Продолжить' : 'Играть',
                                   onPressed: _onPrimary,
                                 ),
                                 if (_hasSave) ...[
-                                  const SizedBox(height: 12),
+                                  const SizedBox(height: 10),
                                   _CozySecondaryButton(
                                     label: 'Заново',
                                     onPressed: _confirmNewGame,
                                   ),
                                 ],
-                                const Spacer(flex: 2),
-                                // Capybara mascot — LOWER
+                                // Remaining space → large capy dominates lower half.
+                                const Spacer(),
                                 Image.asset(
                                   'assets/images/capy_lv1.png',
                                   width: capySize,
@@ -240,18 +284,7 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                                     style: TextStyle(fontSize: capySize * 0.57),
                                   ),
                                 ),
-                                const SizedBox(height: 8),
-                                // Soft credit footer
-                                Text(
-                                  'сделано с теплом · Nutarix',
-                                  style: CozyTheme.hudChipMutedStyle(fontSize: 11)
-                                      .copyWith(
-                                    color: Colors.brown.shade900
-                                        .withValues(alpha: 0.42),
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                                const SizedBox(height: 10),
+                                const SizedBox(height: 28),
                               ],
                             ),
                           ),
@@ -266,6 +299,7 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
   }
 }
 
+/// Compact cozy pill — Pixelify label, soft sage (not Material billboard).
 class _CozyPrimaryButton extends StatelessWidget {
   const _CozyPrimaryButton({required this.label, required this.onPressed});
 
@@ -275,34 +309,31 @@ class _CozyPrimaryButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 280),
-      child: SizedBox(
-        width: double.infinity,
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: onPressed,
-            borderRadius: BorderRadius.circular(28),
-            child: Ink(
-              decoration: BoxDecoration(
-                color: const Color(0xFF5A9A48),
-                borderRadius: BorderRadius.circular(28),
-                border: Border.all(color: const Color(0xFF3F6F34), width: 2),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.22),
-                    blurRadius: 12,
-                    offset: const Offset(0, 5),
-                  ),
-                ],
-              ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                child: Text(
-                  label,
-                  textAlign: TextAlign.center,
-                  style: CozyTheme.primaryButtonStyle(),
+      constraints: const BoxConstraints(maxWidth: 200),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(22),
+          child: Ink(
+            decoration: BoxDecoration(
+              color: CozyTheme.softSage,
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: CozyTheme.softSageEdge, width: 2),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.18),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
                 ),
+              ],
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 10),
+              child: Text(
+                label,
+                textAlign: TextAlign.center,
+                style: CozyTheme.menuPrimaryCtaStyle(fontSize: 16),
               ),
             ),
           ),
@@ -321,27 +352,24 @@ class _CozySecondaryButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 280),
-      child: SizedBox(
-        width: double.infinity,
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: onPressed,
-            borderRadius: BorderRadius.circular(22),
-            child: Ink(
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFF8EC).withValues(alpha: 0.88),
-                borderRadius: BorderRadius.circular(22),
-                border: Border.all(color: const Color(0xFFE2CFA8), width: 1.5),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 11),
-                child: Text(
-                  label,
-                  textAlign: TextAlign.center,
-                  style: CozyTheme.secondaryButtonStyle(),
-                ),
+      constraints: const BoxConstraints(maxWidth: 180),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(18),
+          child: Ink(
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFF8EC).withValues(alpha: 0.82),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: const Color(0xFFE2CFA8), width: 1.5),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              child: Text(
+                label,
+                textAlign: TextAlign.center,
+                style: CozyTheme.secondaryButtonStyle(fontSize: 13),
               ),
             ),
           ),
@@ -351,39 +379,34 @@ class _CozySecondaryButton extends StatelessWidget {
   }
 }
 
-class _MenuMuteChip extends StatelessWidget {
-  const _MenuMuteChip({required this.muted, required this.onToggle});
+/// Icon-only mute control (no cream chip, no «звук» label).
+class _MenuMuteIcon extends StatelessWidget {
+  const _MenuMuteIcon({required this.muted, required this.onToggle});
 
   final bool muted;
   final VoidCallback onToggle;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onToggle,
-        borderRadius: BorderRadius.circular(14),
-        child: Ink(
-          decoration: BoxDecoration(
-            color: const Color(0xFFFFF8EC).withValues(alpha: 0.88),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFFE2CFA8)),
-          ),
+    return Semantics(
+      button: true,
+      label: muted ? 'Включить звук' : 'Выключить звук',
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onToggle,
+          customBorder: const CircleBorder(),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  muted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
-                  size: 16,
-                  color: const Color(0xFF5C3D1E),
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  muted ? 'звук выкл' : 'звук',
-                  style: CozyTheme.hudChipMutedStyle(),
+            padding: const EdgeInsets.all(8),
+            child: Icon(
+              muted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+              size: 22,
+              color: CozyTheme.cream.withValues(alpha: 0.92),
+              shadows: const [
+                Shadow(
+                  offset: Offset(0, 1),
+                  blurRadius: 4,
+                  color: Color(0x66000000),
                 ),
               ],
             ),

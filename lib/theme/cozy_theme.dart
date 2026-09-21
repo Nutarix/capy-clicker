@@ -3,8 +3,9 @@ import 'package:google_fonts/google_fonts.dart';
 
 /// Cozy Stardew-adjacent typography.
 ///
-/// - **Pixelify Sans** — display / Latin title («Grow! Capy!»).
-/// - **Nunito** — body, buttons, HUD (soft rounded OFL with solid Cyrillic).
+/// - **Pixelify Sans** — display title («Grow! Capy!») and primary menu CTA.
+/// - **Nunito** — dialogs, HUD chips, Cyrillic fallback for tiny accessibility
+///   labels (menu mute is icon-only).
 class CozyTheme {
   CozyTheme._();
 
@@ -14,6 +15,9 @@ class CozyTheme {
   static const softBrown = Color(0xFF8A6A45);
   static const meadowGreen = Color(0xFF6B9B4A);
   static const buttonGreen = Color(0xFF5A9A48);
+  /// Soft sage for cozy menu CTA pill (not Material discord green).
+  static const softSage = Color(0xFF7AAD68);
+  static const softSageEdge = Color(0xFF4F7A42);
 
   static ThemeData build() {
     final colorScheme = ColorScheme.fromSeed(
@@ -71,7 +75,7 @@ class CozyTheme {
   }
 
   /// Large stylized main-menu title: warm cream/gold fill + soft brown outline.
-  /// Sized for top-third wordmark (Stardew-adjacent dominating logo).
+  /// Sized for top wordmark (Stardew-adjacent dominating logo).
   static TextStyle menuTitleStyle({double fontSize = 52}) {
     final outline = warmBrown;
     return GoogleFonts.pixelifySans(
@@ -99,6 +103,26 @@ class CozyTheme {
       ],
     );
   }
+
+  /// Primary menu CTA — same Pixelify family as title; compact cozy size.
+  /// Nunito is listed as fallback for Cyrillic glyphs Pixelify lacks.
+  static TextStyle menuPrimaryCtaStyle({double fontSize = 16}) {
+    final pixel = GoogleFonts.pixelifySans(
+      fontSize: fontSize,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 1.0,
+      height: 1.1,
+      color: cream,
+    );
+    final nunitoFamily = GoogleFonts.nunito().fontFamily;
+    return pixel.copyWith(
+      fontFamilyFallback: [
+        ?nunitoFamily,
+        'Nunito',
+      ],
+    );
+  }
+
   static TextStyle primaryButtonStyle({double fontSize = 20}) {
     return GoogleFonts.nunito(
       fontSize: fontSize,
