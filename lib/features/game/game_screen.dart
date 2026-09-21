@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import 'controllers/game_controller.dart';
 import 'models/balance.dart';
+import 'models/world_zones.dart';
 import 'widgets/berry_basket.dart';
 import 'widgets/draggable_capybara.dart';
 import 'widgets/flower_dot.dart';
@@ -32,12 +33,13 @@ class _GameScreenState extends State<GameScreen> {
   bool _dailyPromptShown = false;
   bool _dailySheetOpen = false;
 
-  static const _flowerLayouts = <({double left, double top, Color color})>[
-    (left: 0.18, top: 0.42, color: Color(0xFFE87AA0)),
-    (left: 0.72, top: 0.38, color: Color(0xFFF0C040)),
-    (left: 0.28, top: 0.58, color: Color(0xFF9B6BDE)),
-    (left: 0.78, top: 0.55, color: Color(0xFFE85A5A)),
-    (left: 0.48, top: 0.48, color: Color(0xFF5AB8E8)),
+  /// Colors paired with [WorldZones.flowerPositions] (meadow grass only).
+  static const _flowerColors = <Color>[
+    Color(0xFFE87AA0),
+    Color(0xFFF0C040),
+    Color(0xFF9B6BDE),
+    Color(0xFFE85A5A),
+    Color(0xFF5AB8E8),
   ];
 
   @override
@@ -276,16 +278,22 @@ class _GameScreenState extends State<GameScreen> {
                                       boostActive: boost,
                                     ),
                                   ),
-                                  ..._flowerLayouts.map((f) {
-                                    return Positioned(
-                                      left: f.left * w - 22,
-                                      top: f.top * h - 22,
-                                      child: FlowerDot(
-                                        color: f.color,
-                                        onTap: _onFlowerTap,
-                                      ),
-                                    );
-                                  }),
+                                  ...List.generate(
+                                    WorldZones.flowerPositions.length,
+                                    (i) {
+                                      final (fx, fy) =
+                                          WorldZones.flowerPositions[i];
+                                      return Positioned(
+                                        left: fx * w - 22,
+                                        top: fy * h - 22,
+                                        child: FlowerDot(
+                                          color: _flowerColors[
+                                              i % _flowerColors.length],
+                                          onTap: _onFlowerTap,
+                                        ),
+                                      );
+                                    },
+                                  ),
                                   if (_controller.isBerryVisible)
                                     Positioned(
                                       left: BalanceV0.berryPosX * w - 32,

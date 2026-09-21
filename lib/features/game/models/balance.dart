@@ -1,5 +1,6 @@
 /// Tunable balance constants for Phase 1–2 (v0).
 /// See docs/BALANCE_V0.md for rationale.
+/// Walkable meadow bounds: `world_zones.dart` / docs/WORLD_ZONES.md.
 abstract final class BalanceV0 {
   /// Auto grass-eat fill rate: fraction of herd progress per second.
   static const double autoProgressPerSecond = 0.015;
@@ -66,9 +67,10 @@ abstract final class BalanceV0 {
   /// Hard floor: ignore tiny gaps (app background flicker).
   static const int offlineMinSeconds = 8;
 
-  // --- Mud wallow / puddle ---
+  // --- Mud wallow / puddle (must stay inside WorldZones meadow) ---
 
-  /// Normalized meadow rect for the mud puddle (center + radius for hit).
+  /// Normalized meadow position for the mud puddle (center + radius for hit).
+  /// Must remain inside [WorldZones] walkable grass clearing (not on trees).
   static const double mudCenterX = 0.22;
   static const double mudCenterY = 0.78;
   static const double mudHitRadius = 0.11;
@@ -96,7 +98,8 @@ abstract final class BalanceV0 {
   static const Duration berryFirstSpawnMin = Duration(seconds: 8);
   static const Duration berryFirstSpawnMax = Duration(seconds: 16);
 
-  /// Normalized meadow position for the berry basket.
+  /// Normalized meadow position for the berry basket (grass clearing only).
+  /// Must remain inside [WorldZones] walkable meadow — never on tree trunks.
   static const double berryPosX = 0.78;
   static const double berryPosY = 0.72;
 

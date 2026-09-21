@@ -128,6 +128,21 @@
 | Web / desktop | без SFX (визуальный juice остаётся) |
 | audioplayers | **отложен** — упаковка web+mobile без hassle; см. `store/README.md` |
 
+
+
+## Walkable meadow zone (forest bg)
+
+Капибары, цветы, ягоды и лужа живут **только на травяной поляне**.
+Деревья / крона — blocked. Rect (норм. 0–1):
+
+| Edge | Value |
+|---|---|
+| left / right | **0.10 … 0.86** |
+| top / bottom | **0.52 … 0.92** |
+
+Код: `WorldZones` (`lib/features/game/models/world_zones.dart`).
+Подробнее: `docs/WORLD_ZONES.md`.
+
 ## Вне скоупа v0
 
 IAP, полноценный SFX/audioplayers, новые биомы.

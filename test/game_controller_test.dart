@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:capy_clicker/features/game/controllers/game_controller.dart';
 import 'package:capy_clicker/features/game/models/balance.dart';
+import 'package:capy_clicker/features/game/models/world_zones.dart';
 import 'package:capy_clicker/features/game/models/game_state.dart';
 import 'package:capy_clicker/features/game/persistence/game_persistence.dart';
 
@@ -236,5 +237,48 @@ void main() {
       GameController.calendarDayKey(DateTime(2026, 1, 5)),
       '2026-01-05',
     );
+  });
+
+
+  test('spawn and drag-end clamp into walkable meadow', () async {
+    final c = GameController(persistence: GamePersistence());
+    await c.init();
+    for (final capy in c.state.herd) {
+      expect(WorldZones.isInMeadow(capy.position), isTrue);
+    }
+    // Fill herd — every spawn must land on grass.
+    for (var i = 0; i < 11; i++) {
+      c.addProgress(1.0, fromTap: true);
+    }
+    expect(c.state.herdCount, BalanceV0.maxHerdSize);
+    for (final capy in c.state.herd) {
+      expect(
+        WorldZones.isInMeadow(capy.position),
+        isTrue,
+        reason: 'spawn ${capy.id} at ${capy.position}',
+      );
+    }
+
+    final id = c.state.herd.first.id;
+    // Drag onto tree canopy / edge — must snap into meadow.
+    c.updatePosition(id, const Offset(0.02, 0.15));
+    final moved = c.state.herd.firstWhere((e) => e.id == id);
+    expect(moved.position.dx, WorldZones.meadowLeft);
+    expect(moved.position.dy, WorldZones.meadowTop);
+    expect(WorldZones.isInMeadow(moved.position), isTrue);
+    c.dispose();
+  });
+
+  test('loaded out-of-zone positions are reclamped on init', () async {
+    SharedPreferences.setMockInitialValues({
+      'capy_clicker_game_state_v1':
+          '{"herdProgress":0.0,"nextId":2,'
+          '"herd":[{"id":"c1","level":1,"x":0.02,"y":0.10}]}',
+    });
+    final c = GameController(persistence: GamePersistence());
+    await c.init();
+    expect(c.state.herd.single.position.dx, WorldZones.meadowLeft);
+    expect(c.state.herd.single.position.dy, WorldZones.meadowTop);
+    c.dispose();
   });
 }

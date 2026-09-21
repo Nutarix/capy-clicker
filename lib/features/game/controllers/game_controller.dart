@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import '../models/balance.dart';
 import '../models/capybara.dart';
 import '../models/game_state.dart';
+import '../models/world_zones.dart';
 import '../persistence/game_persistence.dart';
 
 /// Owns [GameState], tick loop, spawn/merge, mud boost, berry basket,
@@ -107,7 +108,7 @@ class GameController extends ChangeNotifier {
   Future<void> init() async {
     final loaded = await _persistence.load();
     if (loaded != null && loaded.herd.isNotEmpty) {
-      _state = loaded;
+      _state = _clampHerdToMeadow(loaded);
       _applyOfflineProgress();
     } else {
       _state = _bootstrap();
@@ -223,7 +224,9 @@ class GameController extends ChangeNotifier {
     // Snap capy onto puddle center while animating.
     updatePosition(
       capyId,
-      const Offset(BalanceV0.mudCenterX, BalanceV0.mudCenterY),
+      WorldZones.clampToMeadow(
+        const Offset(BalanceV0.mudCenterX, BalanceV0.mudCenterY),
+      ),
     );
 
     _wallowingCapyId = capyId;
@@ -261,7 +264,7 @@ class GameController extends ChangeNotifier {
     final merged = Capybara(
       id: 'c${_state.nextId}',
       level: newLevel,
-      position: target.position,
+      position: WorldZones.clampToMeadow(target.position),
     );
 
     _setState(
@@ -282,10 +285,7 @@ class GameController extends ChangeNotifier {
   }
 
   void updatePosition(String id, Offset normalized) {
-    final clamped = Offset(
-      normalized.dx.clamp(0.08, 0.92),
-      normalized.dy.clamp(0.2, 0.88),
-    );
+    final clamped = WorldZones.clampToMeadow(normalized);
     final herd = _state.herd.map((c) {
       if (c.id != id) return c;
       return c.copyWith(position: clamped);
@@ -335,14 +335,18 @@ class GameController extends ChangeNotifier {
   Offset _pickSpawnPosition(List<Capybara> existing) {
     const attempts = 24;
     for (var i = 0; i < attempts; i++) {
-      final candidate = Offset(
-        0.12 + _random.nextDouble() * 0.76,
-        0.28 + _random.nextDouble() * 0.55,
+      final candidate = WorldZones.clampToMeadow(
+        WorldZones.randomInMeadow(_random.nextDouble),
       );
       // Keep away from mud puddle and berry spot.
       final mudDx = candidate.dx - BalanceV0.mudCenterX;
       final mudDy = candidate.dy - BalanceV0.mudCenterY;
       if (sqrt(mudDx * mudDx + mudDy * mudDy) < BalanceV0.mudHitRadius + 0.08) {
+        continue;
+      }
+      final berryDx = candidate.dx - BalanceV0.berryPosX;
+      final berryDy = candidate.dy - BalanceV0.berryPosY;
+      if (sqrt(berryDx * berryDx + berryDy * berryDy) < 0.10) {
         continue;
       }
       final ok = existing.every(
@@ -353,10 +357,21 @@ class GameController extends ChangeNotifier {
     }
     final n = existing.length;
     final angle = n * 2.4;
-    return Offset(
-      (0.5 + 0.22 * cos(angle)).clamp(0.12, 0.88),
-      (0.55 + 0.18 * sin(angle)).clamp(0.28, 0.85),
+    final cx = (WorldZones.meadowLeft + WorldZones.meadowRight) / 2;
+    final cy = (WorldZones.meadowTop + WorldZones.meadowBottom) / 2;
+    return WorldZones.clampToMeadow(
+      Offset(cx + 0.18 * cos(angle), cy + 0.12 * sin(angle)),
     );
+  }
+
+
+  /// Re-seat any persisted positions that fell on blocked tree/canopy areas.
+  GameState _clampHerdToMeadow(GameState state) {
+    final herd = [
+      for (final c in state.herd)
+        c.copyWith(position: WorldZones.clampToMeadow(c.position)),
+    ];
+    return state.copyWith(herd: herd);
   }
 
   void _setState(GameState next) {
