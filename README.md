@@ -45,9 +45,9 @@ flutter analyze
 - **Offline**: при запуске capped прогресс (до ~3 мин авто) + snackbar «Пока тебя не было…»
 - **Утренний уют**: soft daily +25% раз в локальный день (sheet + чип), без energy-gate
 - **Haptics**: light/medium на тап, merge, wallow
-- **Главное меню**: full-bleed forest title screen (без phone frame); large top wordmark + tagline;
-  capy в нижней трети; «Играть»/«Продолжить» pill + «Заново»; mute corner; из игры — «меню»
-  (дизайн: [`docs/MENU_DESIGN.md`](docs/MENU_DESIGN.md))
+- **Главное меню**: portrait 9:16 column на desktop/web (forest blur gutters, без phone chrome);
+  large top wordmark (без tagline); CTA mid; capy внизу; «Играть»/«Продолжить» + «Заново»; mute;
+  из игры — «меню» (дизайн: [`docs/MENU_DESIGN.md`](docs/MENU_DESIGN.md))
 - **Audio**: soft cozy BGM (loop ~0.30) + gentle SFX (flower/berry/merge/wallow/glade);
   mute в HUD/меню, preference в `shared_preferences`; web — BGM после первого жеста
 - **Декор луга**: кусты/камень unlock на стаде 3 / 6 / 9

@@ -57,7 +57,6 @@ void main() {
     await _pumpReady(tester);
 
     expect(find.text('Grow! Capy!'), findsOneWidget);
-    expect(find.text('цветы · стадо · уют'), findsOneWidget);
     expect(find.text('Продолжить'), findsOneWidget);
     expect(find.text('Заново'), findsOneWidget);
     expect(find.text('Прогресс'), findsNothing);

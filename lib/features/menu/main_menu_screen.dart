@@ -7,11 +7,13 @@ import '../game/audio/game_audio.dart';
 import '../game/persistence/game_persistence.dart';
 import '../game/widgets/meadow_background.dart';
 import '../../theme/cozy_theme.dart';
+import '../../widgets/portrait_menu_stage.dart';
 
 /// Soft cozy title screen shown before [GameScreen].
 ///
-/// Full-bleed forest (no phone letterbox). Hierarchy: large title top third,
-/// scannable CTA mid/lower, capybara mascot lower third — Stardew-adjacent.
+/// True portrait presentation: on desktop/web the UI lives in a full-height
+/// 9:16 column (forest blur gutters, no phone chrome). Hierarchy: large title
+/// top, CTA mid, capybara mascot lower.
 class MainMenuScreen extends StatefulWidget {
   const MainMenuScreen({
     super.key,
@@ -149,139 +151,115 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.sizeOf(context);
-    // Scale title for short phones without shrinking the wordmark identity.
-    final titleSize = (size.height * 0.075).clamp(44.0, 64.0);
-
     return Scaffold(
       body: MeadowBackground(
         child: !_ready
             ? const Center(
                 child: CircularProgressIndicator(color: Color(0xFF5A9A48)),
               )
-            : Stack(
-                fit: StackFit.expand,
-                children: [
-                  // Soft cream wash — atmospheric, low chrome.
-                  Positioned.fill(
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            const Color(0xFFF8EDD8).withValues(alpha: 0.32),
-                            Colors.transparent,
-                            const Color(0xFFF8EDD8).withValues(alpha: 0.22),
-                          ],
-                          stops: const [0.0, 0.42, 1.0],
-                        ),
-                      ),
-                    ),
-                  ),
-                  // Discrete mute — top-right corner, not competing with CTA.
-                  SafeArea(
-                    child: Align(
-                      alignment: Alignment.topRight,
-                      child: Padding(
-                        padding: const EdgeInsets.only(top: 10, right: 14),
-                        child: _MenuMuteChip(
-                          muted: _audio.isMuted,
-                          onToggle: () {
-                            unawaited(_audio.noteUserGesture());
-                            unawaited(_audio.toggleMute());
-                          },
-                        ),
-                      ),
-                    ),
-                  ),
-                  // Title / tagline — TOP third (dominating identity).
-                  SafeArea(
-                    child: Align(
-                      alignment: const Alignment(0, -0.72),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              'Grow! Capy!',
-                              textAlign: TextAlign.center,
-                              style: CozyTheme.menuTitleStyle(
-                                fontSize: titleSize,
+            : PortraitMenuStage(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final h = constraints.maxHeight;
+                    final titleSize = (h * 0.075).clamp(44.0, 64.0);
+                    final capySize = (h * 0.22).clamp(140.0, 180.0);
+
+                    return Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        // Soft cream wash — atmospheric, low chrome.
+                        Positioned.fill(
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  const Color(0xFFF8EDD8).withValues(alpha: 0.32),
+                                  Colors.transparent,
+                                  const Color(0xFFF8EDD8).withValues(alpha: 0.22),
+                                ],
+                                stops: const [0.0, 0.42, 1.0],
                               ),
                             ),
-                            const SizedBox(height: 10),
-                            Text(
-                              'цветы · стадо · уют',
-                              textAlign: TextAlign.center,
-                              style: CozyTheme.menuTaglineStyle(),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  // Primary CTA — lower-mid, clear pill above mascot.
-                  SafeArea(
-                    child: Align(
-                      alignment: const Alignment(0, 0.28),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 40),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            _CozyPrimaryButton(
-                              label: _hasSave ? 'Продолжить' : 'Играть',
-                              onPressed: _onPrimary,
-                            ),
-                            if (_hasSave) ...[
-                              const SizedBox(height: 12),
-                              _CozySecondaryButton(
-                                label: 'Заново',
-                                onPressed: _confirmNewGame,
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  // Capybara mascot — LOWER third, larger.
-                  SafeArea(
-                    child: Align(
-                      alignment: const Alignment(0, 0.82),
-                      child: Image.asset(
-                        'assets/images/capy_lv1.png',
-                        width: 168,
-                        height: 168,
-                        filterQuality: FilterQuality.none,
-                        errorBuilder: (_, _, _) => const Text(
-                          '🦫',
-                          style: TextStyle(fontSize: 96),
-                        ),
-                      ),
-                    ),
-                  ),
-                  // Soft credit footer — quiet, bottom edge.
-                  SafeArea(
-                    child: Align(
-                      alignment: Alignment.bottomCenter,
-                      child: Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: Text(
-                          'сделано с теплом · Nutarix',
-                          style: CozyTheme.hudChipMutedStyle(fontSize: 11)
-                              .copyWith(
-                            color: Colors.brown.shade900
-                                .withValues(alpha: 0.42),
-                            fontWeight: FontWeight.w500,
                           ),
                         ),
-                      ),
-                    ),
-                  ),
-                ],
+                        // Discrete mute — top-right of the portrait column.
+                        SafeArea(
+                          child: Align(
+                            alignment: Alignment.topRight,
+                            child: Padding(
+                              padding: const EdgeInsets.only(top: 10, right: 14),
+                              child: _MenuMuteChip(
+                                muted: _audio.isMuted,
+                                onToggle: () {
+                                  unawaited(_audio.noteUserGesture());
+                                  unawaited(_audio.toggleMute());
+                                },
+                              ),
+                            ),
+                          ),
+                        ),
+                        // Vertical stack: title top → CTA → capy bottom.
+                        SafeArea(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            child: Column(
+                              children: [
+                                const SizedBox(height: 28),
+                                // Title — TOP
+                                Text(
+                                  'Grow! Capy!',
+                                  textAlign: TextAlign.center,
+                                  style: CozyTheme.menuTitleStyle(
+                                    fontSize: titleSize,
+                                  ),
+                                ),
+                                const Spacer(flex: 2),
+                                // Primary CTA — mid
+                                _CozyPrimaryButton(
+                                  label: _hasSave ? 'Продолжить' : 'Играть',
+                                  onPressed: _onPrimary,
+                                ),
+                                if (_hasSave) ...[
+                                  const SizedBox(height: 12),
+                                  _CozySecondaryButton(
+                                    label: 'Заново',
+                                    onPressed: _confirmNewGame,
+                                  ),
+                                ],
+                                const Spacer(flex: 2),
+                                // Capybara mascot — LOWER
+                                Image.asset(
+                                  'assets/images/capy_lv1.png',
+                                  width: capySize,
+                                  height: capySize,
+                                  filterQuality: FilterQuality.none,
+                                  errorBuilder: (_, _, _) => Text(
+                                    '🦫',
+                                    style: TextStyle(fontSize: capySize * 0.57),
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                // Soft credit footer
+                                Text(
+                                  'сделано с теплом · Nutarix',
+                                  style: CozyTheme.hudChipMutedStyle(fontSize: 11)
+                                      .copyWith(
+                                    color: Colors.brown.shade900
+                                        .withValues(alpha: 0.42),
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
               ),
       ),
     );

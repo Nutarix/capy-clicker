@@ -54,8 +54,8 @@ class _CapyClickerAppState extends State<CapyClickerApp> {
       title: 'Grow! Capy!',
       debugShowCheckedModeBanner: false,
       theme: CozyTheme.build(),
-      // Menu is full-bleed (no phone letterbox). Game keeps portrait frame on
-      // desktop/web so playtest layout stays phone-shaped.
+      // Menu: forest full-bleed + 9:16 content column (no phone chrome).
+      // Game keeps PortraitPhoneFrame on desktop/web for playtest.
       home: _inGame
           ? PortraitPhoneFrame(
               child: GameScreen(

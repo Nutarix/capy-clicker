@@ -99,19 +99,6 @@ class CozyTheme {
       ],
     );
   }
-
-  static TextStyle menuTaglineStyle({double fontSize = 15}) {
-    return GoogleFonts.nunito(
-      fontSize: fontSize,
-      fontWeight: FontWeight.w700,
-      height: 1.25,
-      color: cream,
-      shadows: const [
-        Shadow(offset: Offset(0, 1), blurRadius: 4, color: Color(0x885C3D1E)),
-      ],
-    );
-  }
-
   static TextStyle primaryButtonStyle({double fontSize = 20}) {
     return GoogleFonts.nunito(
       fontSize: fontSize,
