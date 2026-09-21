@@ -1,11 +1,11 @@
 {
-    "name": "capy_clicker",
-    "short_name": "capy_clicker",
+    "name": "Grow! Capy!",
+    "short_name": "Grow! Capy!",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "Capy Clicker - tap flowers, grow your herd",
+    "description": "Grow! Capy! - tap flowers, grow your herd",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

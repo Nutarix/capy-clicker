@@ -4,9 +4,10 @@ import 'features/game/audio/game_audio.dart';
 import 'features/game/game_screen.dart';
 import 'features/game/persistence/game_persistence.dart';
 import 'features/menu/main_menu_screen.dart';
+import 'theme/cozy_theme.dart';
 import 'widgets/portrait_phone_frame.dart';
 
-/// Root widget for Capy Clicker — menu ↔ game via simple root state.
+/// Root widget for Grow! Capy! — menu ↔ game via simple root state.
 class CapyClickerApp extends StatefulWidget {
   const CapyClickerApp({super.key});
 
@@ -50,15 +51,9 @@ class _CapyClickerAppState extends State<CapyClickerApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Capy Clicker',
+      title: 'Grow! Capy!',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF6B9B4A),
-          brightness: Brightness.light,
-        ),
-        useMaterial3: true,
-      ),
+      theme: CozyTheme.build(),
       builder: (context, child) {
         return PortraitPhoneFrame(child: child ?? const SizedBox.shrink());
       },

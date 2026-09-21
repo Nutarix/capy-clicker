@@ -1,5 +1,5 @@
 name: capy_clicker
-description: "Capy Clicker - tap flowers, grow your herd"
+description: "Grow! Capy! - tap flowers, grow your herd"
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -36,6 +36,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   shared_preferences: ^2.5.5
   audioplayers: ^6.8.1
+  google_fonts: ^8.2.1
 
 dev_dependencies:
   flutter_test:

@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import '../game/audio/game_audio.dart';
 import '../game/persistence/game_persistence.dart';
 import '../game/widgets/meadow_background.dart';
+import '../../theme/cozy_theme.dart';
 
 /// Soft cozy title screen shown before [GameScreen].
 class MainMenuScreen extends StatefulWidget {
@@ -92,32 +93,35 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
             borderRadius: BorderRadius.circular(20),
             side: const BorderSide(color: Color(0xFFE2CFA8), width: 1.5),
           ),
-          title: const Text(
+          title: Text(
             'Начать заново?',
-            style: TextStyle(
+            style: CozyTheme.secondaryButtonStyle(fontSize: 18).copyWith(
               fontWeight: FontWeight.w800,
-              color: Color(0xFF5C3D1E),
             ),
           ),
-          content: const Text(
+          content: Text(
             'Текущее сохранение стада будет стёрто. Это нельзя отменить.',
-            style: TextStyle(color: Color(0xFF5C3D1E), height: 1.35),
+            style: CozyTheme.hudChipMutedStyle(fontSize: 14).copyWith(
+              height: 1.35,
+            ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(false),
-              child: const Text(
+              child: Text(
                 'Отмена',
-                style: TextStyle(color: Color(0xFF8A6A45)),
+                style: CozyTheme.hudChipMutedStyle().copyWith(
+                  color: CozyTheme.softBrown,
+                ),
               ),
             ),
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(true),
-              child: const Text(
+              child: Text(
                 'Заново',
-                style: TextStyle(
+                style: CozyTheme.secondaryButtonStyle().copyWith(
                   fontWeight: FontWeight.w800,
-                  color: Color(0xFF5A9A48),
+                  color: CozyTheme.buttonGreen,
                 ),
               ),
             ),
@@ -214,35 +218,15 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                                 ),
                               ],
                             ),
-                            child: const Padding(
-                              padding: EdgeInsets.symmetric(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
                                 horizontal: 22,
-                                vertical: 14,
+                                vertical: 16,
                               ),
-                              child: Column(
-                                children: [
-                                  Text(
-                                    'Капи-кликер',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      fontSize: 28,
-                                      fontWeight: FontWeight.w800,
-                                      color: Color(0xFF5C3D1E),
-                                      letterSpacing: 0.2,
-                                    ),
-                                  ),
-                                  SizedBox(height: 4),
-                                  Text(
-                                    'Capy Clicker',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      color: Color(0xFF8A6A45),
-                                      letterSpacing: 0.6,
-                                    ),
-                                  ),
-                                ],
+                              child: Text(
+                                'Grow! Capy!',
+                                textAlign: TextAlign.center,
+                                style: CozyTheme.menuTitleStyle(),
                               ),
                             ),
                           ),
@@ -261,8 +245,8 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                           const Spacer(flex: 3),
                           Text(
                             'сделано с теплом · Nutarix',
-                            style: TextStyle(
-                              fontSize: 11,
+                            style: CozyTheme.hudChipMutedStyle(fontSize: 11)
+                                .copyWith(
                               color: Colors.brown.shade900
                                   .withValues(alpha: 0.45),
                               fontWeight: FontWeight.w500,
@@ -313,12 +297,7 @@ class _CozyPrimaryButton extends StatelessWidget {
               child: Text(
                 label,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFFFFF8EC),
-                  letterSpacing: 0.3,
-                ),
+                style: CozyTheme.primaryButtonStyle(),
               ),
             ),
           ),
@@ -354,11 +333,7 @@ class _CozySecondaryButton extends StatelessWidget {
               child: Text(
                 label,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF5C3D1E),
-                ),
+                style: CozyTheme.secondaryButtonStyle(),
               ),
             ),
           ),
@@ -400,11 +375,7 @@ class _MenuMuteChip extends StatelessWidget {
                 const SizedBox(width: 4),
                 Text(
                   muted ? 'звук выкл' : 'звук',
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF5C3D1E),
-                  ),
+                  style: CozyTheme.hudChipMutedStyle(),
                 ),
               ],
             ),

@@ -1,4 +1,4 @@
-# Store prep — Capy Clicker (soft launch)
+# Store prep — Grow! Capy! (soft launch)
 
 Portrait-only casual idle about capybaras. Listing copy + **placeholder**
 portrait store shots (key art + captions) live here. Replace with device

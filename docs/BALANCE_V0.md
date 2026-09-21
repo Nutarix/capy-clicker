@@ -1,4 +1,4 @@
-# Balance v0 — Capy Clicker (Phase 1–3)
+# Balance v0 — Grow! Capy! (Phase 1–3)
 
 Числа для короткой cozy-сессии + лёгкий offline. Источник правды в коде:
 `lib/features/game/models/balance.dart` (`BalanceV0`).

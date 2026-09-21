@@ -56,8 +56,7 @@ void main() {
     await tester.pumpWidget(const CapyClickerApp());
     await _pumpReady(tester);
 
-    expect(find.text('Капи-кликер'), findsOneWidget);
-    expect(find.text('Capy Clicker'), findsOneWidget);
+    expect(find.text('Grow! Capy!'), findsOneWidget);
     expect(find.text('Продолжить'), findsOneWidget);
     expect(find.text('Заново'), findsOneWidget);
     expect(find.text('Прогресс'), findsNothing);
@@ -80,7 +79,7 @@ void main() {
     await tester.tap(find.text('меню'));
     await _pumpReady(tester);
     await tester.pump(const Duration(milliseconds: 800));
-    expect(find.text('Капи-кликер'), findsOneWidget);
+    expect(find.text('Grow! Capy!'), findsOneWidget);
   });
 
   testWidgets('GameScreen shows progress label after init', (
@@ -107,7 +106,7 @@ void main() {
     await tester.tap(find.text('меню'));
     await _pumpReady(tester);
 
-    expect(find.text('Капи-кликер'), findsOneWidget);
+    expect(find.text('Grow! Capy!'), findsOneWidget);
     expect(find.text('Продолжить'), findsOneWidget);
     expect(find.text('Прогресс'), findsNothing);
   });

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../../theme/cozy_theme.dart';
 import 'package:flutter/services.dart';
 
 import 'audio/game_audio.dart';
@@ -521,9 +522,8 @@ class _GameScreenState extends State<GameScreen> {
                     child: Text(
                       'Цветы · ягоды · лужа (×2) · слияние одинакового уровня',
                       textAlign: TextAlign.center,
-                      style: TextStyle(
+                      style: CozyTheme.hudChipMutedStyle(fontSize: 11).copyWith(
                         color: Colors.brown.shade900.withValues(alpha: 0.55),
-                        fontSize: 11,
                       ),
                     ),
                   ),
@@ -564,23 +564,19 @@ class _GameScreenState extends State<GameScreen> {
                               ),
                             ],
                           ),
-                          child: const Padding(
-                            padding: EdgeInsets.symmetric(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
                               horizontal: 12,
                               vertical: 8,
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Text('🎁', style: TextStyle(fontSize: 16)),
-                                SizedBox(width: 6),
+                                const Text('🎁', style: TextStyle(fontSize: 16)),
+                                const SizedBox(width: 6),
                                 Text(
                                   'Уют',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w700,
-                                    color: Color(0xFF5C3D1E),
-                                  ),
+                                  style: CozyTheme.hudChipStyle(fontSize: 13),
                                 ),
                               ],
                             ),
@@ -617,11 +613,7 @@ class _HerdSizeChip extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         child: Text(
           'стадо $count/${BalanceV0.maxHerdSize}',
-          style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF5C3D1E),
-          ),
+          style: CozyTheme.hudChipStyle(),
         ),
       ),
     );
@@ -651,11 +643,7 @@ class _SunnyGladeChip extends StatelessWidget {
             const SizedBox(width: 5),
             Text(
               'поляна: $nameRu',
-              style: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF5C3D1E),
-              ),
+              style: CozyTheme.hudChipMutedStyle(),
             ),
           ],
         ),
@@ -697,11 +685,7 @@ class _MuteChip extends StatelessWidget {
                 const SizedBox(width: 4),
                 Text(
                   muted ? 'звук выкл' : 'звук',
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF5C3D1E),
-                  ),
+                  style: CozyTheme.hudChipMutedStyle(),
                 ),
               ],
             ),
@@ -732,24 +716,20 @@ class _MenuBackChip extends StatelessWidget {
             borderRadius: BorderRadius.circular(14),
             border: Border.all(color: const Color(0xFFE2CFA8)),
           ),
-          child: const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
+                const Icon(
                   Icons.pause_rounded,
                   size: 16,
                   color: Color(0xFF5C3D1E),
                 ),
-                SizedBox(width: 4),
+                const SizedBox(width: 4),
                 Text(
                   'меню',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF5C3D1E),
-                  ),
+                  style: CozyTheme.hudChipMutedStyle(),
                 ),
               ],
             ),

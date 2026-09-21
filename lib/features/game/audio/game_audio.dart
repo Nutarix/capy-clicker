@@ -4,7 +4,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Soft cozy BGM + gentle SFX for Capy Clicker.
+/// Soft cozy BGM + gentle SFX for Grow! Capy!.
 ///
 /// Uses [audioplayers]. On Flutter **web**, browsers block autoplay until a
 /// user gesture — call [noteUserGesture] after the first tap/drag so BGM can

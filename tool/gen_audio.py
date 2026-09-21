@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate ORIGINAL soft cozy mono WAV assets (16 kHz) for Capy Clicker.
+"""Generate ORIGINAL soft cozy mono WAV assets (16 kHz) for Grow! Capy!.
 
 No copyrighted material — procedural pads / plucks / splash only.
 Re-run: python3 tool/gen_audio.py
