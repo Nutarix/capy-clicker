@@ -40,17 +40,24 @@
 | Визуальный потолок | **Lv.5–6** (крупнее + теплее amber tint + halo/badge) |
 | Juice | золотой flash + scale punch ~520 мс |
 
-## Камера (zoom)
+## «Солнечные поляны» + камера
 
-| Стадо | Scale |
-|---|---|
-| 1–2 | **1.00** (близко) |
-| 3–5 | **0.82** (середина) |
-| 6–8 | **0.66** (далеко) |
-| 9–11 | **0.56** (широко) |
-| 12+ | **0.50** (под soft-cap 12) |
+Тёплая опушка → Ягодная поляна → Солнечный прогал → Большой луг.
+Подробнее: `docs/WORLD_ZONES.md`.
 
+| Стадо | Поляна | Rect (L,T,R,B) | Base zoom |
+|---|---|---|---|
+| 0–2 | Тёплая опушка | 0.10, 0.52, 0.86, 0.92 | **1.00** |
+| 3–5 | Ягодная поляна | 0.06, 0.50, 0.90, 0.93 | **0.82** |
+| 6–8 | Солнечный прогал | 0.05, 0.40, 0.91, 0.945 | **0.66** |
+| 9–12 | Большой луг | 0.03, 0.34, 0.94, 0.96 | **0.50** |
+
+Zoom target = `min(baseZoom, fitZoom)` — если bbox стада (+padding 0.10)
+не влезает в portrait-view, камера отступает дальше (floor **0.50**).
 Плавный `AnimatedScale` ~450 мс.
+
+При открытии новой поляны — мягкий toast один раз («Открылась Ягодная поляна»…),
+без FOMO на перезапуск. Чип 🌿 с именем текущей поляны.
 
 ## Offline progress (Phase 2)
 
@@ -117,7 +124,7 @@
 ## Персист
 
 - `shared_preferences`, ключ `capy_clicker_game_state_v1`
-- Сохраняется: `herdProgress`, `herd[]` (id/level/x/y), `nextId`, `savedAtMs`, `lastDailyClaimYmd`
+- Сохраняется: `herdProgress`, `herd[]` (id/level/x/y), `nextId`, `savedAtMs`, `lastDailyClaimYmd`, `sunnyGladeAnnounced`
 - Debounce **400 мс**; буст/ягоды — сессионные (не пишутся)
 
 ## Feedback / audio (Phase 2–3)
@@ -128,19 +135,12 @@
 | Web / desktop | без SFX (визуальный juice остаётся) |
 | audioplayers | **отложен** — упаковка web+mobile без hassle; см. `store/README.md` |
 
-
-
-## Walkable meadow zone (forest bg)
+## Walkable meadow — «Солнечные поляны»
 
 Капибары, цветы, ягоды и лужа живут **только на травяной поляне**.
-Деревья / крона — blocked. Rect (норм. 0–1):
+Деревья / крона — blocked. Поляны расширяются со стадом (см. таблицу выше).
 
-| Edge | Value |
-|---|---|
-| left / right | **0.10 … 0.86** |
-| top / bottom | **0.52 … 0.92** |
-
-Код: `WorldZones` (`lib/features/game/models/world_zones.dart`).
+Код: `WorldZones` / `SunnyGlade` (`lib/features/game/models/world_zones.dart`).
 Подробнее: `docs/WORLD_ZONES.md`.
 
 ## Вне скоупа v0

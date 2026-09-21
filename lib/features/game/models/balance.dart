@@ -1,3 +1,8 @@
+import 'dart:math' as math;
+import 'dart:ui';
+
+import 'world_zones.dart';
+
 /// Tunable balance constants for Phase 1–2 (v0).
 /// See docs/BALANCE_V0.md for rationale.
 /// Walkable meadow bounds: `world_zones.dart` / docs/WORLD_ZONES.md.
@@ -30,20 +35,63 @@ abstract final class BalanceV0 {
   static const double baseCapySize = 70;
   static const double scalePerLevel = 0.34;
 
-  /// Camera zoom steps by herd count (Transform.scale).
-  /// 1–2 close, 3–5 mid, 6–8 farther, 9–11 wide, 12+ widest.
+  /// Camera zoom baselines for «Солнечные поляны» (see [WorldZones.glades]).
+  /// Fit zoom may step further back when the herd bbox no longer fits.
+  /// 0–2 Тёплая опушка, 3–5 Ягодная поляна, 6–8 Солнечный прогал, 9–12 Большой луг.
   static const double zoomClose = 1.0;
   static const double zoomMid = 0.82;
   static const double zoomFar = 0.66;
-  static const double zoomWide = 0.56;
+  /// @Deprecated Prefer [zoomWidest] — 9–12 share one glade circle.
+  static const double zoomWide = 0.50;
   static const double zoomWidest = 0.50;
 
+  /// Normalized padding around the herd bounding box for fit-zoom.
+  static const double zoomFitPadding = 0.08;
+
+  /// Reference padded span that still looks cozy at [zoomClose].
+  /// Larger herd bbox → camera steps back (scale down) proportionally.
+  static const double zoomFitComfortSpan = 0.48;
+
+  /// Baseline zoom from Sunny Glade circle (same bands as meadow expansion).
   static double zoomForHerdCount(int count) {
-    if (count <= 2) return zoomClose;
-    if (count <= 5) return zoomMid;
-    if (count <= 8) return zoomFar;
-    if (count <= 11) return zoomWide;
-    return zoomWidest;
+    return WorldZones.gladeForHerd(count).baseZoom;
+  }
+
+  /// Scale so the herd bbox (+ padding) still feels comfortable on screen.
+  ///
+  /// Larger spread → lower scale ("step back to admire the grove").
+  /// Clamped to [zoomWidest, zoomClose]; combined with glade baseline via
+  /// [cameraZoomForHerd].
+  static double zoomToFitPositions(Iterable<Offset> positions) {
+    final list = positions.toList();
+    if (list.isEmpty) return zoomClose;
+
+    var minX = list.first.dx;
+    var maxX = list.first.dx;
+    var minY = list.first.dy;
+    var maxY = list.first.dy;
+    for (final p in list) {
+      if (p.dx < minX) minX = p.dx;
+      if (p.dx > maxX) maxX = p.dx;
+      if (p.dy < minY) minY = p.dy;
+      if (p.dy > maxY) maxY = p.dy;
+    }
+
+    final width =
+        (maxX - minX + 2 * zoomFitPadding).clamp(0.05, 1.5);
+    final height =
+        (maxY - minY + 2 * zoomFitPadding).clamp(0.05, 1.5);
+    final span = math.max(width, height);
+
+    final fit = zoomFitComfortSpan / span;
+    return fit.clamp(zoomWidest, zoomClose);
+  }
+
+  /// Combined camera target: tier baseline, pulled back if herd bbox needs it.
+  static double cameraZoomForHerd(int count, Iterable<Offset> positions) {
+    final tier = zoomForHerdCount(count);
+    final fit = zoomToFitPositions(positions);
+    return math.min(tier, fit);
   }
 
   /// Pixel size for a given level (clamped visual growth past maxVisualLevel).

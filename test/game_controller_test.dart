@@ -115,12 +115,36 @@ void main() {
     c.dispose();
   });
 
-  test('zoom widens for large herds', () {
+  test('zoom widens with Sunny Glade circles', () {
     expect(BalanceV0.zoomForHerdCount(1), BalanceV0.zoomClose);
     expect(BalanceV0.zoomForHerdCount(4), BalanceV0.zoomMid);
     expect(BalanceV0.zoomForHerdCount(7), BalanceV0.zoomFar);
-    expect(BalanceV0.zoomForHerdCount(10), BalanceV0.zoomWide);
+    expect(BalanceV0.zoomForHerdCount(10), BalanceV0.zoomWidest);
     expect(BalanceV0.zoomForHerdCount(12), BalanceV0.zoomWidest);
+  });
+
+  test('glade unlock toast fires once when Berry Glade opens', () async {
+    final c = GameController(persistence: GamePersistence());
+    await c.init();
+    expect(c.currentGlade.id, 'warm_edge');
+    expect(c.gladeUnlockToast, isNull);
+
+    // Grow to 3 → Ягодная поляна.
+    c.addProgress(1.0, fromTap: true);
+    c.addProgress(1.0, fromTap: true);
+    expect(c.state.herdCount, 3);
+    expect(c.currentGlade.id, 'berry_glade');
+    expect(c.gladeUnlockToast, 'Открылась Ягодная поляна');
+    expect(c.state.sunnyGladeAnnounced, 1);
+
+    c.acknowledgeGladeUnlock();
+    expect(c.gladeUnlockToast, isNull);
+
+    // Further growth within same glade — no re-toast.
+    c.addProgress(1.0, fromTap: true);
+    expect(c.state.herdCount, 4);
+    expect(c.gladeUnlockToast, isNull);
+    c.dispose();
   });
 
   test('offline progress grants capped auto fill and sets welcome', () async {
@@ -240,32 +264,40 @@ void main() {
   });
 
 
-  test('spawn and drag-end clamp into walkable meadow', () async {
+  test('spawn and drag-end clamp into active Sunny Glade', () async {
     final c = GameController(persistence: GamePersistence());
     await c.init();
     for (final capy in c.state.herd) {
-      expect(WorldZones.isInMeadow(capy.position), isTrue);
+      expect(
+        WorldZones.isInMeadow(capy.position, herdCount: c.state.herdCount),
+        isTrue,
+      );
     }
-    // Fill herd — every spawn must land on grass.
+    // Fill herd — every spawn must land on the active glade.
     for (var i = 0; i < 11; i++) {
       c.addProgress(1.0, fromTap: true);
     }
     expect(c.state.herdCount, BalanceV0.maxHerdSize);
+    expect(c.currentGlade.id, 'great_meadow');
     for (final capy in c.state.herd) {
       expect(
-        WorldZones.isInMeadow(capy.position),
+        WorldZones.isInMeadow(capy.position, herdCount: c.state.herdCount),
         isTrue,
         reason: 'spawn ${capy.id} at ${capy.position}',
       );
     }
 
     final id = c.state.herd.first.id;
-    // Drag onto tree canopy / edge — must snap into meadow.
-    c.updatePosition(id, const Offset(0.02, 0.15));
+    final glade = WorldZones.gladeForHerd(c.state.herdCount);
+    // Drag onto tree canopy / edge — must snap into Большой луг.
+    c.updatePosition(id, const Offset(0.01, 0.10));
     final moved = c.state.herd.firstWhere((e) => e.id == id);
-    expect(moved.position.dx, WorldZones.meadowLeft);
-    expect(moved.position.dy, WorldZones.meadowTop);
-    expect(WorldZones.isInMeadow(moved.position), isTrue);
+    expect(moved.position.dx, glade.left);
+    expect(moved.position.dy, glade.top);
+    expect(
+      WorldZones.isInMeadow(moved.position, herdCount: c.state.herdCount),
+      isTrue,
+    );
     c.dispose();
   });
 
@@ -279,6 +311,19 @@ void main() {
     await c.init();
     expect(c.state.herd.single.position.dx, WorldZones.meadowLeft);
     expect(c.state.herd.single.position.dy, WorldZones.meadowTop);
+    c.dispose();
+  });
+
+  test('cameraZoom respects glade baseline and fit', () async {
+    final c = GameController(persistence: GamePersistence());
+    await c.init();
+    expect(c.cameraZoom, BalanceV0.zoomClose);
+    for (var i = 0; i < 11; i++) {
+      c.addProgress(1.0, fromTap: true);
+    }
+    expect(c.state.herdCount, 12);
+    expect(c.cameraZoom, lessThanOrEqualTo(BalanceV0.zoomWidest + 0.001));
+    expect(c.cameraZoom, greaterThanOrEqualTo(BalanceV0.zoomWidest));
     c.dispose();
   });
 }

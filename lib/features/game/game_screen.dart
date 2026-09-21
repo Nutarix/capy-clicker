@@ -56,6 +56,39 @@ class _GameScreenState extends State<GameScreen> {
     setState(() {});
     _maybeShowOfflineWelcome();
     _maybeShowDailyBonus();
+    _maybeShowGladeUnlock();
+  }
+
+  void _maybeShowGladeUnlock() {
+    final msg = _controller.gladeUnlockToast;
+    if (msg == null || msg.isEmpty) return;
+    _controller.acknowledgeGladeUnlock();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 3),
+          backgroundColor: const Color(0xFF5A9A48).withValues(alpha: 0.94),
+          content: Row(
+            children: [
+              const Text('☀️', style: TextStyle(fontSize: 18)),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  msg,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    });
   }
 
   void _maybeShowOfflineWelcome() {
@@ -236,11 +269,24 @@ class _GameScreenState extends State<GameScreen> {
                       ),
                       child: Padding(
                         padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-                        child: CreamProgressBar(
-                          value: state.herdProgress,
-                          herdCount: state.herdCount,
-                          boostActive: boost,
-                          boostSeconds: _controller.mudBoostRemainingSeconds,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            CreamProgressBar(
+                              value: state.herdProgress,
+                              herdCount: state.herdCount,
+                              boostActive: boost,
+                              boostSeconds:
+                                  _controller.mudBoostRemainingSeconds,
+                            ),
+                            const SizedBox(height: 8),
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: _SunnyGladeChip(
+                                nameRu: _controller.currentGlade.nameRu,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -398,6 +444,43 @@ class _GameScreenState extends State<GameScreen> {
                 ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+
+/// Soft label for the active «Солнечные поляны» circle.
+class _SunnyGladeChip extends StatelessWidget {
+  const _SunnyGladeChip({required this.nameRu});
+
+  final String nameRu;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF8EC).withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2CFA8)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('🌿', style: TextStyle(fontSize: 12)),
+            const SizedBox(width: 5),
+            Text(
+              nameRu,
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF5C3D1E),
+              ),
+            ),
+          ],
         ),
       ),
     );

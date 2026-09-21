@@ -8,6 +8,7 @@ class GameState {
     this.nextId = 1,
     this.savedAtMs,
     this.lastDailyClaimYmd,
+    this.sunnyGladeAnnounced = 0,
   });
 
   /// Herd progress in range 0.0–1.0 (fills toward next spawn).
@@ -25,6 +26,10 @@ class GameState {
   /// Local calendar day of last soft daily claim as `YYYY-MM-DD`, or null.
   final String? lastDailyClaimYmd;
 
+  /// Highest «Солнечные поляны» glade index already soft-announced (0–3).
+  /// Starter (Тёплая опушка) is 0 — no toast. Prevents re-toasting on relaunch.
+  final int sunnyGladeAnnounced;
+
   int get herdCount => herd.length;
 
   GameState copyWith({
@@ -34,6 +39,7 @@ class GameState {
     int? savedAtMs,
     String? lastDailyClaimYmd,
     bool clearLastDailyClaimYmd = false,
+    int? sunnyGladeAnnounced,
   }) {
     return GameState(
       herdProgress: herdProgress ?? this.herdProgress,
@@ -43,6 +49,7 @@ class GameState {
       lastDailyClaimYmd: clearLastDailyClaimYmd
           ? null
           : (lastDailyClaimYmd ?? this.lastDailyClaimYmd),
+      sunnyGladeAnnounced: sunnyGladeAnnounced ?? this.sunnyGladeAnnounced,
     );
   }
 
@@ -52,6 +59,7 @@ class GameState {
     'herd': herd.map((c) => c.toJson()).toList(),
     if (savedAtMs != null) 'savedAtMs': savedAtMs,
     if (lastDailyClaimYmd != null) 'lastDailyClaimYmd': lastDailyClaimYmd,
+    'sunnyGladeAnnounced': sunnyGladeAnnounced,
   };
 
   factory GameState.fromJson(Map<String, dynamic> json) {
@@ -64,6 +72,7 @@ class GameState {
           .toList(),
       savedAtMs: (json['savedAtMs'] as num?)?.toInt(),
       lastDailyClaimYmd: json['lastDailyClaimYmd'] as String?,
+      sunnyGladeAnnounced: (json['sunnyGladeAnnounced'] as num?)?.toInt() ?? 0,
     );
   }
 

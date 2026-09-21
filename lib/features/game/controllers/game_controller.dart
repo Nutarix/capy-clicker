@@ -46,6 +46,9 @@ class GameController extends ChangeNotifier {
   String? _mergeFlashId;
   Timer? _mergeFlashTimer;
 
+  /// Soft one-shot Sunny Glade unlock toast (RU), consumed by UI.
+  String? _gladeUnlockToast;
+
   /// Progress granted on this launch from offline elapsed time (0 if none).
   double _offlineProgressGranted = 0;
 
@@ -54,7 +57,10 @@ class GameController extends ChangeNotifier {
 
   GameState get state => _state;
   bool get isReady => _ready;
-  double get cameraZoom => BalanceV0.zoomForHerdCount(_state.herdCount);
+  double get cameraZoom => BalanceV0.cameraZoomForHerd(
+        _state.herdCount,
+        _state.herd.map((c) => c.position),
+      );
 
   bool get isMudBoostActive =>
       _mudBoostUntil != null && _now().isBefore(_mudBoostUntil!);
@@ -67,6 +73,17 @@ class GameController extends ChangeNotifier {
   String? get wallowingCapyId => _wallowingCapyId;
   bool get isBerryVisible => _berryVisible;
   String? get mergeFlashId => _mergeFlashId;
+
+  /// Pending «Солнечные поляны» unlock line (e.g. «Открылась Ягодная поляна»).
+  String? get gladeUnlockToast => _gladeUnlockToast;
+
+  /// Active Sunny Glade for the current herd.
+  SunnyGlade get currentGlade => WorldZones.gladeForHerd(_state.herdCount);
+
+  /// Clear unlock toast after the UI shows it (once).
+  void acknowledgeGladeUnlock() {
+    _gladeUnlockToast = null;
+  }
 
   /// Offline grant from this session's [init] (consume once for UI).
   double get offlineProgressGranted => _offlineProgressGranted;
@@ -109,9 +126,12 @@ class GameController extends ChangeNotifier {
     final loaded = await _persistence.load();
     if (loaded != null && loaded.herd.isNotEmpty) {
       _state = _clampHerdToMeadow(loaded);
+      // Sync announced index quietly — no FOMO toast on relaunch.
+      _state = _syncGladeAnnounced(_state, announce: false);
       _applyOfflineProgress();
     } else {
       _state = _bootstrap();
+      _state = _syncGladeAnnounced(_state, announce: false);
       await _persistence.save(_withSavedAt(_state));
     }
     _ready = true;
@@ -226,6 +246,7 @@ class GameController extends ChangeNotifier {
       capyId,
       WorldZones.clampToMeadow(
         const Offset(BalanceV0.mudCenterX, BalanceV0.mudCenterY),
+        herdCount: _state.herdCount,
       ),
     );
 
@@ -264,7 +285,10 @@ class GameController extends ChangeNotifier {
     final merged = Capybara(
       id: 'c${_state.nextId}',
       level: newLevel,
-      position: WorldZones.clampToMeadow(target.position),
+      position: WorldZones.clampToMeadow(
+        target.position,
+        herdCount: remaining.length + 1,
+      ),
     );
 
     _setState(
@@ -285,7 +309,10 @@ class GameController extends ChangeNotifier {
   }
 
   void updatePosition(String id, Offset normalized) {
-    final clamped = WorldZones.clampToMeadow(normalized);
+    final clamped = WorldZones.clampToMeadow(
+      normalized,
+      herdCount: _state.herdCount,
+    );
     final herd = _state.herd.map((c) {
       if (c.id != id) return c;
       return c.copyWith(position: clamped);
@@ -333,10 +360,13 @@ class GameController extends ChangeNotifier {
   }
 
   Offset _pickSpawnPosition(List<Capybara> existing) {
+    // Meadow expands with the herd that will exist after this spawn.
+    final herdCount = existing.length + 1;
     const attempts = 24;
     for (var i = 0; i < attempts; i++) {
       final candidate = WorldZones.clampToMeadow(
-        WorldZones.randomInMeadow(_random.nextDouble),
+        WorldZones.randomInMeadow(_random.nextDouble, herdCount: herdCount),
+        herdCount: herdCount,
       );
       // Keep away from mud puddle and berry spot.
       final mudDx = candidate.dx - BalanceV0.mudCenterX;
@@ -357,25 +387,44 @@ class GameController extends ChangeNotifier {
     }
     final n = existing.length;
     final angle = n * 2.4;
-    final cx = (WorldZones.meadowLeft + WorldZones.meadowRight) / 2;
-    final cy = (WorldZones.meadowTop + WorldZones.meadowBottom) / 2;
+    final rect = WorldZones.meadowRectForHerd(herdCount);
+    final cx = (rect.left + rect.right) / 2;
+    final cy = (rect.top + rect.bottom) / 2;
     return WorldZones.clampToMeadow(
       Offset(cx + 0.18 * cos(angle), cy + 0.12 * sin(angle)),
+      herdCount: herdCount,
     );
   }
 
 
-  /// Re-seat any persisted positions that fell on blocked tree/canopy areas.
+  /// Re-seat positions onto the active Sunny Glade
+  /// (trees/canopy stay blocked; shrinks after merge, expands after spawn).
   GameState _clampHerdToMeadow(GameState state) {
+    final n = state.herd.length;
     final herd = [
       for (final c in state.herd)
-        c.copyWith(position: WorldZones.clampToMeadow(c.position)),
+        c.copyWith(
+          position: WorldZones.clampToMeadow(c.position, herdCount: n),
+        ),
     ];
     return state.copyWith(herd: herd);
   }
 
+  /// Keep [GameState.sunnyGladeAnnounced] ≥ current glade; optionally queue toast.
+  GameState _syncGladeAnnounced(GameState state, {required bool announce}) {
+    final glade = WorldZones.gladeForHerd(state.herdCount);
+    if (glade.index <= state.sunnyGladeAnnounced) return state;
+    if (announce && _ready && glade.unlockToastRu.isNotEmpty) {
+      _gladeUnlockToast = glade.unlockToastRu;
+    }
+    return state.copyWith(sunnyGladeAnnounced: glade.index);
+  }
+
   void _setState(GameState next) {
-    _state = next;
+    // Reclamp to active Sunny Glade; soft-announce when a new glade opens.
+    var state = _clampHerdToMeadow(next);
+    state = _syncGladeAnnounced(state, announce: true);
+    _state = state;
     notifyListeners();
     _schedulePersist();
   }
