@@ -3,16 +3,29 @@
 Portrait-only casual idle about capybaras. This folder holds listing copy
 checklists. **No fake screenshot PNGs required** — capture real builds later.
 
-## Icon brief
+## Icon (finalized)
 
-| Item | Guidance |
+| Item | Value |
 |---|---|
+| Status | **Finalized** — approved source wired in |
+| Canonical file | `store/icon/app_icon.png` (1024×1024 PNG) |
+| In-app asset | `assets/images/app_icon.png` (same bytes) |
 | Shape | Soft rounded meadow / cream frame |
-| Hero | One friendly pixel-ish capybara face (Lv.1–2 vibe) |
-| Accent | Small flower or mud puddle hint (readable at 48–1024 px) |
-| Avoid | Busy herd, tiny text, UI chrome |
+| Hero | Friendly pixel-ish capybara face |
+| Accent | Tiny flowers on grass |
 | Colors | Grass green `#6B9B4A`, cream `#FFF8EC`, warm brown `#5C3D1E` |
-| Sizes to ship | Android adaptive 108/432; iOS 1024×1024 marketing |
+
+### Regenerate launcher icons
+
+Uses [`flutter_launcher_icons`](https://pub.dev/packages/flutter_launcher_icons) configured in `pubspec.yaml` (`image_path` → `store/icon/app_icon.png`).
+
+```bash
+# From repo root; Flutter SDK on PATH
+dart run flutter_launcher_icons
+```
+
+That refreshes Android mipmaps / adaptive icons and iOS `AppIcon.appiconset`.
+Replace `store/icon/app_icon.png` (and copy to `assets/images/app_icon.png`) before re-running if the art changes.
 
 ## Portrait screenshots checklist (3 slots)
 
@@ -37,7 +50,7 @@ Capture on a tall phone frame (e.g. 1080×1920 or device defaults). Order matter
 
 - **EN subtitle:** Cozy idle meadow · merge · mud · daily gift
 - **RU subtitle:** Уютный idle-луг · слияние · лужа · ежедневный подарок
-- **IAP:** none yet (soft launch)
+- **IAP:** none yet (soft launch) — monetization not approved
 - **Audio:** SFX deferred — mobile uses light haptics on tap/merge; visuals carry the juice
 
 ## Capture tips
