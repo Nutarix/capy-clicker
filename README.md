@@ -45,8 +45,9 @@ flutter analyze
 - **Offline**: при запуске capped прогресс (до ~3 мин авто) + snackbar «Пока тебя не было…»
 - **Утренний уют**: soft daily +25% раз в локальный день (sheet + чип), без energy-gate
 - **Haptics**: light/medium на тап, merge, wallow
-- **Главное меню**: «Grow! Capy!» + capy icon на `bg_forest`; «Играть» / «Продолжить» + «Заново» (confirm);
-  mute; из игры — чип «меню» (save не теряется)
+- **Главное меню**: full-bleed forest title screen (без phone frame); large top wordmark + tagline;
+  capy в нижней трети; «Играть»/«Продолжить» pill + «Заново»; mute corner; из игры — «меню»
+  (дизайн: [`docs/MENU_DESIGN.md`](docs/MENU_DESIGN.md))
 - **Audio**: soft cozy BGM (loop ~0.30) + gentle SFX (flower/berry/merge/wallow/glade);
   mute в HUD/меню, preference в `shared_preferences`; web — BGM после первого жеста
 - **Декор луга**: кусты/камень unlock на стаде 3 / 6 / 9
@@ -85,6 +86,7 @@ lib/
     widgets/         # meadow, decor, flowers, capy, mud, berry, progress, tips
 docs/
   BALANCE_V0.md
+  MENU_DESIGN.md     # title screen refs + layout rules
   V1_CHECKLIST.md    # что в v1, как запускать, пробелы, next
 store/
   README.md          # icon + screenshot captions

@@ -9,6 +9,9 @@ import '../game/widgets/meadow_background.dart';
 import '../../theme/cozy_theme.dart';
 
 /// Soft cozy title screen shown before [GameScreen].
+///
+/// Full-bleed forest (no phone letterbox). Hierarchy: large title top third,
+/// scannable CTA mid/lower, capybara mascot lower third — Stardew-adjacent.
 class MainMenuScreen extends StatefulWidget {
   const MainMenuScreen({
     super.key,
@@ -146,119 +149,140 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+    // Scale title for short phones without shrinking the wordmark identity.
+    final titleSize = (size.height * 0.075).clamp(44.0, 64.0);
+
     return Scaffold(
       body: MeadowBackground(
-        child: SafeArea(
-          child: !_ready
-              ? const Center(
-                  child: CircularProgressIndicator(color: Color(0xFF5A9A48)),
-                )
-              : Stack(
-                  children: [
-                    // Soft cream wash so title reads on forest.
-                    Positioned.fill(
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              const Color(0xFFF8EDD8).withValues(alpha: 0.28),
-                              Colors.transparent,
-                              const Color(0xFFF8EDD8).withValues(alpha: 0.35),
+        child: !_ready
+            ? const Center(
+                child: CircularProgressIndicator(color: Color(0xFF5A9A48)),
+              )
+            : Stack(
+                fit: StackFit.expand,
+                children: [
+                  // Soft cream wash — atmospheric, low chrome.
+                  Positioned.fill(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            const Color(0xFFF8EDD8).withValues(alpha: 0.32),
+                            Colors.transparent,
+                            const Color(0xFFF8EDD8).withValues(alpha: 0.22),
+                          ],
+                          stops: const [0.0, 0.42, 1.0],
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Discrete mute — top-right corner, not competing with CTA.
+                  SafeArea(
+                    child: Align(
+                      alignment: Alignment.topRight,
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 10, right: 14),
+                        child: _MenuMuteChip(
+                          muted: _audio.isMuted,
+                          onToggle: () {
+                            unawaited(_audio.noteUserGesture());
+                            unawaited(_audio.toggleMute());
+                          },
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Title / tagline — TOP third (dominating identity).
+                  SafeArea(
+                    child: Align(
+                      alignment: const Alignment(0, -0.72),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Grow! Capy!',
+                              textAlign: TextAlign.center,
+                              style: CozyTheme.menuTitleStyle(
+                                fontSize: titleSize,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              'цветы · стадо · уют',
+                              textAlign: TextAlign.center,
+                              style: CozyTheme.menuTaglineStyle(),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Primary CTA — lower-mid, clear pill above mascot.
+                  SafeArea(
+                    child: Align(
+                      alignment: const Alignment(0, 0.28),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 40),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _CozyPrimaryButton(
+                              label: _hasSave ? 'Продолжить' : 'Играть',
+                              onPressed: _onPrimary,
+                            ),
+                            if (_hasSave) ...[
+                              const SizedBox(height: 12),
+                              _CozySecondaryButton(
+                                label: 'Заново',
+                                onPressed: _confirmNewGame,
+                              ),
                             ],
-                            stops: const [0.0, 0.45, 1.0],
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Capybara mascot — LOWER third, larger.
+                  SafeArea(
+                    child: Align(
+                      alignment: const Alignment(0, 0.82),
+                      child: Image.asset(
+                        'assets/images/capy_lv1.png',
+                        width: 168,
+                        height: 168,
+                        filterQuality: FilterQuality.none,
+                        errorBuilder: (_, _, _) => const Text(
+                          '🦫',
+                          style: TextStyle(fontSize: 96),
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Soft credit footer — quiet, bottom edge.
+                  SafeArea(
+                    child: Align(
+                      alignment: Alignment.bottomCenter,
+                      child: Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: Text(
+                          'сделано с теплом · Nutarix',
+                          style: CozyTheme.hudChipMutedStyle(fontSize: 11)
+                              .copyWith(
+                            color: Colors.brown.shade900
+                                .withValues(alpha: 0.42),
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ),
                     ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 28,
-                        vertical: 20,
-                      ),
-                      child: Column(
-                        children: [
-                          Align(
-                            alignment: Alignment.topRight,
-                            child: _MenuMuteChip(
-                              muted: _audio.isMuted,
-                              onToggle: () {
-                                unawaited(_audio.noteUserGesture());
-                                unawaited(_audio.toggleMute());
-                              },
-                            ),
-                          ),
-                          const Spacer(flex: 2),
-                          Image.asset(
-                            'assets/images/capy_lv1.png',
-                            width: 128,
-                            height: 128,
-                            filterQuality: FilterQuality.none,
-                            errorBuilder: (_, _, _) => const Text(
-                              '🦫',
-                              style: TextStyle(fontSize: 72),
-                            ),
-                          ),
-                          const SizedBox(height: 18),
-                          DecoratedBox(
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF8EDD8)
-                                  .withValues(alpha: 0.88),
-                              borderRadius: BorderRadius.circular(22),
-                              border: Border.all(
-                                color: const Color(0xFFE2CFA8)
-                                    .withValues(alpha: 0.95),
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.12),
-                                  blurRadius: 12,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 22,
-                                vertical: 16,
-                              ),
-                              child: Text(
-                                'Grow! Capy!',
-                                textAlign: TextAlign.center,
-                                style: CozyTheme.menuTitleStyle(),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 28),
-                          _CozyPrimaryButton(
-                            label: _hasSave ? 'Продолжить' : 'Играть',
-                            onPressed: _onPrimary,
-                          ),
-                          if (_hasSave) ...[
-                            const SizedBox(height: 12),
-                            _CozySecondaryButton(
-                              label: 'Заново',
-                              onPressed: _confirmNewGame,
-                            ),
-                          ],
-                          const Spacer(flex: 3),
-                          Text(
-                            'сделано с теплом · Nutarix',
-                            style: CozyTheme.hudChipMutedStyle(fontSize: 11)
-                                .copyWith(
-                              color: Colors.brown.shade900
-                                  .withValues(alpha: 0.45),
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-        ),
+                  ),
+                ],
+              ),
       ),
     );
   }
@@ -272,32 +296,35 @@ class _CozyPrimaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onPressed,
-          borderRadius: BorderRadius.circular(18),
-          child: Ink(
-            decoration: BoxDecoration(
-              color: const Color(0xFF5A9A48),
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: const Color(0xFF4A823C), width: 1.5),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.18),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 280),
+      child: SizedBox(
+        width: double.infinity,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onPressed,
+            borderRadius: BorderRadius.circular(28),
+            child: Ink(
+              decoration: BoxDecoration(
+                color: const Color(0xFF5A9A48),
+                borderRadius: BorderRadius.circular(28),
+                border: Border.all(color: const Color(0xFF3F6F34), width: 2),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.22),
+                    blurRadius: 12,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  style: CozyTheme.primaryButtonStyle(),
                 ),
-              ],
-            ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              child: Text(
-                label,
-                textAlign: TextAlign.center,
-                style: CozyTheme.primaryButtonStyle(),
               ),
             ),
           ),
@@ -315,25 +342,28 @@ class _CozySecondaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onPressed,
-          borderRadius: BorderRadius.circular(18),
-          child: Ink(
-            decoration: BoxDecoration(
-              color: const Color(0xFFFFF8EC).withValues(alpha: 0.92),
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: const Color(0xFFE2CFA8), width: 1.5),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              child: Text(
-                label,
-                textAlign: TextAlign.center,
-                style: CozyTheme.secondaryButtonStyle(),
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 280),
+      child: SizedBox(
+        width: double.infinity,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onPressed,
+            borderRadius: BorderRadius.circular(22),
+            child: Ink(
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF8EC).withValues(alpha: 0.88),
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(color: const Color(0xFFE2CFA8), width: 1.5),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 11),
+                child: Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  style: CozyTheme.secondaryButtonStyle(),
+                ),
               ),
             ),
           ),
@@ -358,7 +388,7 @@ class _MenuMuteChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         child: Ink(
           decoration: BoxDecoration(
-            color: const Color(0xFFFFF8EC).withValues(alpha: 0.95),
+            color: const Color(0xFFFFF8EC).withValues(alpha: 0.88),
             borderRadius: BorderRadius.circular(14),
             border: Border.all(color: const Color(0xFFE2CFA8)),
           ),
