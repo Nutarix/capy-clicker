@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -60,6 +61,29 @@ void main() {
     expect(find.text('Продолжить'), findsOneWidget);
     expect(find.text('Заново'), findsOneWidget);
     expect(find.text('Прогресс'), findsNothing);
+  });
+
+  testWidgets('main menu vertical thirds: title above capy above Play', (
+    WidgetTester tester,
+  ) async {
+    SharedPreferences.setMockInitialValues(_quietPrefs(withSave: false));
+    await tester.pumpWidget(const CapyClickerApp());
+    await _pumpReady(tester);
+
+    final title = tester.getCenter(find.text('Grow! Capy!'));
+    final play = tester.getCenter(find.text('Играть'));
+    final capy = tester.getCenter(
+      find.image(const AssetImage('assets/images/capy_lv1.png')),
+    );
+
+    expect(title.dy, lessThan(capy.dy));
+    expect(capy.dy, lessThan(play.dy));
+    // Play sits near end of middle band (~55–70% of stage height).
+    final stageH = tester.view.physicalSize.height / tester.view.devicePixelRatio;
+    expect(play.dy / stageH, greaterThan(0.50));
+    expect(play.dy / stageH, lessThan(0.78));
+    expect(find.textContaining('цветы'), findsNothing);
+    expect(find.textContaining('Nutarix'), findsNothing);
   });
 
   testWidgets('Играть on empty save opens game', (WidgetTester tester) async {

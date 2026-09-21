@@ -4,34 +4,33 @@
 
 ## Рефы (consulted)
 
-- **Stardew Valley title screen** — scenic full-bleed backdrop; compact vertical CTA
-  close under the logo; logo as identity dominance; mute peripheral & discreet;
-  character as lower focal hero (VidLii title overview; Spriters Resource Title Screen).
-- **Cozy farm/creature title patterns** — large readable wordmark, character as lower
-  half hero (not a tiny footer mascot), one clear Play CTA, quiet scenery that does
-  not compete with UI; avoid empty mid-stack between title and button.
+- **Stardew Valley title screen** — scenic full-bleed backdrop; logo as identity
+  dominance; mute peripheral & discreet; character as mid-stack focal (not footer
+  chrome); one clear Play CTA; quiet scenery that does not compete with UI.
+- **Cozy farm/creature title patterns** — large readable wordmark, character between
+  title and Play, clear CTA near mid/lower third, empty lower scenery band.
 - **Typography** — Pixelify Sans (OFL, Google Fonts) for **title and primary CTA**
   (one cozy pixel family); Nunito only for dialogs / HUD / Cyrillic fallback — menu
   mute is icon-only (no text chip).
 
 ## Правила, применённые в UI
 
-1. **Большой доминирующий логотип сверху** — «Grow! Capy!» в верхней зоне портретной
-   колонки (warm gold/cream Pixelify Sans + soft brown outline).
-2. **Плотный вертикальный ритм** — title сверху, CTA сразу под ним (небольшой gap,
-   без пустого mid-spacer). Нижнюю половину занимает крупная капибара-герой.
-3. **Компактный primary CTA** — «Играть» / «Продолжить» ясный, но не billboard:
-   Pixelify (та же семья, что title), soft sage / cream–brown pill в духе game UI,
-   не generic Material white-on-green. «Заново» только при сейве, вторичный.
-4. **Капибара крупнее и выше** — hero нижней половины экрана (~0.38 высоты колонки),
-   не крошечный маскот под гигантской кнопкой.
+1. **Большой доминирующий логотип в верхней трети** — «Grow! Capy!» only (warm
+   gold/cream Pixelify Sans + soft brown outline); без tagline.
+2. **Вертикальные трети портретной колонки** — upper: title; middle: меньшая
+   капибара над Play; lower: пустой forest / soft ground scrim.
+3. **Play крупнее** — «Играть» / «Продолжить» внизу средней трети (~55–70% высоты),
+   soft-sage Pixelify pill (не Material billboard). «Заново» только при сейве,
+   вторичный, сразу под Play.
+4. **Капибара меньше прежнего hero** — mid-band mascot (~0.22 высоты колонки),
+   между title и Play (не нижний гигант и не крошечный footer).
 5. **Единая типографика меню** — Pixelify для title **и** primary CTA; Nunito —
    диалоги / HUD; mute без текста.
 6. **Mute: только иконка** — top-right внутри 9:16 колонки; без cream chip и без
    подписи «звук» / «звук выкл» (Semantics label для a11y).
 7. **Без footer** — credit «сделано с теплом · Nutarix» скрыт / убран с title screen.
-8. **Мягкие scrim/gradient** — subtle darkening за title (читаемость) и за/под
-   капибарой (ground anchor); не тяжёлый vignette.
+8. **Мягкие scrim/gradient** — subtle darkening за title (читаемость) и в нижней
+   трети (ground anchor); не тяжёлый vignette.
 9. **Атмосферный forest BG** — `bg_forest` на весь экран; на desktop/web UI живёт в
    full-height **9:16** колонке по центру; боковые поля — forest blur + soft green wash
    (не тёмный letterbox и не phone bezel).
@@ -46,14 +45,17 @@
 | Зона | Содержание |
 |------|------------|
 | Top corner | Mute icon-only (внутри 9:16 колонки) |
-| Top | Title «Grow! Capy!» (+ soft title scrim) |
-| Tight under title | Primary CTA (+ optional «Заново») |
-| Lower half | Large capybara hero (+ soft ground scrim) |
+| Upper third | Title «Grow! Capy!» only (+ soft title scrim) |
+| Middle third | Smaller capy → bigger Play at band end (~2/3) (+ optional «Заново») |
+| Lower third | Empty forest / soft ground scrim |
+
+Rough order: Title → (space) → Capy → Play (≈55–70% height) → empty lower.
 
 ## Что сознательно избегаем
 
-- Empty gap / Spacer между title и CTA (title → CTA → hero, не title → void → button).
-- Tiny capy under a giant Material button.
+- Title → CTA tight → giant lower-half hero (старый ритм).
+- Tiny capy under a giant Material button **or** CTA immediately under title with
+  empty mid void.
 - Material-generic AppBar / FAB / Discord-green billboard CTA.
 - Cream mute chip with «звук» label on the menu.
 - Footer credit on the title screen.

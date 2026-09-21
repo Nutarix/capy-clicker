@@ -104,9 +104,9 @@ class CozyTheme {
     );
   }
 
-  /// Primary menu CTA — same Pixelify family as title; compact cozy size.
+  /// Primary menu CTA — same Pixelify family as title; readable cozy size.
   /// Nunito is listed as fallback for Cyrillic glyphs Pixelify lacks.
-  static TextStyle menuPrimaryCtaStyle({double fontSize = 16}) {
+  static TextStyle menuPrimaryCtaStyle({double fontSize = 22}) {
     final pixel = GoogleFonts.pixelifySans(
       fontSize: fontSize,
       fontWeight: FontWeight.w700,

@@ -12,9 +12,9 @@ import '../../widgets/portrait_menu_stage.dart';
 /// Soft cozy title screen shown before [GameScreen].
 ///
 /// True portrait presentation: on desktop/web the UI lives in a full-height
-/// 9:16 column (forest blur gutters, no phone chrome). Hierarchy: large title
-/// top, compact CTA close under title, large capybara hero dominating the
-/// lower half. Soft scrims behind title and under capy for readability.
+/// 9:16 column (forest blur gutters, no phone chrome). Vertical thirds:
+/// title (upper), smaller capy + bigger Play at end of middle band (~2/3),
+/// empty lower third with soft ground scrim.
 class MainMenuScreen extends StatefulWidget {
   const MainMenuScreen({
     super.key,
@@ -163,8 +163,8 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                   builder: (context, constraints) {
                     final h = constraints.maxHeight;
                     final titleSize = (h * 0.072).clamp(44.0, 62.0);
-                    // Hero capy — dominates lower half, not a tiny footer mascot.
-                    final capySize = (h * 0.38).clamp(220.0, 300.0);
+                    // Mid-band mascot — smaller than prior lower-half hero.
+                    final capySize = (h * 0.22).clamp(140.0, 190.0);
 
                     return Stack(
                       fit: StackFit.expand,
@@ -186,12 +186,12 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                             ),
                           ),
                         ),
-                        // Soft scrim behind title — readability, not heavy vignette.
+                        // Soft scrim behind title — upper third readability.
                         Positioned(
                           top: 0,
                           left: 0,
                           right: 0,
-                          height: h * 0.32,
+                          height: h * 0.34,
                           child: DecoratedBox(
                             decoration: BoxDecoration(
                               gradient: LinearGradient(
@@ -207,12 +207,12 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                             ),
                           ),
                         ),
-                        // Soft ground scrim behind/under capy — ground anchor.
+                        // Soft ground scrim — lower third empty forest/ground.
                         Positioned(
                           bottom: 0,
                           left: 0,
                           right: 0,
-                          height: h * 0.48,
+                          height: h * 0.36,
                           child: DecoratedBox(
                             decoration: BoxDecoration(
                               gradient: LinearGradient(
@@ -244,47 +244,66 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                             ),
                           ),
                         ),
-                        // Vertical stack: title top → CTA tight under → hero capy.
+                        // Vertical thirds: title | capy + Play | empty lower.
                         SafeArea(
                           child: Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 20),
                             child: Column(
                               children: [
-                                const SizedBox(height: 36),
-                                // Title — TOP
-                                Text(
-                                  'Grow! Capy!',
-                                  textAlign: TextAlign.center,
-                                  style: CozyTheme.menuTitleStyle(
-                                    fontSize: titleSize,
+                                // —— Upper third: title only ——
+                                Expanded(
+                                  flex: 1,
+                                  child: Align(
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      'Grow! Capy!',
+                                      textAlign: TextAlign.center,
+                                      style: CozyTheme.menuTitleStyle(
+                                        fontSize: titleSize,
+                                      ),
+                                    ),
                                   ),
                                 ),
-                                // Tight gap — CTA close under title (no empty mid).
-                                const SizedBox(height: 18),
-                                _CozyPrimaryButton(
-                                  label: _hasSave ? 'Продолжить' : 'Играть',
-                                  onPressed: _onPrimary,
-                                ),
-                                if (_hasSave) ...[
-                                  const SizedBox(height: 10),
-                                  _CozySecondaryButton(
-                                    label: 'Заново',
-                                    onPressed: _confirmNewGame,
+                                // —— Middle third: capy above Play at band end ——
+                                Expanded(
+                                  flex: 1,
+                                  child: Column(
+                                    children: [
+                                      Expanded(
+                                        child: FittedBox(
+                                          fit: BoxFit.contain,
+                                          child: Image.asset(
+                                            'assets/images/capy_lv1.png',
+                                            width: capySize,
+                                            height: capySize,
+                                            filterQuality: FilterQuality.none,
+                                            errorBuilder: (_, _, _) => Text(
+                                              '🦫',
+                                              style: TextStyle(
+                                                fontSize: capySize * 0.57,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      _CozyPrimaryButton(
+                                        label:
+                                            _hasSave ? 'Продолжить' : 'Играть',
+                                        onPressed: _onPrimary,
+                                      ),
+                                      if (_hasSave) ...[
+                                        const SizedBox(height: 10),
+                                        _CozySecondaryButton(
+                                          label: 'Заново',
+                                          onPressed: _confirmNewGame,
+                                        ),
+                                      ],
+                                      const SizedBox(height: 4),
+                                    ],
                                   ),
-                                ],
-                                // Remaining space → large capy dominates lower half.
-                                const Spacer(),
-                                Image.asset(
-                                  'assets/images/capy_lv1.png',
-                                  width: capySize,
-                                  height: capySize,
-                                  filterQuality: FilterQuality.none,
-                                  errorBuilder: (_, _, _) => Text(
-                                    '🦫',
-                                    style: TextStyle(fontSize: capySize * 0.57),
-                                  ),
                                 ),
-                                const SizedBox(height: 28),
+                                // —— Lower third: empty forest / ground ——
+                                const Expanded(flex: 1, child: SizedBox.expand()),
                               ],
                             ),
                           ),
@@ -299,7 +318,7 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
   }
 }
 
-/// Compact cozy pill — Pixelify label, soft sage (not Material billboard).
+/// Bigger cozy pill — Pixelify label, soft sage (not Material billboard).
 class _CozyPrimaryButton extends StatelessWidget {
   const _CozyPrimaryButton({required this.label, required this.onPressed});
 
@@ -309,31 +328,34 @@ class _CozyPrimaryButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 200),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onPressed,
-          borderRadius: BorderRadius.circular(22),
-          child: Ink(
-            decoration: BoxDecoration(
-              color: CozyTheme.softSage,
-              borderRadius: BorderRadius.circular(22),
-              border: Border.all(color: CozyTheme.softSageEdge, width: 2),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.18),
-                  blurRadius: 8,
-                  offset: const Offset(0, 3),
+      constraints: const BoxConstraints(maxWidth: 260),
+      child: SizedBox(
+        width: double.infinity,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onPressed,
+            borderRadius: BorderRadius.circular(26),
+            child: Ink(
+              decoration: BoxDecoration(
+                color: CozyTheme.softSage,
+                borderRadius: BorderRadius.circular(26),
+                border: Border.all(color: CozyTheme.softSageEdge, width: 2),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.20),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+                child: Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  style: CozyTheme.menuPrimaryCtaStyle(fontSize: 22),
                 ),
-              ],
-            ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 10),
-              child: Text(
-                label,
-                textAlign: TextAlign.center,
-                style: CozyTheme.menuPrimaryCtaStyle(fontSize: 16),
               ),
             ),
           ),
@@ -352,7 +374,7 @@ class _CozySecondaryButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 180),
+      constraints: const BoxConstraints(maxWidth: 220),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
