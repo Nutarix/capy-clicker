@@ -35,7 +35,7 @@ class MeadowDraggableCapybara extends StatelessWidget {
 
   Size get _footprint {
     final w = _bodyWidth;
-    return Size(w + 8, w * 0.78 + 26);
+    return Size(w + 8, w * 0.95 + 26);
   }
 
   @override

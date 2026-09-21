@@ -56,8 +56,8 @@ class _FlowerDotState extends State<FlowerDot>
       onTap: _handleTap,
       behavior: HitTestBehavior.opaque,
       child: SizedBox(
-        width: 44,
-        height: 44,
+        width: 48,
+        height: 48,
         child: AnimatedBuilder(
           animation: _controller,
           builder: (context, _) {
@@ -74,28 +74,12 @@ class _FlowerDotState extends State<FlowerDot>
                     ),
                 ScaleTransition(
                   scale: _scale,
-                  child: Container(
-                    width: 30,
-                    height: 30,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: widget.color,
-                      boxShadow: [
-                        BoxShadow(
-                          color: widget.color.withValues(alpha: 0.5),
-                          blurRadius: 10,
-                          spreadRadius: 1,
-                        ),
-                      ],
-                      border: Border.all(color: Colors.white70, width: 2.2),
-                    ),
-                    child: const Center(
-                      child: Icon(
-                        Icons.local_florist,
-                        size: 15,
-                        color: Colors.white,
-                      ),
-                    ),
+                  child: Image.asset(
+                    'assets/images/flower.png',
+                    width: 36,
+                    height: 36,
+                    fit: BoxFit.contain,
+                    filterQuality: FilterQuality.none,
                   ),
                 ),
               ],

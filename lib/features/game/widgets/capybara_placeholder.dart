@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/balance.dart';
 
-/// Soft round placeholder for a capybara; size + warmer tint grow with [level].
-/// Structured so a sprite Image can replace the emoji later.
+/// Pixel-sprite capybara; size + warmer tint grow with [level].
 class CapybaraPlaceholder extends StatelessWidget {
   const CapybaraPlaceholder({
     super.key,
@@ -24,14 +23,14 @@ class CapybaraPlaceholder extends StatelessWidget {
 
   double get _width => sizeOverride ?? BalanceV0.capySizeForLevel(level);
 
-  /// Base brown → warmer golden-brown for higher levels (up to Lv.6).
-  Color get _bodyColor {
+  /// lv1 sprite for levels 1–2, lv3 sprite for levels 3+.
+  String get _assetPath =>
+      level >= 3 ? 'assets/images/capy_lv3.png' : 'assets/images/capy_lv1.png';
+
+  /// Warm amber ColorFilter strength for higher levels (up to Lv.6).
+  double get _warmth {
     final t = ((level - 1) / (BalanceV0.maxVisualLevel - 1)).clamp(0.0, 1.0);
-    return Color.lerp(
-      const Color(0xFFC49A5A), // soft sandy
-      const Color(0xFFE8A040), // warm amber high-level
-      t,
-    )!;
+    return t * 0.35;
   }
 
   Color get _borderColor {
@@ -42,9 +41,26 @@ class CapybaraPlaceholder extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final w = _width;
-    final h = w * 0.78;
-    final fontSize = (w * 0.42).clamp(20.0, 64.0);
-    final radius = w * 0.42; // rounder, almost pill
+    final h = w * 0.95;
+
+    Widget sprite = Image.asset(
+      _assetPath,
+      width: w,
+      height: h,
+      fit: BoxFit.contain,
+      filterQuality: FilterQuality.none,
+    );
+
+    // Optional warmer tint for higher levels (cheap ColorFiltered blend).
+    if (_warmth > 0.01) {
+      sprite = ColorFiltered(
+        colorFilter: ColorFilter.mode(
+          Color.lerp(Colors.white, const Color(0xFFFFAA3C), _warmth)!,
+          BlendMode.modulate,
+        ),
+        child: sprite,
+      );
+    }
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -54,8 +70,7 @@ class CapybaraPlaceholder extends StatelessWidget {
           width: w,
           height: h,
           decoration: BoxDecoration(
-            color: _bodyColor,
-            borderRadius: BorderRadius.circular(radius),
+            borderRadius: BorderRadius.circular(w * 0.18),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.18),
@@ -69,29 +84,12 @@ class CapybaraPlaceholder extends StatelessWidget {
                   spreadRadius: 6,
                 ),
             ],
-            border: Border.all(
-              color: flash ? const Color(0xFFFFE082) : _borderColor,
-              width: flash ? 3.5 : 2.5,
-            ),
+            border: flash
+                ? Border.all(color: const Color(0xFFFFE082), width: 3.5)
+                : null,
           ),
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              // Soft top highlight for rounder look
-              Positioned(
-                top: h * 0.12,
-                child: Container(
-                  width: w * 0.55,
-                  height: h * 0.22,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.22),
-                    borderRadius: BorderRadius.circular(radius),
-                  ),
-                ),
-              ),
-              Text('🦫', style: TextStyle(fontSize: fontSize)),
-            ],
-          ),
+          clipBehavior: Clip.none,
+          child: sprite,
         ),
         if (showLabel) ...[
           const SizedBox(height: 5),

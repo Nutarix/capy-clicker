@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Cute placeholder berry basket — tap for a large progress burst.
+/// Berry basket sprite — tap for a large progress burst.
 class BerryBasket extends StatefulWidget {
   const BerryBasket({super.key, required this.onTap});
 
@@ -59,99 +59,30 @@ class _BerryBasketState extends State<BerryBasket>
             child: Transform.scale(
               scale: scale,
               child: SizedBox(
-                width: 64,
-                height: 74,
+                width: 72,
+                height: 84,
                 child: Stack(
                   alignment: Alignment.center,
                   clipBehavior: Clip.none,
                   children: [
-                    // Soft glow
                     Positioned(
                       bottom: 8,
                       child: Container(
                         width: 50,
                         height: 14,
                         decoration: BoxDecoration(
-                          color: const Color(0xFFE03A5C)
-                              .withValues(alpha: 0.18),
+                          color: const Color(0xFFE03A5C).withValues(alpha: 0.18),
                           borderRadius: BorderRadius.circular(20),
                         ),
                       ),
                     ),
-                    // Basket body
-                    Positioned(
-                      bottom: 10,
-                      child: Container(
-                        width: 52,
-                        height: 34,
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Color(0xFFE0C070),
-                              Color(0xFFC4A35A),
-                              Color(0xFFA07830),
-                            ],
-                          ),
-                          borderRadius: const BorderRadius.only(
-                            bottomLeft: Radius.circular(14),
-                            bottomRight: Radius.circular(14),
-                            topLeft: Radius.circular(5),
-                            topRight: Radius.circular(5),
-                          ),
-                          border: Border.all(
-                            color: const Color(0xFF8B6914),
-                            width: 1.8,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.2),
-                              blurRadius: 8,
-                              offset: const Offset(0, 3),
-                            ),
-                          ],
-                        ),
-                        // Weave lines
-                        child: CustomPaint(painter: _BasketWeavePainter()),
-                      ),
+                    Image.asset(
+                      'assets/images/berry_basket.png',
+                      width: 64,
+                      height: 68,
+                      fit: BoxFit.contain,
+                      filterQuality: FilterQuality.none,
                     ),
-                    // Basket handle
-                    Positioned(
-                      top: 6,
-                      child: Container(
-                        width: 30,
-                        height: 20,
-                        decoration: BoxDecoration(
-                          border: Border.all(
-                            color: const Color(0xFF8B6914),
-                            width: 2.8,
-                          ),
-                          borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(16),
-                          ),
-                        ),
-                      ),
-                    ),
-                    // Berries heap
-                    const Positioned(
-                      top: 24,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          _Berry(color: Color(0xFFE03A5C), size: 12),
-                          SizedBox(width: 1),
-                          _Berry(color: Color(0xFF9B2D8A), size: 13),
-                          SizedBox(width: 1),
-                          _Berry(color: Color(0xFFE03A5C), size: 11),
-                        ],
-                      ),
-                    ),
-                    const Positioned(
-                      top: 18,
-                      child: _Berry(color: Color(0xFFD4507A), size: 10),
-                    ),
-                    // Label chip
                     Positioned(
                       bottom: 0,
                       child: Container(
@@ -168,9 +99,7 @@ class _BerryBasketState extends State<BerryBasket>
                           style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.w800,
-                            color: Colors.brown.shade900.withValues(
-                              alpha: 0.72,
-                            ),
+                            color: Colors.brown.shade900.withValues(alpha: 0.72),
                           ),
                         ),
                       ),
@@ -184,48 +113,4 @@ class _BerryBasketState extends State<BerryBasket>
       ),
     );
   }
-}
-
-class _Berry extends StatelessWidget {
-  const _Berry({required this.color, this.size = 10});
-
-  final Color color;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: color,
-        shape: BoxShape.circle,
-        border: Border.all(color: Colors.white70, width: 1.2),
-        boxShadow: [
-          BoxShadow(
-            color: color.withValues(alpha: 0.45),
-            blurRadius: 3,
-            offset: const Offset(0, 1),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _BasketWeavePainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = const Color(0x668B6914)
-      ..strokeWidth = 1.2
-      ..style = PaintingStyle.stroke;
-    for (var i = 1; i < 4; i++) {
-      final y = size.height * i / 4;
-      canvas.drawLine(Offset(4, y), Offset(size.width - 4, y), paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
