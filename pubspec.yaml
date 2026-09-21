@@ -60,6 +60,7 @@ flutter:
   uses-material-design: true
 
   assets:
+    - assets/images/bg_forest.png
     - assets/images/capy_lv1.png
     - assets/images/capy_lv3.png
     - assets/images/flower.png

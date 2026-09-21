@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'features/game/game_screen.dart';
+import 'widgets/portrait_phone_frame.dart';
 
 /// Root widget for Capy Clicker.
 class CapyClickerApp extends StatelessWidget {
@@ -18,6 +19,9 @@ class CapyClickerApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
+      builder: (context, child) {
+        return PortraitPhoneFrame(child: child ?? const SizedBox.shrink());
+      },
       home: const GameScreen(),
     );
   }

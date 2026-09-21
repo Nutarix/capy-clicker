@@ -216,12 +216,31 @@ class _GameScreenState extends State<GameScreen> {
               Column(
                 children: [
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
-                    child: CreamProgressBar(
-                      value: state.herdProgress,
-                      herdCount: state.herdCount,
-                      boostActive: boost,
-                      boostSeconds: _controller.mudBoostRemainingSeconds,
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8EDD8).withValues(alpha: 0.82),
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(
+                          color: const Color(0xFFE2CFA8).withValues(alpha: 0.9),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.12),
+                            blurRadius: 10,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+                        child: CreamProgressBar(
+                          value: state.herdProgress,
+                          herdCount: state.herdCount,
+                          boostActive: boost,
+                          boostSeconds: _controller.mudBoostRemainingSeconds,
+                        ),
+                      ),
                     ),
                   ),
                   Expanded(
