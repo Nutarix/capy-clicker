@@ -31,7 +31,7 @@ flutter run -d <device> # телефон / эмулятор
 flutter analyze
 ```
 
-## Что работает сейчас (Phase 1–3 / v0)
+## Что работает сейчас (v1 playable)
 
 - Авто-прогресс стада (~1.5%/с) без тапов
 - Тап по цветкам: +3–6% прогресса
@@ -50,7 +50,8 @@ flutter analyze
 - Juice: petal burst на цветке, soft cream progress bar, hills meadow
 - Сохранение стада и прогресса через `shared_preferences`
 - Портретная ориентация
-- Store prep: [`store/README.md`](store/README.md) (icon brief + 3 screenshot captions RU/EN)
+- Store prep: [`store/README.md`](store/README.md) + портретные placeholder-скрины в [`store/screenshots/`](store/screenshots/)
+- Чеклист v1 (RU): [`docs/V1_CHECKLIST.md`](docs/V1_CHECKLIST.md)
 
 Баланс: [`docs/BALANCE_V0.md`](docs/BALANCE_V0.md).
 
@@ -76,14 +77,17 @@ lib/
     widgets/         # meadow, decor, flowers, capy, mud, berry, progress, tips
 docs/
   BALANCE_V0.md
+  V1_CHECKLIST.md    # что в v1, как запускать, пробелы, next
 store/
-  README.md          # icon + screenshot captions (placeholders)
+  README.md          # icon + screenshot captions
+  icon/app_icon.png
+  screenshots/       # 01–03 portrait 1080×1920 (placeholders)
 assets/images/       # chroma-keyed PNG sprites
 ```
 
-## Следующие шаги (вне этого пасса)
+## Следующие шаги (после v1)
 
-Полноценный SFX (audioplayers), IAP, Flame (по необходимости).
+См. [`docs/V1_CHECKLIST.md`](docs/V1_CHECKLIST.md): реальные store shots, SFX, IAP (если одобрят), полировка спрайтов.
 
 ## Репозиторий
 

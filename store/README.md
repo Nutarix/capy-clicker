@@ -1,7 +1,8 @@
 # Store prep — Capy Clicker (soft launch)
 
-Portrait-only casual idle about capybaras. This folder holds listing copy
-checklists. **No fake screenshot PNGs required** — capture real builds later.
+Portrait-only casual idle about capybaras. Listing copy + **placeholder**
+portrait store shots (key art + captions) live here. Replace with device
+captures before store submit.
 
 ## Icon (finalized)
 
@@ -26,6 +27,18 @@ dart run flutter_launcher_icons
 
 That refreshes Android mipmaps / adaptive icons and iOS `AppIcon.appiconset`.
 Replace `store/icon/app_icon.png` (and copy to `assets/images/app_icon.png`) before re-running if the art changes.
+
+## Screenshots (v1 placeholders)
+
+Directory: [`screenshots/`](screenshots/) — **1080×1920** PNG, portrait.
+
+| File | Slot |
+|---|---|
+| `01-herd-progress.png` | Herd + progress |
+| `02-merge-mud.png` | Merge + mud |
+| `03-daily-berries.png` | Daily cozy / berries |
+
+Burned-in RU/EN captions + «PLACEHOLDER · store shot» badge. Source: `/workspace/capy-refs/dir-v-*.png` key arts + app icon watermark. Not live gameplay — swap for phone captures when ready.
 
 ## Portrait screenshots checklist (3 slots)
 
