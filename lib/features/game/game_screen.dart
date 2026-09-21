@@ -19,13 +19,21 @@ import 'widgets/tip_overlay.dart';
 
 /// Live game screen: auto progress, flowers, herd, merge, mud, berries, zoom.
 class GameScreen extends StatefulWidget {
-  const GameScreen({super.key, this.controller, this.audio});
+  const GameScreen({
+    super.key,
+    this.controller,
+    this.audio,
+    this.onBackToMenu,
+  });
 
   /// Optional injected controller (tests / DI).
   final GameController? controller;
 
   /// Optional audio (pass [GameAudio.silent] / `silent: true` in tests).
   final GameAudio? audio;
+
+  /// Soft pause / return to main menu (save is flushed on dispose).
+  final VoidCallback? onBackToMenu;
 
   @override
   State<GameScreen> createState() => _GameScreenState();
@@ -392,6 +400,14 @@ class _GameScreenState extends State<GameScreen> {
                                     unawaited(_audio.toggleMute());
                                   },
                                 ),
+                                if (widget.onBackToMenu != null)
+                                  _MenuBackChip(
+                                    onPressed: () {
+                                      unawaited(_audio.noteUserGesture());
+                                      HapticFeedback.lightImpact();
+                                      widget.onBackToMenu!();
+                                    },
+                                  ),
                               ],
                             ),
                           ],
@@ -682,6 +698,54 @@ class _MuteChip extends StatelessWidget {
                 Text(
                   muted ? 'звук выкл' : 'звук',
                   style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF5C3D1E),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+
+/// Compact return-to-menu control (does not wipe save).
+class _MenuBackChip extends StatelessWidget {
+  const _MenuBackChip({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(14),
+        child: Ink(
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFF8EC).withValues(alpha: 0.95),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFE2CFA8)),
+          ),
+          child: const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.pause_rounded,
+                  size: 16,
+                  color: Color(0xFF5C3D1E),
+                ),
+                SizedBox(width: 4),
+                Text(
+                  'меню',
+                  style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
                     color: Color(0xFF5C3D1E),

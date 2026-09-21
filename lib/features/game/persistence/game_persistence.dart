@@ -16,6 +16,12 @@ class GamePersistence {
     return _prefs ??= await SharedPreferences.getInstance();
   }
 
+  /// True when a non-empty herd save blob exists (menu «Продолжить»).
+  Future<bool> hasSave() async {
+    final state = await load();
+    return state != null && state.herd.isNotEmpty;
+  }
+
   Future<GameState?> load() async {
     final prefs = await _ensurePrefs();
     final raw = prefs.getString(_key);

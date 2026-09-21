@@ -45,8 +45,10 @@ flutter analyze
 - **Offline**: при запуске capped прогресс (до ~3 мин авто) + snackbar «Пока тебя не было…»
 - **Утренний уют**: soft daily +25% раз в локальный день (sheet + чип), без energy-gate
 - **Haptics**: light/medium на тап, merge, wallow
+- **Главное меню**: «Капи-кликер» + capy icon на `bg_forest`; «Играть» / «Продолжить» + «Заново» (confirm);
+  mute; из игры — чип «меню» (save не теряется)
 - **Audio**: soft cozy BGM (loop ~0.30) + gentle SFX (flower/berry/merge/wallow/glade);
-  mute в HUD, preference в `shared_preferences`; web — BGM после первого жеста
+  mute в HUD/меню, preference в `shared_preferences`; web — BGM после первого жеста
 - **Декор луга**: кусты/камень unlock на стаде 3 / 6 / 9
 - Первый запуск: tip overlay (merge + лужа)
 - Пиксель-спрайты с прозрачным фоном (chroma-key)
@@ -71,7 +73,9 @@ flutter analyze
 ```
 lib/
   main.dart
-  app.dart
+  app.dart           # root state: menu ↔ game + shared GameAudio
+  features/menu/
+    main_menu_screen.dart
   features/game/
     game_screen.dart
     models/          # balance, capybara, game_state
