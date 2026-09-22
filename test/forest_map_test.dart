@@ -190,4 +190,137 @@ void main() {
     expect(c.state.grass, g);
     c.dispose();
   });
+
+  test('unlock thresholds at herd 5 / 8 / 11', () async {
+    final c = GameController(persistence: GamePersistence());
+    await c.init();
+    expect(c.state.sunnyGladeAnnounced, 0);
+    expect(c.unlockedMeadowIds, ['warm_edge']);
+
+    // Start with 1; +4 → herd 5 → berry.
+    for (var i = 0; i < 4; i++) {
+      c.addProgress(1.0, fromTap: true);
+    }
+    expect(c.state.herdCount, 5);
+    expect(c.state.sunnyGladeAnnounced, 1);
+    expect(c.state.isMeadowUnlocked('berry_glade'), isTrue);
+    expect(c.state.isMeadowUnlocked('sunny_clearing'), isFalse);
+
+    // +3 → herd 8 → sunny_clearing.
+    for (var i = 0; i < 3; i++) {
+      c.addProgress(1.0, fromTap: true);
+    }
+    expect(c.state.herdCount, 8);
+    expect(c.state.sunnyGladeAnnounced, 2);
+    expect(c.state.isMeadowUnlocked('sunny_clearing'), isTrue);
+    expect(c.state.isMeadowUnlocked('great_meadow'), isFalse);
+    expect(c.herdCountForMeadow('sunny_clearing'), BalanceV0.meadowStarterHerdSize);
+
+    // +3 → herd 11 → great_meadow.
+    for (var i = 0; i < 3; i++) {
+      c.addProgress(1.0, fromTap: true);
+    }
+    expect(c.state.herdCount, 11);
+    expect(c.state.sunnyGladeAnnounced, 3);
+    expect(
+      c.unlockedMeadowIds,
+      ['warm_edge', 'berry_glade', 'sunny_clearing', 'great_meadow'],
+    );
+    expect(c.herdCountForMeadow('great_meadow'), BalanceV0.meadowStarterHerdSize);
+    // Active meadow still warm — unlock does not force switch.
+    expect(c.state.activeMeadowId, 'warm_edge');
+    c.dispose();
+  });
+
+  test('no soft-lock with only warm_edge unlocked', () async {
+    final c = GameController(persistence: GamePersistence());
+    await c.init();
+    expect(c.unlockedMeadowIds, ['warm_edge']);
+    expect(c.state.herdCount, greaterThanOrEqualTo(1));
+
+    // Locked meadows refuse switch; starter always works.
+    expect(c.switchToMeadow('berry_glade'), isFalse);
+    expect(c.switchToMeadow('sunny_clearing'), isFalse);
+    expect(c.switchToMeadow('great_meadow'), isFalse);
+    expect(c.switchToMeadow('warm_edge'), isTrue);
+    expect(c.state.activeMeadowId, 'warm_edge');
+    expect(c.state.herdCount, greaterThanOrEqualTo(1));
+    expect(c.state.grass, greaterThanOrEqualTo(0));
+
+    // Progress / flower still work — no soft-lock.
+    final herdBefore = c.state.herdCount;
+    c.addProgress(1.0, fromTap: true);
+    expect(c.state.herdCount, herdBefore + 1);
+    c.onFlowerTap();
+    expect(c.state.grass, greaterThanOrEqualTo(0));
+    c.dispose();
+  });
+
+  test('shared grass spend visible after meadow switch', () async {
+    final c = GameController(persistence: GamePersistence());
+    await c.init();
+    for (var i = 0; i < 4; i++) {
+      c.addProgress(1.0, fromTap: true);
+    }
+    while (c.state.grass < BalanceV0.callCapyGrassCost + 5) {
+      c.onFlowerTap();
+    }
+    final before = c.state.grass;
+    expect(c.spendCallCapy(), isTrue);
+    expect(c.state.grass, before - BalanceV0.callCapyGrassCost);
+    final afterSpend = c.state.grass;
+
+    expect(c.switchToMeadow('berry_glade'), isTrue);
+    expect(c.state.grass, afterSpend);
+    expect(c.spendGrassBoost() || c.state.grass < BalanceV0.grassBoostCost, isTrue);
+    // Grass never negative after spend/switch.
+    expect(c.state.grass, greaterThanOrEqualTo(0));
+    c.switchToMeadow('warm_edge');
+    expect(c.state.grass, greaterThanOrEqualTo(0));
+    c.dispose();
+  });
+
+  test('multi-meadow scripted flow: grow / switch / return / unlock chain', () async {
+    final c = GameController(persistence: GamePersistence());
+    await c.init();
+
+    // Unlock berry on warm.
+    for (var i = 0; i < 4; i++) {
+      c.addProgress(1.0, fromTap: true);
+    }
+    final warmHerd = c.state.herdCount;
+    expect(warmHerd, 5);
+
+    // Visit berry, grow local herd, grass shared wallet grows via flowers.
+    expect(c.switchToMeadow('berry_glade'), isTrue);
+    expect(c.state.herdCount, BalanceV0.meadowStarterHerdSize);
+    c.addProgress(1.0, fromTap: true);
+    c.addProgress(1.0, fromTap: true);
+    final berryHerd = c.state.herdCount;
+    expect(berryHerd, BalanceV0.meadowStarterHerdSize + 2);
+    while (c.state.grass < 20) {
+      c.onFlowerTap();
+    }
+    final grassMid = c.state.grass;
+
+    // Return — warm intact; grass unchanged by switch.
+    expect(c.switchToMeadow('warm_edge'), isTrue);
+    expect(c.state.herdCount, warmHerd);
+    expect(c.state.grass, grassMid);
+    expect(c.herdCountForMeadow('berry_glade'), berryHerd);
+
+    // Push warm to 8 → unlock sunny_clearing without visiting it.
+    for (var i = 0; i < 3; i++) {
+      c.addProgress(1.0, fromTap: true);
+    }
+    expect(c.state.sunnyGladeAnnounced, 2);
+    expect(c.switchToMeadow('sunny_clearing'), isTrue);
+    expect(c.state.herdCount, BalanceV0.meadowStarterHerdSize);
+
+    // Back to berry — still its own herd.
+    expect(c.switchToMeadow('berry_glade'), isTrue);
+    expect(c.state.herdCount, berryHerd);
+    expect(c.state.grass, greaterThanOrEqualTo(0));
+    c.dispose();
+  });
 }
