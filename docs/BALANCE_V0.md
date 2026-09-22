@@ -7,7 +7,7 @@
 
 | Параметр | Значение | Комментарий |
 |---|---|---|
-| `autoProgressPerSecond` | **0.020** (2.0%/с) | Полная шкала ~50 с; playtest P0 bump с 1.5%/с |
+| `autoProgressPerSecond` | **0.015** (1.5%/с) | Полная шкала ~67 с; playtest v1.1 (было 0.020) |
 | Тик | 50 мс | Сглаженный UI + shimmer / «+X%/с» |
 | Feedback | floating «+N%» на цветок/ягоды; «×2» на wallow | полоска пульсирует |
 
@@ -15,7 +15,7 @@
 
 | Параметр | Значение |
 |---|---|
-| `flowerTapGainMin` … `Max` | **+3% … +6%** за тап |
+| `flowerTapGainMin` … `Max` | **+2.5% … +4.5%** за тап |
 | Цветов на лугу | 5 (фикc. раскладка) |
 | Juice | scale-punch + petal particles |
 
@@ -62,10 +62,10 @@
 
 | Стадо | Поляна | Rect (L,T,R,B) | Base zoom |
 |---|---|---|---|
-| 0–2 | Тёплая опушка | 0.10, 0.52, 0.86, 0.92 | **1.00** |
-| 3–5 | Ягодная поляна | 0.06, 0.50, 0.90, 0.93 | **0.82** |
-| 6–8 | Солнечный прогал | 0.05, 0.40, 0.91, 0.945 | **0.66** |
-| 9–12 | Большой луг | 0.03, 0.34, 0.94, 0.96 | **0.50** |
+| 0–4 | Тёплая опушка | 0.10, 0.52, 0.86, 0.92 | **1.00** |
+| 5–7 | Ягодная поляна | 0.06, 0.50, 0.90, 0.93 | **0.82** |
+| 8–10 | Солнечный прогал | 0.05, 0.40, 0.91, 0.945 | **0.66** |
+| 11–12 | Большой луг | 0.03, 0.34, 0.94, 0.96 | **0.50** |
 
 Zoom target = `min(baseZoom, fitZoom)` — если bbox стада (+padding 0.10)
 не влезает в portrait-view, камера отступает дальше (floor **0.50**).
@@ -171,17 +171,20 @@ Zoom target = `min(baseZoom, fitZoom)` — если bbox стада (+padding 0.
 
 | Параметр | Значение | Комментарий |
 |---|---|---|
-| `flowerTapGrassMin`…`Max` | **1–2** | вместе с % прогресса |
-| `autoGrassPerSecond` | **0.12** | ~8 с на 1🌿 |
-| `berryGrassMin`…`Max` | **8–12** | burst |
+| `flowerTapGrassMin`…`Max` | **1–1** | вместе с % прогресса (было 1–2) |
+| `autoGrassPerSecond` | **0.07** | ~14 с на 1🌿 (было 0.12) |
+| `berryGrassMin`…`Max` | **5–8** | burst (было 8–12) |
 | `gladeUnlockGrass` | **6** | wow открытия поляны |
 | `twinMergeBonusGrass` | **5** | skill-merge |
 | `goalCompleteGrass` | **4** | soft celebration |
-| `callCapyGrassCost` | **8** | позвать Lv.1 |
+| `callCapyGrassCost` | **12** | позвать Lv.1 (было 8) |
 | `grassBoostCost` | **5** | |
 | `grassBoostMultiplier` | **1.5** | слабее лужи ×2 |
 | `grassBoostDuration` | **6 с** | |
-| `twinRerollSeconds` | **18** | редкая подсветка пары |
+| `twinRerollSeconds` | **36** | редкая подсветка (~30–60 с feel) |
+| `twinPostMergeCooldownSeconds` | **28** | пауза после twin-merge |
+| `twinMarkChance` | **0.55** | иначе тихий gap |
+| `twinLingerChance` | **0.35** | |
 | `twinMinHerd` | **2** | |
 
 Цели: Ягодная поляна → Солнечный прогал → Большой луг → Капи Lv.4.

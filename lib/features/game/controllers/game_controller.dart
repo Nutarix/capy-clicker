@@ -491,7 +491,7 @@ class GameController extends ChangeNotifier {
     );
     _triggerMergeFlash(merged.id);
     if (twinBonus) {
-      _twinRerollIn = 4.0;
+      _twinRerollIn = BalanceV0.twinPostMergeCooldownSeconds.toDouble();
     }
     return true;
   }
@@ -628,6 +628,9 @@ class GameController extends ChangeNotifier {
   void _setState(GameState next) {
     // Reclamp to active Sunny Glade; soft-announce when a new glade opens.
     var state = _clampHerdToMeadow(next);
+    if (state.grass < 0) {
+      state = state.copyWith(grass: 0);
+    }
     state = _sanitizeTwins(state);
     state = _syncGladeAnnounced(state, announce: true);
     state = _checkGoals(state, celebrate: true);
@@ -726,17 +729,22 @@ class GameController extends ChangeNotifier {
     if (eligible.isEmpty) {
       return state.copyWith(clearTwin: true);
     }
-    final pick = eligible[_random.nextInt(eligible.length)].value;
     if (state.twinIdA != null && state.twinIdB != null) {
       final ids = {for (final c in state.herd) c.id};
       if (ids.contains(state.twinIdA) && ids.contains(state.twinIdB)) {
         final a = state.herd.firstWhere((c) => c.id == state.twinIdA);
         final b = state.herd.firstWhere((c) => c.id == state.twinIdB);
-        if (a.level == b.level && _random.nextDouble() < 0.55) {
-          return state; // linger
+        if (a.level == b.level &&
+            _random.nextDouble() < BalanceV0.twinLingerChance) {
+          return state; // linger a bit longer
         }
       }
     }
+    // Quiet gaps so sparkle stays a skill window, not a permanent glow.
+    if (_random.nextDouble() > BalanceV0.twinMarkChance) {
+      return state.copyWith(clearTwin: true);
+    }
+    final pick = eligible[_random.nextInt(eligible.length)].value;
     final shuffled = List<Capybara>.from(pick)..shuffle(_random);
     return state.copyWith(
       twinIdA: shuffled[0].id,
@@ -748,6 +756,61 @@ class GameController extends ChangeNotifier {
   @visibleForTesting
   void debugMarkTwins(String a, String b) {
     _setState(_state.copyWith(twinIdA: a, twinIdB: b));
+  }
+
+  /// Headless tick for progression sims (grass auto + twin reroll + auto bar).
+  @visibleForTesting
+  void debugAdvance(double dt) {
+    if (dt <= 0) return;
+    if (dt > 1.0) {
+      // Split long steps so spawn/boost logic stays stable.
+      var left = dt;
+      while (left > 0) {
+        final step = left > 1.0 ? 1.0 : left;
+        debugAdvance(step);
+        left -= step;
+      }
+      return;
+    }
+    final now = _now();
+    var dirty = false;
+    if (_mudBoostUntil != null && now.isAfter(_mudBoostUntil!)) {
+      _mudBoostUntil = null;
+      dirty = true;
+    }
+    if (_grassBoostUntil != null && now.isAfter(_grassBoostUntil!)) {
+      _grassBoostUntil = null;
+      dirty = true;
+    }
+    _grassAcc += BalanceV0.autoGrassPerSecond * dt;
+    if (_grassAcc >= 1.0) {
+      final granted = _grassAcc.floor();
+      _grassAcc -= granted;
+      _state = _state.copyWith(grass: _state.grass + granted);
+      dirty = true;
+    }
+    _twinRerollIn -= dt;
+    if (_twinRerollIn <= 0) {
+      _twinRerollIn = BalanceV0.twinRerollSeconds.toDouble();
+      final next = _maybeMarkTwins(_state);
+      if (next != _state) {
+        _state = next;
+        dirty = true;
+        _schedulePersist();
+      }
+    }
+    if (dirty) notifyListeners();
+    addProgress(
+      BalanceV0.autoProgressPerSecond * _boostMultiplier * dt,
+      fromTap: false,
+    );
+  }
+
+  /// Force berry visible (tests / sims).
+  @visibleForTesting
+  void debugShowBerry() {
+    _berryVisible = true;
+    notifyListeners();
   }
 
   @override

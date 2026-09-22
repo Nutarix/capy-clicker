@@ -8,15 +8,16 @@ import 'world_zones.dart';
 /// Walkable meadow bounds: `world_zones.dart` / docs/WORLD_ZONES.md.
 abstract final class BalanceV0 {
   /// Auto grass-eat fill rate: fraction of herd progress per second.
-  /// Playtest P0: bumped 0.015 → 0.020 so the bar clearly crawls (~50 с/шкала).
-  static const double autoProgressPerSecond = 0.020;
+  /// Playtest v1.1: 0.020 → 0.015 so first glade lands ~2–4 min cozy (not ~1 min).
+  static const double autoProgressPerSecond = 0.015;
 
   /// Progress gained when tapping a flower (fraction 0–1).
-  static const double flowerTapGainMin = 0.03;
-  static const double flowerTapGainMax = 0.06;
+  /// Playtest v1.1: slightly softer taps so spend-fork / auto stay relevant.
+  static const double flowerTapGainMin = 0.025;
+  static const double flowerTapGainMax = 0.045;
 
   /// Midpoint used as default tap burst when random is not needed.
-  static const double flowerTapGain = 0.045;
+  static const double flowerTapGain = 0.035;
 
   /// Progress required to spawn one new level-1 capybara.
   static const double spawnThreshold = 1.0;
@@ -38,11 +39,11 @@ abstract final class BalanceV0 {
 
   /// Camera zoom baselines for «Солнечные поляны» (see [WorldZones.glades]).
   /// Fit zoom may step further back when the herd bbox no longer fits.
-  /// 0–2 Тёплая опушка, 3–5 Ягодная поляна, 6–8 Солнечный прогал, 9–12 Большой луг.
+  /// 0–4 Тёплая опушка, 5–7 Ягодная поляна, 8–10 Солнечный прогал, 11–12 Большой луг.
   static const double zoomClose = 1.0;
   static const double zoomMid = 0.82;
   static const double zoomFar = 0.66;
-  /// @Deprecated Prefer [zoomWidest] — 9–12 share one glade circle.
+  /// @Deprecated Prefer [zoomWidest] — 11–12 share one glade circle.
   static const double zoomWide = 0.50;
   static const double zoomWidest = 0.50;
 
@@ -188,15 +189,18 @@ abstract final class BalanceV0 {
   // --- Grass currency (session loop fork) ---
 
   /// Integer grass from a flower tap (inclusive range).
+  /// Playtest v1.1: always 1 — was 1–2; cuts call-spam unlocking Berry in <90s.
   static const int flowerTapGrassMin = 1;
-  static const int flowerTapGrassMax = 2;
+  static const int flowerTapGrassMax = 1;
 
   /// Slow auto grass accrual (fractional units per second → integer grants).
-  static const double autoGrassPerSecond = 0.12;
+  /// Playtest v1.1: 0.12 → 0.07 (~14 с на 1🌿).
+  static const double autoGrassPerSecond = 0.07;
 
   /// Berry basket grass burst (inclusive).
-  static const int berryGrassMin = 8;
-  static const int berryGrassMax = 12;
+  /// Playtest v1.1: 8–12 → 5–8.
+  static const int berryGrassMin = 5;
+  static const int berryGrassMax = 8;
 
   /// Grass reward when a Sunny Glade first unlocks.
   static const int gladeUnlockGrass = 6;
@@ -208,7 +212,8 @@ abstract final class BalanceV0 {
   static const int goalCompleteGrass = 4;
 
   /// Spend: call a new Lv.1 capy (if under soft herd cap).
-  static const int callCapyGrassCost = 8;
+  /// Playtest v1.1: 8 → 12 so call-spam cannot skip the cozy first minutes.
+  static const int callCapyGrassCost = 12;
 
   /// Spend: short auto-progress boost (weaker than mud wallow).
   static const int grassBoostCost = 5;
@@ -218,7 +223,17 @@ abstract final class BalanceV0 {
   // --- Twin sparkle (merge skill window) ---
 
   /// How often we try to mark a same-level pair (seconds).
-  static const int twinRerollSeconds = 18;
+  /// Playtest v1.1: 18 → 36 — rare skill window (~30–60s feel), not permanent glow.
+  static const int twinRerollSeconds = 36;
+
+  /// After a successful twin-merge bonus, delay before next mark attempt.
+  static const int twinPostMergeCooldownSeconds = 28;
+
+  /// Chance to actually mark a pair on a reroll (else quiet gap).
+  static const double twinMarkChance = 0.55;
+
+  /// Chance an existing valid twin pair lingers across a reroll.
+  static const double twinLingerChance = 0.35;
 
   /// Minimum herd size before twin marking can appear.
   static const int twinMinHerd = 2;

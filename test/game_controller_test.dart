@@ -117,9 +117,9 @@ void main() {
 
   test('zoom widens with Sunny Glade circles', () {
     expect(BalanceV0.zoomForHerdCount(1), BalanceV0.zoomClose);
-    expect(BalanceV0.zoomForHerdCount(4), BalanceV0.zoomMid);
-    expect(BalanceV0.zoomForHerdCount(7), BalanceV0.zoomFar);
-    expect(BalanceV0.zoomForHerdCount(10), BalanceV0.zoomWidest);
+    expect(BalanceV0.zoomForHerdCount(5), BalanceV0.zoomMid);
+    expect(BalanceV0.zoomForHerdCount(8), BalanceV0.zoomFar);
+    expect(BalanceV0.zoomForHerdCount(11), BalanceV0.zoomWidest);
     expect(BalanceV0.zoomForHerdCount(12), BalanceV0.zoomWidest);
   });
 
@@ -129,10 +129,12 @@ void main() {
     expect(c.currentGlade.id, 'warm_edge');
     expect(c.gladeUnlockToast, isNull);
 
-    // Grow to 3 → Ягодная поляна.
+    // Grow to 5 → Ягодная поляна (v1.1 band).
     c.addProgress(1.0, fromTap: true);
     c.addProgress(1.0, fromTap: true);
-    expect(c.state.herdCount, 3);
+    c.addProgress(1.0, fromTap: true);
+    c.addProgress(1.0, fromTap: true);
+    expect(c.state.herdCount, 5);
     expect(c.currentGlade.id, 'berry_glade');
     expect(c.gladeUnlockToast, 'Открылась Ягодная поляна');
     expect(c.state.sunnyGladeAnnounced, 1);
@@ -142,7 +144,7 @@ void main() {
 
     // Further growth within same glade — no re-toast.
     c.addProgress(1.0, fromTap: true);
-    expect(c.state.herdCount, 4);
+    expect(c.state.herdCount, 6);
     expect(c.gladeUnlockToast, isNull);
     c.dispose();
   });
@@ -334,18 +336,20 @@ void main() {
   test('unlocked glade stays open after merge shrinks herd', () async {
     final c = GameController(persistence: GamePersistence());
     await c.init();
-    // Grow to 3 → Berry Glade unlocks.
+    // Grow to 5 → Berry Glade unlocks.
     c.addProgress(1.0, fromTap: true);
     c.addProgress(1.0, fromTap: true);
-    expect(c.state.herdCount, 3);
+    c.addProgress(1.0, fromTap: true);
+    c.addProgress(1.0, fromTap: true);
+    expect(c.state.herdCount, 5);
     expect(c.currentGlade.id, 'berry_glade');
     expect(c.state.sunnyGladeAnnounced, 1);
 
-    // Merge 3 → 2: herd shrinks but Berry Glade stays (no Warm Edge regression).
+    // Merge 5 → 4: herd shrinks but Berry Glade stays (no Warm Edge regression).
     final a = c.state.herd[0].id;
     final b = c.state.herd[1].id;
     expect(c.tryMerge(a, b), isTrue);
-    expect(c.state.herdCount, 2);
+    expect(c.state.herdCount, 4);
     expect(c.currentGlade.id, 'berry_glade');
     expect(c.currentGlade.nameRu, 'Ягодная поляна');
     c.dispose();
@@ -392,10 +396,12 @@ void main() {
     expect(c.currentSessionGoal?.id, 'berry_glade');
     expect(c.sessionGoalProgress, lessThan(1.0));
 
-    // Grow to 3 → Berry Glade + goal complete.
+    // Grow to 5 → Berry Glade + goal complete.
     c.addProgress(1.0, fromTap: true);
     c.addProgress(1.0, fromTap: true);
-    expect(c.state.herdCount, 3);
+    c.addProgress(1.0, fromTap: true);
+    c.addProgress(1.0, fromTap: true);
+    expect(c.state.herdCount, 5);
     expect(c.state.sunnyGladeAnnounced, 1);
     expect(c.goalCompleteToast, isNotNull);
     expect(c.state.sessionGoalIndex, greaterThanOrEqualTo(1));
@@ -439,6 +445,62 @@ void main() {
     expect(back.sessionGoalIndex, 2);
     expect(back.twinIdA, 'c1');
     expect(back.twinIdB, 'c2');
+  });
+
+  test('spendCallCapy respects soft herd cap', () async {
+    final c = GameController(persistence: GamePersistence());
+    await c.init();
+    for (var i = 0; i < 20; i++) {
+      c.addProgress(1.0, fromTap: true);
+    }
+    expect(c.state.herdCount, BalanceV0.maxHerdSize);
+    // Grant grass directly via flower taps (progress clamped at cap).
+    while (c.state.grass < BalanceV0.callCapyGrassCost) {
+      c.onFlowerTap();
+    }
+    expect(c.canCallCapy, isFalse);
+    expect(c.spendCallCapy(), isFalse);
+    expect(c.state.herdCount, BalanceV0.maxHerdSize);
+    expect(c.state.grass, greaterThanOrEqualTo(BalanceV0.callCapyGrassCost));
+    c.dispose();
+  });
+
+  test('spend refuses when broke; grass never negative', () async {
+    final c = GameController(persistence: GamePersistence());
+    await c.init();
+    expect(c.state.grass, 0);
+    expect(c.canCallCapy, isFalse);
+    expect(c.canGrassBoost, isFalse);
+    expect(c.spendCallCapy(), isFalse);
+    expect(c.spendGrassBoost(), isFalse);
+    expect(c.state.grass, 0);
+    c.dispose();
+  });
+
+  test('save/load keeps grass and session goals', () async {
+    SharedPreferences.setMockInitialValues({});
+    final c1 = GameController(persistence: GamePersistence());
+    await c1.init();
+    c1.addProgress(1.0, fromTap: true);
+    c1.addProgress(1.0, fromTap: true);
+    c1.addProgress(1.0, fromTap: true);
+    c1.addProgress(1.0, fromTap: true);
+    while (c1.state.grass < 5) {
+      c1.onFlowerTap();
+    }
+    final grass = c1.state.grass;
+    final goalIdx = c1.state.sessionGoalIndex;
+    final herd = c1.state.herdCount;
+    // Flush persist immediately.
+    await GamePersistence().save(c1.state);
+    c1.dispose();
+
+    final c2 = GameController(persistence: GamePersistence());
+    await c2.init();
+    expect(c2.state.grass, grass);
+    expect(c2.state.sessionGoalIndex, goalIdx);
+    expect(c2.state.herdCount, herd);
+    c2.dispose();
   });
 
 }

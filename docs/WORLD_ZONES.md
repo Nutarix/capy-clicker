@@ -15,10 +15,10 @@ capybaras never rest on trunks.
 
 | # | Название | Herd | Rect (L, T, R, B) | Base zoom | Feel |
 |---|----------|------|-------------------|-----------|------|
-| 0 | **Тёплая опушка** | 0–2 | 0.10, 0.52, 0.86, 0.92 | **1.00** | Small starter meadow by the tree line |
-| 1 | **Ягодная поляна** | 3–5 | 0.06, 0.50, 0.90, 0.93 | **0.82** | Wider sides — room for berry bushes |
-| 2 | **Солнечный прогал** | 6–8 | 0.05, 0.40, 0.91, 0.945 | **0.66** | Deeper into the forest (taller clearing) |
-| 3 | **Большой луг** | 9–12 | 0.03, 0.34, 0.94, 0.96 | **0.50** | Most of the lower ~⅔; canopy stays wall |
+| 0 | **Тёплая опушка** | 0–4 | 0.10, 0.52, 0.86, 0.92 | **1.00** | Small starter meadow by the tree line |
+| 1 | **Ягодная поляна** | 5–7 | 0.06, 0.50, 0.90, 0.93 | **0.82** | Wider sides — room for berry bushes |
+| 2 | **Солнечный прогал** | 8–10 | 0.05, 0.40, 0.91, 0.945 | **0.66** | Deeper into the forest (taller clearing) |
+| 3 | **Большой луг** | 11–12 | 0.03, 0.34, 0.94, 0.96 | **0.50** | Most of the lower ~⅔; canopy stays wall |
 
 API: `WorldZones.gladeForHerd(count)` → `SunnyGlade` (name, rect, `baseZoom`).
 Clamp/spawn: `clampToMeadow` / `randomInMeadow` with `herdCount:`.
@@ -52,7 +52,7 @@ No toast on relaunch. HUD chips under the progress bar are split:
 
 Once a glade is unlocked (`sunnyGladeAnnounced`), merge that shrinks the herd
 does **not** revoke it — walkable rect / camera baseline stay on the opened
-glade (fixes playtest “Berry 3/12 → Warm 2/12” regression feel).
+glade (fixes playtest “Berry 4/12 → Warm after merge” regression feel).
 
 ## Entities clamped / placed on meadow only
 

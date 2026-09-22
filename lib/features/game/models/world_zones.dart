@@ -61,16 +61,16 @@ abstract final class WorldZones {
   ///
   /// | # | Name | Herd | Rect (L,T,R,B) | Zoom |
   /// |---|------|------|----------------|------|
-  /// | 0 | Тёплая опушка | 0–2 | 0.10, 0.52, 0.86, 0.92 | 1.00 |
-  /// | 1 | Ягодная поляна | 3–5 | 0.06, 0.50, 0.90, 0.93 | 0.82 |
-  /// | 2 | Солнечный прогал | 6–8 | 0.05, 0.40, 0.91, 0.945 | 0.66 |
-  /// | 3 | Большой луг | 9–12 | 0.03, 0.34, 0.94, 0.96 | 0.50 |
+  /// | 0 | Тёплая опушка | 0–4 | 0.10, 0.52, 0.86, 0.92 | 1.00 |
+  /// | 1 | Ягодная поляна | 5–7 | 0.06, 0.50, 0.90, 0.93 | 0.82 |
+  /// | 2 | Солнечный прогал | 8–10 | 0.05, 0.40, 0.91, 0.945 | 0.66 |
+  /// | 3 | Большой луг | 11–12 | 0.03, 0.34, 0.94, 0.96 | 0.50 |
   static const List<SunnyGlade> glades = [
     SunnyGlade(
       id: 'warm_edge',
       index: 0,
       minHerd: 0,
-      maxHerd: 2,
+      maxHerd: 4,
       nameRu: 'Тёплая опушка',
       nameEn: 'Warm Forest Edge',
       left: 0.10,
@@ -83,8 +83,8 @@ abstract final class WorldZones {
     SunnyGlade(
       id: 'berry_glade',
       index: 1,
-      minHerd: 3,
-      maxHerd: 5,
+      minHerd: 5,
+      maxHerd: 7,
       nameRu: 'Ягодная поляна',
       nameEn: 'Berry Glade',
       // Wider sides — berry bushes along the tree line.
@@ -98,8 +98,8 @@ abstract final class WorldZones {
     SunnyGlade(
       id: 'sunny_clearing',
       index: 2,
-      minHerd: 6,
-      maxHerd: 8,
+      minHerd: 8,
+      maxHerd: 10,
       nameRu: 'Солнечный прогал',
       nameEn: 'Sunny Clearing',
       // Deeper into the forest (taller meadow), still under canopy wall.
@@ -113,7 +113,7 @@ abstract final class WorldZones {
     SunnyGlade(
       id: 'great_meadow',
       index: 3,
-      minHerd: 9,
+      minHerd: 11,
       maxHerd: 12,
       nameRu: 'Большой луг',
       nameEn: 'Great Meadow',

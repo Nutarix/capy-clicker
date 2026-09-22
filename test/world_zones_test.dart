@@ -17,12 +17,12 @@ void main() {
     test('tier table: herd → glade + rect + zoom', () {
       final cases = <(int herd, String id, Rect rect, double zoom)>[
         (0, 'warm_edge', const Rect.fromLTRB(0.10, 0.52, 0.86, 0.92), 1.0),
-        (2, 'warm_edge', const Rect.fromLTRB(0.10, 0.52, 0.86, 0.92), 1.0),
-        (3, 'berry_glade', const Rect.fromLTRB(0.06, 0.50, 0.90, 0.93), 0.82),
+        (4, 'warm_edge', const Rect.fromLTRB(0.10, 0.52, 0.86, 0.92), 1.0),
         (5, 'berry_glade', const Rect.fromLTRB(0.06, 0.50, 0.90, 0.93), 0.82),
-        (6, 'sunny_clearing', const Rect.fromLTRB(0.05, 0.40, 0.91, 0.945), 0.66),
+        (7, 'berry_glade', const Rect.fromLTRB(0.06, 0.50, 0.90, 0.93), 0.82),
         (8, 'sunny_clearing', const Rect.fromLTRB(0.05, 0.40, 0.91, 0.945), 0.66),
-        (9, 'great_meadow', const Rect.fromLTRB(0.03, 0.34, 0.94, 0.96), 0.50),
+        (10, 'sunny_clearing', const Rect.fromLTRB(0.05, 0.40, 0.91, 0.945), 0.66),
+        (11, 'great_meadow', const Rect.fromLTRB(0.03, 0.34, 0.94, 0.96), 0.50),
         (12, 'great_meadow', const Rect.fromLTRB(0.03, 0.34, 0.94, 0.96), 0.50),
         (20, 'great_meadow', const Rect.fromLTRB(0.03, 0.34, 0.94, 0.96), 0.50),
       ];
