@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import '../../../theme/cozy_theme.dart';
 import '../models/world_zones.dart';
 
-/// Soft full-screen forest map: unlocked meadows as cozy chips.
+/// Soft full-screen forest map: biomes with unlocked meadows as cozy chips.
 class ForestMapOverlay extends StatelessWidget {
   const ForestMapOverlay({
     super.key,
@@ -13,6 +13,7 @@ class ForestMapOverlay extends StatelessWidget {
     required this.herdCountFor,
     required this.onSelect,
     required this.onClose,
+    this.mistyBiomeUnlocked = false,
   });
 
   final List<String> unlockedIds;
@@ -20,6 +21,9 @@ class ForestMapOverlay extends StatelessWidget {
   final int Function(String meadowId) herdCountFor;
   final ValueChanged<String> onSelect;
   final VoidCallback onClose;
+
+  /// When false, Туманный бор section shows a locked chip.
+  final bool mistyBiomeUnlocked;
 
   @override
   Widget build(BuildContext context) {
@@ -49,66 +53,92 @@ class ForestMapOverlay extends StatelessWidget {
                 ),
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Row(
-                        children: [
-                          const Text('🌲', style: TextStyle(fontSize: 22)),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'Карта леса',
-                              style: CozyTheme.hudChipStyle(fontSize: 18),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Row(
+                          children: [
+                            const Text('🌲', style: TextStyle(fontSize: 22)),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Карта леса',
+                                style: CozyTheme.hudChipStyle(fontSize: 18),
+                              ),
                             ),
-                          ),
-                          IconButton(
-                            tooltip: 'Назад',
-                            onPressed: () {
-                              HapticFeedback.lightImpact();
-                              onClose();
-                            },
-                            icon: const Icon(
-                              Icons.close_rounded,
-                              color: Color(0xFF5C3D1E),
+                            IconButton(
+                              tooltip: 'Назад',
+                              onPressed: () {
+                                HapticFeedback.lightImpact();
+                                onClose();
+                              },
+                              icon: const Icon(
+                                Icons.close_rounded,
+                                color: Color(0xFF5C3D1E),
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Выбери поляну — семья ждёт на каждой своей.',
-                        style: CozyTheme.hudChipMutedStyle(fontSize: 13),
-                      ),
-                      const SizedBox(height: 14),
-                      Wrap(
-                        spacing: 10,
-                        runSpacing: 10,
-                        children: [
-                          for (final g in WorldZones.glades)
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Выбери поляну — семья ждёт на каждой своей.',
+                          style: CozyTheme.hudChipMutedStyle(fontSize: 13),
+                        ),
+                        const SizedBox(height: 14),
+                        _BiomeSection(
+                          titleRu: WorldZones.sunnyBiomeNameRu,
+                          emoji: '☀️',
+                          children: [
+                            for (final g in WorldZones.glades)
+                              _MeadowChip(
+                                glade: g,
+                                unlocked: unlockedIds.contains(g.id),
+                                active: g.id == activeMeadowId,
+                                herdCount: unlockedIds.contains(g.id)
+                                    ? herdCountFor(g.id)
+                                    : 0,
+                                onTap: unlockedIds.contains(g.id)
+                                    ? () {
+                                        HapticFeedback.selectionClick();
+                                        onSelect(g.id);
+                                      }
+                                    : null,
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        _BiomeSection(
+                          titleRu: WorldZones.mistyBiomeNameRu,
+                          emoji: '🌫️',
+                          children: [
                             _MeadowChip(
-                              glade: g,
-                              unlocked: unlockedIds.contains(g.id),
-                              active: g.id == activeMeadowId,
-                              herdCount:
-                                  unlockedIds.contains(g.id) ? herdCountFor(g.id) : 0,
-                              onTap: unlockedIds.contains(g.id)
+                              glade: WorldZones.mistEdge,
+                              unlocked: mistyBiomeUnlocked,
+                              active: activeMeadowId ==
+                                  WorldZones.mistEdgeMeadowId,
+                              herdCount: mistyBiomeUnlocked
+                                  ? herdCountFor(WorldZones.mistEdgeMeadowId)
+                                  : 0,
+                              lockedHintRu: 'откроется после Большого луга и Lv.4',
+                              onTap: mistyBiomeUnlocked
                                   ? () {
                                       HapticFeedback.selectionClick();
-                                      onSelect(g.id);
+                                      onSelect(WorldZones.mistEdgeMeadowId);
                                     }
                                   : null,
                             ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Трава общая · семьи — у каждой поляны свои',
-                        textAlign: TextAlign.center,
-                        style: CozyTheme.hudChipMutedStyle(fontSize: 12),
-                      ),
-                    ],
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Трава и уют общие · семьи — у каждой поляны свои',
+                          textAlign: TextAlign.center,
+                          style: CozyTheme.hudChipMutedStyle(fontSize: 12),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -120,6 +150,43 @@ class ForestMapOverlay extends StatelessWidget {
   }
 }
 
+class _BiomeSection extends StatelessWidget {
+  const _BiomeSection({
+    required this.titleRu,
+    required this.emoji,
+    required this.children,
+  });
+
+  final String titleRu;
+  final String emoji;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Text(emoji, style: const TextStyle(fontSize: 14)),
+            const SizedBox(width: 6),
+            Text(
+              titleRu,
+              style: CozyTheme.hudChipStyle(fontSize: 14),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: children,
+        ),
+      ],
+    );
+  }
+}
+
 class _MeadowChip extends StatelessWidget {
   const _MeadowChip({
     required this.glade,
@@ -127,6 +194,7 @@ class _MeadowChip extends StatelessWidget {
     required this.active,
     required this.herdCount,
     required this.onTap,
+    this.lockedHintRu,
   });
 
   final SunnyGlade glade;
@@ -134,6 +202,7 @@ class _MeadowChip extends StatelessWidget {
   final bool active;
   final int herdCount;
   final VoidCallback? onTap;
+  final String? lockedHintRu;
 
   @override
   Widget build(BuildContext context) {
@@ -183,8 +252,10 @@ class _MeadowChip extends StatelessWidget {
                 const SizedBox(height: 6),
                 Text(
                   unlocked
-                      ? (active ? 'здесь · семья $herdCount' : 'семья $herdCount')
-                      : 'ещё закрыта',
+                      ? (active
+                          ? 'здесь · семья $herdCount'
+                          : 'семья $herdCount')
+                      : (lockedHintRu ?? 'ещё закрыта'),
                   style: CozyTheme.hudChipMutedStyle(fontSize: 12),
                 ),
               ],

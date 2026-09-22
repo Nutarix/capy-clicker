@@ -130,15 +130,15 @@ abstract final class WorldZones {
   /// Starter meadow id (Тёплая опушка) — default [GameState.activeMeadowId].
   static const String starterMeadowId = 'warm_edge';
 
-  /// Lookup by stable machine id (`warm_edge`, …). Throws if unknown.
+  /// Lookup by stable machine id (`warm_edge`, `mist_edge`, …). Throws if unknown.
   static SunnyGlade gladeById(String id) {
-    for (final g in glades) {
+    for (final g in allMeadows) {
       if (g.id == id) return g;
     }
     throw ArgumentError.value(id, 'id', 'Unknown meadow id');
   }
 
-  /// Index of [id] in [glades], or -1.
+  /// Index of [id] in biome-1 [glades], or -1 (misty meadows are not indexed here).
   static int indexOfMeadowId(String id) {
     for (final g in glades) {
       if (g.id == id) return g.index;
@@ -223,4 +223,57 @@ abstract final class WorldZones {
     (0.80, 0.66),
     (0.50, 0.76),
   ];
+
+  // --- Prestige v0: second forest biome «Туманный бор» ---
+
+  /// Biome id for the starter Sunny Glades forest.
+  static const String sunnyBiomeId = 'sunny_glades';
+  static const String sunnyBiomeNameRu = 'Солнечные поляны';
+
+  /// Biome id for misty forest stub.
+  static const String mistyBiomeId = 'misty_grove';
+  static const String mistyBiomeNameRu = 'Туманный бор';
+
+  /// Starter meadow of Туманный бор (fresh small clearing).
+  static const String mistEdgeMeadowId = 'mist_edge';
+
+  /// Single stub meadow for biome 2 (fixed cozy rect, mid zoom).
+  static const SunnyGlade mistEdge = SunnyGlade(
+    id: mistEdgeMeadowId,
+    index: 0,
+    minHerd: 0,
+    maxHerd: 4,
+    nameRu: 'Туманная опушка',
+    nameEn: 'Misty Edge',
+    left: 0.10,
+    top: 0.52,
+    right: 0.86,
+    bottom: 0.92,
+    baseZoom: 1.0,
+    unlockToastRu: 'Открылся Туманный бор',
+  );
+
+  /// All playable meadow definitions (biome 1 glades + biome 2 stub).
+  static List<SunnyGlade> get allMeadows => [...glades, mistEdge];
+
+  /// Meadows belonging to [biomeId].
+  static List<SunnyGlade> meadowsForBiome(String biomeId) {
+    if (biomeId == mistyBiomeId) return const [mistEdge];
+    return glades;
+  }
+
+  /// Biome id for a meadow machine id.
+  static String biomeIdForMeadow(String meadowId) {
+    if (meadowId == mistEdgeMeadowId) return mistyBiomeId;
+    return sunnyBiomeId;
+  }
+
+  static String biomeNameRuForMeadow(String meadowId) {
+    return biomeIdForMeadow(meadowId) == mistyBiomeId
+        ? mistyBiomeNameRu
+        : sunnyBiomeNameRu;
+  }
+
+  /// True if [id] is the misty stub meadow.
+  static bool isMistyMeadow(String id) => id == mistEdgeMeadowId;
 }

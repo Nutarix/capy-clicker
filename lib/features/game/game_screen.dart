@@ -443,6 +443,7 @@ class _GameScreenState extends State<GameScreen> {
                                   goal: _controller.currentSessionGoal,
                                   progress: _controller.sessionGoalProgress,
                                 ),
+                                _UyutChip(uyut: state.uyut),
                                 _HerdSizeChip(count: state.herdCount),
                                 _SunnyGladeChip(
                                   nameRu: _controller.currentGlade.nameRu,
@@ -676,6 +677,7 @@ class _GameScreenState extends State<GameScreen> {
                     unlockedIds: _controller.unlockedMeadowIds,
                     activeMeadowId: _controller.state.activeMeadowId,
                     herdCountFor: _controller.herdCountForMeadow,
+                    mistyBiomeUnlocked: _controller.state.mistyBiomeUnlocked,
                     onClose: () => setState(() => _forestMapOpen = false),
                     onSelect: (id) {
                       if (_controller.switchToMeadow(id)) {
@@ -692,6 +694,39 @@ class _GameScreenState extends State<GameScreen> {
   }
 }
 
+
+
+/// Meta «Уют» / искры уюта — small cozy HUD chip.
+class _UyutChip extends StatelessWidget {
+  const _UyutChip({required this.uyut});
+
+  final int uyut;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF3D6).withValues(alpha: 0.95),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2CFA8)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('✨', style: TextStyle(fontSize: 13)),
+            const SizedBox(width: 4),
+            Text(
+              'уют $uyut',
+              style: CozyTheme.hudChipStyle(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 /// Explicit family size (Семья) — never paired as «Glade N/12» progress.
 class _HerdSizeChip extends StatelessWidget {
@@ -887,7 +922,9 @@ class _SessionGoalChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final title = goal == null ? 'Цели закрыты' : 'Цель: ${goal.titleRu}';
+    final title = goal == null
+        ? 'Цель: Собери искры уюта'
+        : 'Цель: ${goal.titleRu}';
     final pct = (progress.clamp(0.0, 1.0) * 100).round();
     return DecoratedBox(
       decoration: BoxDecoration(

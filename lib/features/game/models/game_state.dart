@@ -5,7 +5,7 @@ import 'world_zones.dart';
 /// Immutable snapshot of playable herd + progress + session loop + forest map.
 ///
 /// **Shared globally:** grass wallet, session goals, daily claim, nextId,
-/// unlock index ([sunnyGladeAnnounced]).
+/// unlock index ([sunnyGladeAnnounced]), meta [uyut], [mistyBiomeUnlocked].
 /// **Per meadow:** herd, local progress bar, twin marks ([meadows]).
 class GameState {
   const GameState({
@@ -21,6 +21,8 @@ class GameState {
     this.twinIdB,
     this.activeMeadowId = WorldZones.starterMeadowId,
     this.meadows = const {},
+    this.uyut = 0,
+    this.mistyBiomeUnlocked = false,
   });
 
   /// Herd progress in range 0.0–1.0 (fills toward next spawn) — **active** meadow.
@@ -58,6 +60,12 @@ class GameState {
   /// after [withActiveSynced] / normal [copyWith] paths.
   final Map<String, MeadowSnapshot> meadows;
 
+  /// Meta-валюта «Уют» / искры уюта — permanent, never wiped.
+  final int uyut;
+
+  /// Prestige v0: second forest biome «Туманный бор» unlocked.
+  final bool mistyBiomeUnlocked;
+
   int get herdCount => herd.length;
 
   /// Sum of herds across every stored meadow (menu «Продолжить»).
@@ -82,16 +90,21 @@ class GameState {
   bool isTwinMarked(String id) => id == twinIdA || id == twinIdB;
 
   bool isMeadowUnlocked(String meadowId) {
+    if (WorldZones.isMistyMeadow(meadowId)) return mistyBiomeUnlocked;
     final idx = WorldZones.indexOfMeadowId(meadowId);
     if (idx < 0) return false;
     return idx <= sunnyGladeAnnounced;
   }
 
   List<String> get unlockedMeadowIds {
-    return [
+    final ids = [
       for (final g in WorldZones.glades)
         if (g.index <= sunnyGladeAnnounced) g.id,
     ];
+    if (mistyBiomeUnlocked) {
+      ids.add(WorldZones.mistEdgeMeadowId);
+    }
+    return ids;
   }
 
   /// Snapshot of the active meadow fields.
@@ -124,6 +137,8 @@ class GameState {
     bool clearTwin = false,
     String? activeMeadowId,
     Map<String, MeadowSnapshot>? meadows,
+    int? uyut,
+    bool? mistyBiomeUnlocked,
   }) {
     final nextActive = activeMeadowId ?? this.activeMeadowId;
     final nextHerd = herd ?? this.herd;
@@ -165,6 +180,8 @@ class GameState {
       twinIdB: nextTwinB,
       activeMeadowId: nextActive,
       meadows: nextMeadows,
+      uyut: uyut ?? this.uyut,
+      mistyBiomeUnlocked: mistyBiomeUnlocked ?? this.mistyBiomeUnlocked,
     );
   }
 
@@ -186,6 +203,8 @@ class GameState {
       'meadows': {
         for (final e in synced.meadows.entries) e.key: e.value.toJson(),
       },
+      'uyut': synced.uyut,
+      'mistyBiomeUnlocked': synced.mistyBiomeUnlocked,
     };
   }
 
@@ -235,6 +254,8 @@ class GameState {
       twinIdB: active.twinIdB,
       activeMeadowId: activeId,
       meadows: meadows,
+      uyut: (json['uyut'] as num?)?.toInt() ?? 0,
+      mistyBiomeUnlocked: json['mistyBiomeUnlocked'] as bool? ?? false,
     );
   }
 
@@ -278,6 +299,8 @@ class GameState {
       twinIdB: twinB,
       activeMeadowId: activeId,
       meadows: meadows,
+      uyut: (json['uyut'] as num?)?.toInt() ?? 0,
+      mistyBiomeUnlocked: json['mistyBiomeUnlocked'] as bool? ?? false,
     );
   }
 

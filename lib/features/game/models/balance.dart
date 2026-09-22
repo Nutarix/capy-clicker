@@ -242,6 +242,14 @@ abstract final class BalanceV0 {
   /// Minimum herd size before twin marking can appear.
   static const int twinMinHerd = 2;
 
+  // --- Уют meta (prestige v0) ---
+
+  /// Permanent auto boost per Уют point (+3% to auto progress & auto grass).
+  static const double uyutAutoBoostPerPoint = 0.03;
+
+  /// First Уют grant when Great Glade + family Lv.4 chain completes.
+  static const int firstMistyUyutGrant = 1;
+
   // --- Juice / tips ---
 
   /// Brief merge flash duration on the new merged capy.

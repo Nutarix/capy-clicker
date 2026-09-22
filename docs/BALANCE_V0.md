@@ -143,7 +143,7 @@ Zoom target = `min(baseZoom, fitZoom)` — если bbox семьи (+padding 0.
 ## Персист
 
 - `shared_preferences`, ключ `capy_clicker_game_state_v1`
-- Сохраняется: `herdProgress`, `herd[]` (id/level/x/y), `nextId`, `savedAtMs`, `lastDailyClaimYmd`, `sunnyGladeAnnounced`, `grass`, `sessionGoalIndex`, `twinIdA`/`twinIdB`
+- Сохраняется: `herdProgress`, `herd[]` (id/level/x/y), `nextId`, `savedAtMs`, `lastDailyClaimYmd`, `sunnyGladeAnnounced`, `grass`, `sessionGoalIndex`, `twinIdA`/`twinIdB`, `uyut`, `mistyBiomeUnlocked`, `meadows`, `activeMeadowId`
 - Debounce **400 мс**; буст/ягоды — сессионные (не пишутся)
 
 ## Feedback / audio (Phase 2–3)
@@ -187,9 +187,21 @@ Zoom target = `min(baseZoom, fitZoom)` — если bbox семьи (+padding 0.
 | `twinLingerChance` | **0.35** | |
 | `twinMinHerd` | **2** | |
 
-Цели: Ягодная поляна → Солнечный прогал → Большой луг → Капи Lv.4.
-См. `docs/GAMELOOP_V1.md`.
+Цели: Ягодная → Солнечный прогал → Большой луг → Капи Lv.4 → Туманный бор → визит → искры уюта.
+См. `docs/GAMELOOP_V1.md`, `docs/PRESTIGE_V0.md`.
+
+## Уют (meta / prestige v0)
+
+| Параметр | Значение | Комментарий |
+|---|---|---|
+| Первый грант | Great Glade (`sunnyGladeAnnounced ≥ 3`) **и** max Lv ≥ 4 | один раз при unlock Туманного бора |
+| `uyutAutoBoostPerPoint` | **0.03** (+3%) | к `autoProgressPerSecond` и `autoGrassPerSecond` |
+| Wipe | никогда | постоянный mild boost |
+| Soft cap | позже | эскиз +2–5% до потолка |
+
+Код: `GameState.uyut`, `BalanceV0.uyutAutoBoostPerPoint`. Docs: `PRESTIGE_V0.md`.
 
 ## Вне скоупа v0
 
-IAP, новые биомы, richer adaptive music beds.
+IAP, полные континенты, арт ракеты, regenerating store PNGs, richer adaptive music beds.
+Stub биома «Туманный бор» — **в скоупе** prestige v0.

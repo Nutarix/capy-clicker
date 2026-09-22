@@ -78,10 +78,14 @@ class GameController extends ChangeNotifier {
   GameState get state => _state;
   bool get isReady => _ready;
 
-  /// Live auto fill rate (fraction/sec), including boosts — for HUD «+X%/с».
+  /// Live auto fill rate (fraction/sec), including boosts + Уют — for HUD «+X%/с».
   double get autoRatePerSecond {
-    return BalanceV0.autoProgressPerSecond * _boostMultiplier;
+    return BalanceV0.autoProgressPerSecond * _boostMultiplier * _uyutMultiplier;
   }
+
+  /// Permanent Уют multiplier (1 + uyut * 3%).
+  double get _uyutMultiplier =>
+      1.0 + _state.uyut * BalanceV0.uyutAutoBoostPerPoint;
 
   double get _boostMultiplier {
     var mult = 1.0;
@@ -144,7 +148,7 @@ class GameController extends ChangeNotifier {
   SessionGoal? get currentSessionGoal =>
       SessionGoals.at(_state.sessionGoalIndex);
 
-  /// 0–1 progress toward [currentSessionGoal] (1 if all done).
+  /// 0–1 progress toward [currentSessionGoal].
   double get sessionGoalProgress {
     final goal = currentSessionGoal;
     if (goal == null) return 1.0;
@@ -153,6 +157,9 @@ class GameController extends ChangeNotifier {
       sunnyGladeAnnounced: _state.sunnyGladeAnnounced,
       herdCount: _state.herdCount,
       maxCapyLevel: _state.maxCapyLevel,
+      mistyBiomeUnlocked: _state.mistyBiomeUnlocked,
+      activeMeadowId: _state.activeMeadowId,
+      uyut: _state.uyut,
     );
   }
 
@@ -231,6 +238,8 @@ class GameController extends ChangeNotifier {
       // Sync announced index quietly — no FOMO toast on relaunch.
       _state = _syncGladeAnnounced(_state, announce: false);
       _state = _sanitizeTwins(_state);
+      _state = _maybeUnlockMistyBiome(_state, announce: false);
+      _state = _fillEmptyUnlockedMeadows(_state);
       _state = _advanceGoalsQuiet(_state);
       _applyOfflineProgress();
     } else {
@@ -258,7 +267,8 @@ class GameController extends ChangeNotifier {
     if (seconds > BalanceV0.offlineCapSeconds) {
       seconds = BalanceV0.offlineCapSeconds;
     }
-    final amount = BalanceV0.autoProgressPerSecond * seconds;
+    final amount =
+        BalanceV0.autoProgressPerSecond * _uyutMultiplier * seconds;
     _offlineProgressGranted = amount;
     _offlineSecondsApplied = seconds;
     // Apply without live-tick dt guards; may spawn under herd cap.
@@ -294,8 +304,8 @@ class GameController extends ChangeNotifier {
       dirty = true;
     }
 
-    // Auto grass accrual.
-    _grassAcc += BalanceV0.autoGrassPerSecond * dt;
+    // Auto grass accrual (Уют boost).
+    _grassAcc += BalanceV0.autoGrassPerSecond * _uyutMultiplier * dt;
     if (_grassAcc >= 1.0) {
       final granted = _grassAcc.floor();
       _grassAcc -= granted;
@@ -318,7 +328,7 @@ class GameController extends ChangeNotifier {
     if (dirty) notifyListeners();
 
     addProgress(
-      BalanceV0.autoProgressPerSecond * _boostMultiplier * dt,
+      BalanceV0.autoProgressPerSecond * _boostMultiplier * _uyutMultiplier * dt,
       fromTap: false,
     );
   }
@@ -652,8 +662,12 @@ class GameController extends ChangeNotifier {
     final meadows =
         Map<String, MeadowSnapshot>.from(state.withActiveSynced().meadows);
     var dirty = false;
-    for (final g in WorldZones.glades) {
-      if (g.index > state.sunnyGladeAnnounced) continue;
+    final toFill = <SunnyGlade>[
+      for (final g in WorldZones.glades)
+        if (g.index <= state.sunnyGladeAnnounced) g,
+      if (state.mistyBiomeUnlocked) WorldZones.mistEdge,
+    ];
+    for (final g in toFill) {
       if (g.id == state.activeMeadowId) continue;
       final existing = meadows[g.id];
       if (existing == null || existing.herd.isEmpty) {
@@ -725,6 +739,47 @@ class GameController extends ChangeNotifier {
     return true;
   }
 
+  /// Prestige v0: Great Glade + Капи Lv.4 → first Уют + Туманный бор stub.
+  GameState _maybeUnlockMistyBiome(GameState state, {required bool announce}) {
+    if (state.mistyBiomeUnlocked) return state;
+    if (state.sunnyGladeAnnounced < 3) return state;
+
+    var maxLv = state.maxCapyLevel;
+    for (final snap in state.meadows.values) {
+      for (final c in snap.herd) {
+        if (c.level > maxLv) maxLv = c.level;
+      }
+    }
+    if (maxLv < 4) return state;
+
+    var nextId = state.nextId;
+    final meadows =
+        Map<String, MeadowSnapshot>.from(state.withActiveSynced().meadows);
+    final existing = meadows[WorldZones.mistEdgeMeadowId];
+    if (existing == null || existing.herd.isEmpty) {
+      final built = _buildStarterHerd(
+        meadowId: WorldZones.mistEdgeMeadowId,
+        startNextId: nextId,
+        count: BalanceV0.meadowStarterHerdSize,
+      );
+      nextId = built.nextId;
+      meadows[WorldZones.mistEdgeMeadowId] = MeadowSnapshot(herd: built.herd);
+    }
+
+    if (announce && _ready) {
+      _gladeUnlockToast = WorldZones.mistEdge.unlockToastRu;
+      _lastGladeGrassReward = BalanceV0.gladeUnlockGrass;
+    }
+
+    return state.copyWith(
+      mistyBiomeUnlocked: true,
+      uyut: state.uyut + BalanceV0.firstMistyUyutGrant,
+      grass: state.grass + (announce && _ready ? BalanceV0.gladeUnlockGrass : 0),
+      meadows: meadows,
+      nextId: nextId,
+    );
+  }
+
   void _setState(GameState next) {
     // Reclamp to active Sunny Glade; soft-announce when a new glade opens.
     var state = _clampHerdToMeadow(next);
@@ -733,6 +788,7 @@ class GameController extends ChangeNotifier {
     }
     state = _sanitizeTwins(state);
     state = _syncGladeAnnounced(state, announce: true);
+    state = _maybeUnlockMistyBiome(state, announce: true);
     state = _checkGoals(state, celebrate: true);
     _state = state;
     notifyListeners();
@@ -779,6 +835,8 @@ class GameController extends ChangeNotifier {
         goal: goal,
         sunnyGladeAnnounced: state.sunnyGladeAnnounced,
         maxCapyLevel: state.maxCapyLevel,
+        mistyBiomeUnlocked: state.mistyBiomeUnlocked,
+        activeMeadowId: state.activeMeadowId,
       )) {
         break;
       }
@@ -799,6 +857,8 @@ class GameController extends ChangeNotifier {
         goal: goal,
         sunnyGladeAnnounced: state.sunnyGladeAnnounced,
         maxCapyLevel: state.maxCapyLevel,
+        mistyBiomeUnlocked: state.mistyBiomeUnlocked,
+        activeMeadowId: state.activeMeadowId,
       )) {
         break;
       }
@@ -882,7 +942,7 @@ class GameController extends ChangeNotifier {
       _grassBoostUntil = null;
       dirty = true;
     }
-    _grassAcc += BalanceV0.autoGrassPerSecond * dt;
+    _grassAcc += BalanceV0.autoGrassPerSecond * _uyutMultiplier * dt;
     if (_grassAcc >= 1.0) {
       final granted = _grassAcc.floor();
       _grassAcc -= granted;
@@ -901,7 +961,7 @@ class GameController extends ChangeNotifier {
     }
     if (dirty) notifyListeners();
     addProgress(
-      BalanceV0.autoProgressPerSecond * _boostMultiplier * dt,
+      BalanceV0.autoProgressPerSecond * _boostMultiplier * _uyutMultiplier * dt,
       fromTap: false,
     );
   }
