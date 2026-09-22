@@ -99,6 +99,8 @@ flutter run -d linux
 
 ## Дальше после v1
 
+Долгосрочный горизонт (луга → леса → континенты → ракета/планеты) и working agreement: [`ROADMAP.md`](ROADMAP.md). Ракета/планеты — north star only, не shippable v1.
+
 1. Заменить placeholder store shots реальными кадрами с телефона (demo mode / чистый status bar).
 2. Подключить SFX (audioplayers) под tap / merge / wallow / berry / daily.
 3. Утвердить и внедрить IAP (если продукт одобрит монетизацию).

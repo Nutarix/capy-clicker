@@ -88,6 +88,7 @@ lib/
 docs/
   BALANCE_V0.md
   MENU_DESIGN.md     # title screen refs + layout rules
+  ROADMAP.md         # северная звезда / meta + working agreement
   V1_CHECKLIST.md    # что в v1, как запускать, пробелы, next
 store/
   README.md          # icon + screenshot captions
@@ -119,6 +120,8 @@ Mute-чип в HUD («звук» / «звук выкл») пишет `capy_click
 ## Следующие шаги (после v1)
 
 См. [`docs/V1_CHECKLIST.md`](docs/V1_CHECKLIST.md): реальные store shots, IAP (если одобрят), полировка спрайтов.
+
+Долгосрочный план (северная звезда / meta-прогрессия) и working agreement: [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ## Репозиторий
 
