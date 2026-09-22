@@ -37,3 +37,24 @@
 
 Все иконки **вшиты** в клиент (`assets/images/`), emoji оставлены только как
 fallback для float-текста / снекбаров.
+
+### Zone backgrounds + button kit — ✅ одобрено Никитой (уникальные BG полян)
+
+Источник: `store/art-pack-zones/` (portrait 1080×1920 + `ui-btn-kit-strip.png`).
+
+| Файл в assets | Поляна / биом |
+|---------------|---------------|
+| `bg_warm_edge.png` | Тёплая опушка (`warm_edge`) |
+| `bg_berry_glade.png` | Ягодная поляна (`berry_glade`) |
+| `bg_sunny_clearing.png` | Солнечный прогал (`sunny_clearing`) |
+| `bg_great_meadow.png` | Большой луг (`great_meadow`) |
+| `bg_misty_woods.png` | Туманный бор / `mist_edge` |
+| `bg_forest.png` | **только fallback** (ошибка загрузки / неизвестный id) |
+
+Выбор ассета: `WorldZones.backgroundAssetForMeadow(meadowId)` → `MeadowBackground`
+(crossfade ~400 ms).
+
+Кнопки: программный `CozyPixelButton` / `CozyPixelIconButton` (sage bevel /
+cream outline / muted) по референсу `ui-btn-kit-strip.png` — без обязательного
+9-slice. Шрифты Pixelify/Nunito из `CozyTheme`.
+

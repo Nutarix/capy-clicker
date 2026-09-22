@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../theme/cozy_theme.dart';
+import '../../../../widgets/cozy_pixel_button.dart';
 import '../../controllers/game_controller.dart';
 import '../../models/balance.dart';
 import '../../models/multipliers/multipliers.dart';
@@ -189,30 +190,17 @@ class _FoodTab extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 16),
-        FilledButton(
+        CozyPixelButton(
+          label: 'Покормить семью · ${selected.labelRu}',
+          expand: true,
           onPressed: controller.canFeedSelected
               ? () {
                   HapticFeedback.mediumImpact();
                   controller.feedFamily();
                 }
               : null,
-          style: FilledButton.styleFrom(
-            backgroundColor: const Color(0xFF6B9B4A),
-            foregroundColor: Colors.white,
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              MultiplierIcon(assetPath: selected.assetPath, size: 22),
-              const SizedBox(width: 8),
-              Flexible(
-                child: Text(
-                  'Покормить семью · ${selected.labelRu}',
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
+          leading: MultiplierIcon(assetPath: selected.assetPath, size: 22),
+          fontSize: 14,
         ),
         if (controller.isFoodBoostActive) ...[
           const SizedBox(height: 10),
@@ -278,9 +266,12 @@ class _FoodChip extends StatelessWidget {
                 ],
               ),
               Text(food.effectRu, style: CozyTheme.hudChipMutedStyle(fontSize: 10)),
-              TextButton(
+              CozyPixelButton(
+                label: 'Купить',
+                variant: CozyPixelButtonVariant.secondary,
+                compact: true,
+                fontSize: 11,
                 onPressed: onBuy,
-                child: const Text('Купить', style: TextStyle(fontSize: 11)),
               ),
             ],
           ),
@@ -478,23 +469,25 @@ class _DecorRow extends StatelessWidget {
           style: CozyTheme.hudChipMutedStyle(fontSize: 11),
         ),
         trailing: owned
-            ? IconButton(
-                icon: Icon(
-                  state.placedDecor.contains(decor.id)
-                      ? Icons.check_circle
-                      : Icons.add_circle_outline,
-                  color: const Color(0xFF6B9B4A),
-                ),
+            ? CozyPixelIconButton(
+                icon: state.placedDecor.contains(decor.id)
+                    ? Icons.check_circle
+                    : Icons.add_circle_outline,
                 onPressed: () => controller.togglePlaceDecor(decor),
+                tooltip: 'Разместить',
+                size: 36,
+                iconSize: 20,
               )
-            : TextButton(
+            : CozyPixelButton(
+                label: softLocked ? 'Скоро' : 'Купить',
+                variant: CozyPixelButtonVariant.secondary,
+                compact: true,
                 onPressed: locked
                     ? null
                     : () {
                         HapticFeedback.lightImpact();
                         controller.buyDecor(decor);
                       },
-                child: Text(softLocked ? 'Скоро' : 'Купить'),
               ),
       ),
     );
@@ -612,14 +605,18 @@ class _ResearchRow extends StatelessWidget {
         ),
         trailing: done
             ? const Icon(Icons.check, color: Color(0xFF6B9B4A))
-            : TextButton(
+            : CozyPixelButton(
+                label: softLocked ? 'Скоро' : 'Открыть',
+                variant: softLocked || !can
+                    ? CozyPixelButtonVariant.secondary
+                    : CozyPixelButtonVariant.primary,
+                compact: true,
                 onPressed: can
                     ? () {
                         HapticFeedback.mediumImpact();
                         controller.unlockResearch(node.id);
                       }
                     : null,
-                child: Text(softLocked ? 'Скоро' : 'Открыть'),
               ),
       ),
     );

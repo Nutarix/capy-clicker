@@ -70,3 +70,21 @@ with the current herd count.
 
 No heavy debug overlay in release. Soft vignette in `MeadowBackground`;
 glade chip is enough for orientation.
+
+### Уникальные фоны полян
+
+Каждая активная поляна / mist-биом показывает свой portrait PNG
+(`assets/images/bg_*.png`). Маппинг:
+
+| `meadowId` | Asset | Название |
+|------------|-------|----------|
+| `warm_edge` | `bg_warm_edge.png` | Тёплая опушка |
+| `berry_glade` | `bg_berry_glade.png` | Ягодная поляна |
+| `sunny_clearing` | `bg_sunny_clearing.png` | Солнечный прогал |
+| `great_meadow` | `bg_great_meadow.png` | Большой луг |
+| `mist_edge` | `bg_misty_woods.png` | Туманный бор |
+| *(unknown)* | `bg_forest.png` | legacy fallback only |
+
+API: `WorldZones.backgroundAssetForMeadow(id)`.
+`MeadowBackground(meadowId: …)` берёт активный id из `GameState.activeMeadowId`
+и плавно crossfade ~400 ms при смене поляны / биома.

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/balance.dart';
+import '../../../widgets/cozy_pixel_button.dart';
 
 /// First-launch tip cards: merge + mud. Dismiss once → persisted.
 class FirstLaunchTipOverlay extends StatefulWidget {
@@ -137,26 +138,17 @@ class _FirstLaunchTipOverlayState extends State<FirstLaunchTipOverlay> {
                     const SizedBox(height: 14),
                     Row(
                       children: [
-                        TextButton(
+                        CozyPixelButton(
+                          label: 'Пропуск',
+                          variant: CozyPixelButtonVariant.secondary,
+                          compact: true,
                           onPressed: _dismiss,
-                          child: Text(
-                            'Пропуск',
-                            style: TextStyle(color: Colors.brown.shade600),
-                          ),
                         ),
                         const Spacer(),
-                        FilledButton(
-                          style: FilledButton.styleFrom(
-                            backgroundColor: const Color(0xFF6B9B4A),
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                          ),
+                        CozyPixelButton(
+                          label: _page < _tips.length - 1 ? 'Далее' : 'Понятно',
                           onPressed: _next,
-                          child: Text(
-                            _page < _tips.length - 1 ? 'Далее' : 'Понятно',
-                          ),
+                          compact: true,
                         ),
                       ],
                     ),

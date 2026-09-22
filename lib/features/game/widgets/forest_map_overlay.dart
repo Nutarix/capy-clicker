@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../theme/cozy_theme.dart';
+import '../../../widgets/cozy_pixel_button.dart';
 import '../models/world_zones.dart';
 
 /// Soft full-screen forest map: biomes with unlocked meadows as cozy chips.
@@ -68,16 +69,12 @@ class ForestMapOverlay extends StatelessWidget {
                                 style: CozyTheme.hudChipStyle(fontSize: 18),
                               ),
                             ),
-                            IconButton(
+                            CozyPixelIconButton(
                               tooltip: 'Назад',
-                              onPressed: () {
-                                HapticFeedback.lightImpact();
-                                onClose();
-                              },
-                              icon: const Icon(
-                                Icons.close_rounded,
-                                color: Color(0xFF5C3D1E),
-                              ),
+                              icon: Icons.close_rounded,
+                              onPressed: onClose,
+                              size: 36,
+                              iconSize: 20,
                             ),
                           ],
                         ),

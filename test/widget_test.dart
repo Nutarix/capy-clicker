@@ -100,7 +100,7 @@ void main() {
     expect(find.textContaining('семья'), findsWidgets);
 
     // Back to menu; pump past soft daily Future.delayed so no pending timer.
-    await tester.tap(find.text('меню'));
+    await tester.tap(find.byIcon(Icons.pause_rounded));
     await _pumpReady(tester);
     await tester.pump(const Duration(milliseconds: 800));
     expect(find.text('Grow! Capy!'), findsOneWidget);
@@ -115,7 +115,7 @@ void main() {
     expect(find.text('Прогресс'), findsOneWidget);
     expect(find.textContaining('семья'), findsWidgets);
     expect(find.textContaining('поляна:'), findsOneWidget);
-    expect(find.text('меню'), findsOneWidget);
+    expect(find.byIcon(Icons.pause_rounded), findsOneWidget);
     // Idle badges are compact digits; at least one level mark is present.
     expect(find.textContaining('1'), findsWidgets);
   });
@@ -127,7 +127,7 @@ void main() {
     await _enterGameFromMenu(tester);
     expect(find.text('Прогресс'), findsOneWidget);
 
-    await tester.tap(find.text('меню'));
+    await tester.tap(find.byIcon(Icons.pause_rounded));
     await _pumpReady(tester);
 
     expect(find.text('Grow! Capy!'), findsOneWidget);

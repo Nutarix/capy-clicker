@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../theme/cozy_theme.dart';
+import '../../widgets/cozy_pixel_button.dart';
 import 'package:flutter/services.dart';
 
 import 'audio/game_audio.dart';
@@ -407,6 +408,7 @@ class _GameScreenState extends State<GameScreen> {
 
     return Scaffold(
       body: MeadowBackground(
+        meadowId: state.activeMeadowId,
         child: SafeArea(
           child: Stack(
             children: [
@@ -930,41 +932,16 @@ class _MuteChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onToggle,
-        borderRadius: BorderRadius.circular(14),
-        child: Ink(
-          decoration: BoxDecoration(
-            color: const Color(0xFFFFF8EC).withValues(alpha: 0.95),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFFE2CFA8)),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  muted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
-                  size: 16,
-                  color: const Color(0xFF5C3D1E),
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  muted ? 'звук выкл' : 'звук',
-                  style: CozyTheme.hudChipMutedStyle(),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
+    return CozyPixelIconButton(
+      icon: muted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+      onPressed: onToggle,
+      tooltip: muted ? 'звук выкл' : 'звук',
+      semanticLabel: muted ? 'Включить звук' : 'Выключить звук',
+      size: 34,
+      iconSize: 18,
     );
   }
 }
-
 
 /// Compact return-to-menu control (does not wipe save).
 class _MenuBackChip extends StatelessWidget {
@@ -974,37 +951,13 @@ class _MenuBackChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(14),
-        child: Ink(
-          decoration: BoxDecoration(
-            color: const Color(0xFFFFF8EC).withValues(alpha: 0.95),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFFE2CFA8)),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(
-                  Icons.pause_rounded,
-                  size: 16,
-                  color: Color(0xFF5C3D1E),
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  'меню',
-                  style: CozyTheme.hudChipMutedStyle(),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
+    return CozyPixelIconButton(
+      icon: Icons.pause_rounded,
+      onPressed: onPressed,
+      tooltip: 'меню',
+      semanticLabel: 'Пауза — в меню',
+      size: 34,
+      iconSize: 18,
     );
   }
 }

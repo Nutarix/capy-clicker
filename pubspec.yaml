@@ -63,6 +63,11 @@ flutter:
 
   assets:
     - assets/images/bg_forest.png
+    - assets/images/bg_warm_edge.png
+    - assets/images/bg_berry_glade.png
+    - assets/images/bg_sunny_clearing.png
+    - assets/images/bg_great_meadow.png
+    - assets/images/bg_misty_woods.png
     - assets/images/capy_lv1.png
     - assets/images/capy_lv3.png
     - assets/images/flower.png

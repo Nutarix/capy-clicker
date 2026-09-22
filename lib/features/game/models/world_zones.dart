@@ -276,4 +276,28 @@ abstract final class WorldZones {
 
   /// True if [id] is the misty stub meadow.
   static bool isMistyMeadow(String id) => id == mistEdgeMeadowId;
+
+  /// Portrait meadow background asset for [meadowId].
+  ///
+  /// Mist biome (`mist_edge`) uses `bg_misty_woods.png`. Unknown ids fall back
+  /// to legacy `bg_forest.png` only.
+  static String backgroundAssetForMeadow(String meadowId) {
+    switch (meadowId) {
+      case 'warm_edge':
+        return 'assets/images/bg_warm_edge.png';
+      case 'berry_glade':
+        return 'assets/images/bg_berry_glade.png';
+      case 'sunny_clearing':
+        return 'assets/images/bg_sunny_clearing.png';
+      case 'great_meadow':
+        return 'assets/images/bg_great_meadow.png';
+      case mistEdgeMeadowId:
+        return 'assets/images/bg_misty_woods.png';
+      default:
+        return fallbackBackgroundAsset;
+    }
+  }
+
+  /// Legacy single-forest plate — fallback only.
+  static const String fallbackBackgroundAsset = 'assets/images/bg_forest.png';
 }

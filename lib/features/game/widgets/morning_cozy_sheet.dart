@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../models/balance.dart';
+import '../../../widgets/cozy_pixel_button.dart';
 
 /// Soft once-per-day claim sheet: «Утренний уют».
 /// Not an energy gate — dismissible, claimable until taken that calendar day.
@@ -117,36 +117,17 @@ class MorningCozySheet extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 18),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF6B9B4A),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                    onPressed: () {
-                      HapticFeedback.lightImpact();
-                      onClaim();
-                    },
-                    child: const Text(
-                      'Забрать уют',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
+                CozyPixelButton(
+                  label: 'Забрать уют',
+                  expand: true,
+                  onPressed: onClaim,
                 ),
-                TextButton(
+                const SizedBox(height: 8),
+                CozyPixelButton(
+                  label: 'Позже',
+                  variant: CozyPixelButtonVariant.secondary,
+                  compact: true,
                   onPressed: () => Navigator.of(context).pop(),
-                  child: Text(
-                    'Позже',
-                    style: TextStyle(color: Colors.brown.shade600),
-                  ),
                 ),
               ],
             ),

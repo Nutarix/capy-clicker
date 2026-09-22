@@ -7,6 +7,7 @@ import '../game/audio/game_audio.dart';
 import '../game/persistence/game_persistence.dart';
 import '../game/widgets/meadow_background.dart';
 import '../../theme/cozy_theme.dart';
+import '../../widgets/cozy_pixel_button.dart';
 import '../../widgets/portrait_menu_stage.dart';
 
 /// Soft cozy title screen shown before [GameScreen].
@@ -112,24 +113,16 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
             ),
           ),
           actions: [
-            TextButton(
+            CozyPixelButton(
+              label: 'Отмена',
+              variant: CozyPixelButtonVariant.secondary,
+              compact: true,
               onPressed: () => Navigator.of(ctx).pop(false),
-              child: Text(
-                'Отмена',
-                style: CozyTheme.hudChipMutedStyle().copyWith(
-                  color: CozyTheme.softBrown,
-                ),
-              ),
             ),
-            TextButton(
+            CozyPixelButton(
+              label: 'Заново',
+              compact: true,
               onPressed: () => Navigator.of(ctx).pop(true),
-              child: Text(
-                'Заново',
-                style: CozyTheme.secondaryButtonStyle().copyWith(
-                  fontWeight: FontWeight.w800,
-                  color: CozyTheme.buttonGreen,
-                ),
-              ),
             ),
           ],
         );
@@ -286,16 +279,23 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                                           ),
                                         ),
                                       ),
-                                      _CozyPrimaryButton(
+                                      CozyPixelButton(
                                         label:
                                             _hasSave ? 'Продолжить' : 'Играть',
                                         onPressed: _onPrimary,
+                                        expand: true,
+                                        maxWidth: 260,
+                                        fontSize: 22,
                                       ),
                                       if (_hasSave) ...[
                                         const SizedBox(height: 10),
-                                        _CozySecondaryButton(
+                                        CozyPixelButton(
                                           label: 'Заново',
+                                          variant:
+                                              CozyPixelButtonVariant.secondary,
                                           onPressed: _confirmNewGame,
+                                          maxWidth: 220,
+                                          compact: true,
                                         ),
                                       ],
                                       const SizedBox(height: 4),
@@ -318,90 +318,7 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
   }
 }
 
-/// Bigger cozy pill — Pixelify label, soft sage (not Material billboard).
-class _CozyPrimaryButton extends StatelessWidget {
-  const _CozyPrimaryButton({required this.label, required this.onPressed});
-
-  final String label;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 260),
-      child: SizedBox(
-        width: double.infinity,
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: onPressed,
-            borderRadius: BorderRadius.circular(26),
-            child: Ink(
-              decoration: BoxDecoration(
-                color: CozyTheme.softSage,
-                borderRadius: BorderRadius.circular(26),
-                border: Border.all(color: CozyTheme.softSageEdge, width: 2),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.20),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
-                child: Text(
-                  label,
-                  textAlign: TextAlign.center,
-                  style: CozyTheme.menuPrimaryCtaStyle(fontSize: 22),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _CozySecondaryButton extends StatelessWidget {
-  const _CozySecondaryButton({required this.label, required this.onPressed});
-
-  final String label;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 220),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onPressed,
-          borderRadius: BorderRadius.circular(18),
-          child: Ink(
-            decoration: BoxDecoration(
-              color: const Color(0xFFFFF8EC).withValues(alpha: 0.82),
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: const Color(0xFFE2CFA8), width: 1.5),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              child: Text(
-                label,
-                textAlign: TextAlign.center,
-                style: CozyTheme.secondaryButtonStyle(fontSize: 13),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Icon-only mute control (no cream chip, no «звук» label).
+/// Icon-only mute control in cozy circular pixel frame.
 class _MenuMuteIcon extends StatelessWidget {
   const _MenuMuteIcon({required this.muted, required this.onToggle});
 
@@ -410,31 +327,12 @@ class _MenuMuteIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      label: muted ? 'Включить звук' : 'Выключить звук',
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onToggle,
-          customBorder: const CircleBorder(),
-          child: Padding(
-            padding: const EdgeInsets.all(8),
-            child: Icon(
-              muted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
-              size: 22,
-              color: CozyTheme.cream.withValues(alpha: 0.92),
-              shadows: const [
-                Shadow(
-                  offset: Offset(0, 1),
-                  blurRadius: 4,
-                  color: Color(0x66000000),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
+    return CozyPixelIconButton(
+      icon: muted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+      onPressed: onToggle,
+      semanticLabel: muted ? 'Включить звук' : 'Выключить звук',
+      size: 38,
+      iconSize: 20,
     );
   }
 }
