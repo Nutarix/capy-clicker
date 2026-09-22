@@ -106,7 +106,7 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
             ),
           ),
           content: Text(
-            'Текущее сохранение стада будет стёрто. Это нельзя отменить.',
+            'Текущее сохранение семьи будет стёрто. Это нельзя отменить.',
             style: CozyTheme.hudChipMutedStyle(fontSize: 14).copyWith(
               height: 1.35,
             ),

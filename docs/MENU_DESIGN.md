@@ -36,7 +36,7 @@
    (не тёмный letterbox и не phone bezel).
 10. **Без phone chrome на меню** — никакого толстого phone frame / тёмного letterbox на
     title screen; игра по-прежнему в `PortraitPhoneFrame` (9:16) для playtest.
-11. **Без tagline** — только wordmark «Grow! Capy!»; подзаголовок «цветы · стадо · уют»
+11. **Без tagline** — только wordmark «Grow! Capy!»; подзаголовок «цветы · семья · уют»
     убран.
 12. **Крупный title** — default ~52px (clamp ~44–62 по высоте колонки), soft outline/shadow.
 

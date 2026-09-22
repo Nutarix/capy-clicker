@@ -47,7 +47,7 @@ Capture on a tall phone frame (e.g. 1080×1920 or device defaults). Order matter
 ### 1 — Herd + progress
 
 - **EN caption:** Grow your cozy capybara herd — tap flowers, watch them multiply.
-- **RU caption:** Собирай уютное стадо капибар — тапай цветы и смотри, как оно растёт.
+- **RU caption:** Собирай уютную семью капибар — тапай цветы и смотри, как она растёт.
 
 ### 2 — Merge + mud
 

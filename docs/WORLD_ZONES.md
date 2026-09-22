@@ -47,7 +47,7 @@ When a new glade opens for the first time (persisted
 
 No toast on relaunch. HUD chips under the progress bar are split:
 
-- **«стадо N/12»** — herd size only
+- **«семья N/12»** — herd size only
 - **«поляна: …»** — current Sunny Glade name only
 
 Once a glade is unlocked (`sunnyGladeAnnounced`), merge that shrinks the herd

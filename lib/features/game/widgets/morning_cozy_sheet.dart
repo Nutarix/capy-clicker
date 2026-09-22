@@ -87,7 +87,7 @@ class MorningCozySheet extends StatelessWidget {
                 const SizedBox(height: 8),
                 Text(
                   'Нежный подарок на сегодня:\n'
-                  '+${(BalanceV0.dailyBonusProgress * 100).round()}% к прогрессу стада',
+                  '+${(BalanceV0.dailyBonusProgress * 100).round()}% к прогрессу семьи',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 15,

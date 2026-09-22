@@ -200,7 +200,7 @@ class _GameScreenState extends State<GameScreen> {
           duration: const Duration(seconds: 4),
           backgroundColor: const Color(0xFF5C3D1E).withValues(alpha: 0.92),
           content: Text(
-            'Пока тебя не было… стадо подросло ($timeLabel → $barsLabel)',
+            'Пока тебя не было… семья подросла ($timeLabel → $barsLabel)',
             style: const TextStyle(color: Colors.white, fontSize: 14),
           ),
         ),
@@ -693,7 +693,7 @@ class _GameScreenState extends State<GameScreen> {
 }
 
 
-/// Explicit herd size — never paired as «Glade N/12» progress.
+/// Explicit family size (Семья) — never paired as «Glade N/12» progress.
 class _HerdSizeChip extends StatelessWidget {
   const _HerdSizeChip({required this.count});
 
@@ -710,7 +710,7 @@ class _HerdSizeChip extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         child: Text(
-          'стадо $count/${BalanceV0.maxHerdSize}',
+          'семья $count/${BalanceV0.maxHerdSize}',
           style: CozyTheme.hudChipStyle(),
         ),
       ),

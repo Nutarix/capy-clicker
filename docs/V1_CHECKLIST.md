@@ -4,7 +4,7 @@
 
 ## Что работает в v1
 
-- Авто-прогресс стада (~1.5%/с) без тапов
+- Авто-прогресс семьи (~1.5%/с) без тапов
 - Тап по цветкам: +3–6% к прогрессу
 - При 100%: спавн +1 капибары (лимит **12**), overflow переносится
 - Несколько капибар на лугу с уровнями и позициями (Lv.5–6 теплее/крупнее + halo)
@@ -16,7 +16,7 @@
 - **Утренний уют**: soft daily +25% раз в локальный день (sheet + чип)
 - **Haptics**: light/medium на тап, merge, wallow (мобильные)
 - **Audio**: cozy BGM + soft SFX via audioplayers; mute в HUD (persist)
-- Декор луга: unlock на стаде 3 / 6 / 9
+- Декор луга: unlock на семье 3 / 6 / 9
 - Tip overlay на первом запуске (merge + лужа)
 - Пиксель-спрайты с прозрачным фоном (chroma-key)
 - Juice: petal burst, cream progress bar, hills meadow
@@ -91,7 +91,7 @@ flutter run -d linux
 
 | Файл | Слот |
 |------|------|
-| `01-herd-progress.png` | Стадо + прогресс (1080×1920) |
+| `01-herd-progress.png` | Семья + прогресс (1080×1920) |
 | `02-merge-mud.png` | Merge + лужа |
 | `03-daily-berries.png` | Daily / ягоды |
 

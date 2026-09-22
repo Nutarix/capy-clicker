@@ -7,7 +7,7 @@
 1. Документы `GAMELOOP_V1.md`, `BALANCE_V0.md` + код `BalanceV0` / `GameController` / goals / twin.
 2. `flutter analyze` — clean; `flutter test` — все зелёные (включая новый `progression_sim_test.dart`).
 3. Headless-симуляция ~12 мин cozy-play: тапы цветов, ягоды, лужа, вилка трат, merge, twin.
-4. Ручной code review путей: отрицательная 🌿, soft-cap стада, залипшая цель, twin spam, мёртвые кнопки трат, save/load grass/goals.
+4. Ручной code review путей: отрицательная 🌿, soft-cap семьи, залипшая цель, twin spam, мёртвые кнопки трат, save/load grass/goals.
 
 ## Симуляция (seed 42, cozy cadence)
 
@@ -17,7 +17,7 @@
 | Первая трата 🌿 | ~12 с (накопление → Ускорение/Позвать) |
 | Вилка трат | и Call, и Boost используются (не «только спавн») |
 | Twin merge bonus | срабатывает (≥1 за сессию); подсветка не permanent |
-| Soft-cap 12 | соблюдается; Call отказан на полном стаде |
+| Soft-cap 12 | соблюдается; Call отказан на полной семье |
 | Цели | Berry complete → цель Sunny в прогрессе |
 | Grass | ≥ 0 всегда |
 

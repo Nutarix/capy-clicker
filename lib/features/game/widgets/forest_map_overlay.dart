@@ -78,7 +78,7 @@ class ForestMapOverlay extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Выбери поляну — стадо ждёт на каждой своей.',
+                        'Выбери поляну — семья ждёт на каждой своей.',
                         style: CozyTheme.hudChipMutedStyle(fontSize: 13),
                       ),
                       const SizedBox(height: 14),
@@ -104,7 +104,7 @@ class ForestMapOverlay extends StatelessWidget {
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        'Трава общая · стада — у каждой поляны свои',
+                        'Трава общая · семьи — у каждой поляны свои',
                         textAlign: TextAlign.center,
                         style: CozyTheme.hudChipMutedStyle(fontSize: 12),
                       ),
@@ -183,7 +183,7 @@ class _MeadowChip extends StatelessWidget {
                 const SizedBox(height: 6),
                 Text(
                   unlocked
-                      ? (active ? 'здесь · стадо $herdCount' : 'стадо $herdCount')
+                      ? (active ? 'здесь · семья $herdCount' : 'семья $herdCount')
                       : 'ещё закрыта',
                   style: CozyTheme.hudChipMutedStyle(fontSize: 12),
                 ),
