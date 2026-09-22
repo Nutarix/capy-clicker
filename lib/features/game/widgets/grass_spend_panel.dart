@@ -14,6 +14,8 @@ class GrassSpendPanel extends StatelessWidget {
     required this.onCallCapy,
     required this.onBoost,
     this.boostActive = false,
+    this.onUyutHub,
+    this.foodHint,
   });
 
   final int grass;
@@ -22,6 +24,8 @@ class GrassSpendPanel extends StatelessWidget {
   final VoidCallback onCallCapy;
   final VoidCallback onBoost;
   final bool boostActive;
+  final VoidCallback? onUyutHub;
+  final String? foodHint;
 
   @override
   Widget build(BuildContext context) {
@@ -57,6 +61,15 @@ class GrassSpendPanel extends StatelessWidget {
                     onTap: onBoost,
                     accent: const Color(0xFFB8860B),
                   ),
+                  if (onUyutHub != null)
+                    _SpendPill(
+                      label: foodHint ?? 'Уют',
+                      cost: 0,
+                      enabled: true,
+                      onTap: onUyutHub!,
+                      accent: const Color(0xFFC47820),
+                      hideCost: true,
+                    ),
                 ],
               ),
             ),
@@ -107,6 +120,7 @@ class _SpendPill extends StatelessWidget {
     required this.enabled,
     required this.onTap,
     this.accent,
+    this.hideCost = false,
   });
 
   final String label;
@@ -114,6 +128,7 @@ class _SpendPill extends StatelessWidget {
   final bool enabled;
   final VoidCallback onTap;
   final Color? accent;
+  final bool hideCost;
 
   @override
   Widget build(BuildContext context) {
@@ -141,7 +156,7 @@ class _SpendPill extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
             child: Text(
-              '$label · $cost🌿',
+              hideCost ? label : '$label · $cost🌿',
               style: CozyTheme.hudChipMutedStyle(fontSize: 11).copyWith(
                 color: enabled
                     ? const Color(0xFF5C3D1E)

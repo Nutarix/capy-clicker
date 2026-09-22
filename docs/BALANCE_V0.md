@@ -143,7 +143,7 @@ Zoom target = `min(baseZoom, fitZoom)` — если bbox семьи (+padding 0.
 ## Персист
 
 - `shared_preferences`, ключ `capy_clicker_game_state_v1`
-- Сохраняется: `herdProgress`, `herd[]` (id/level/x/y), `nextId`, `savedAtMs`, `lastDailyClaimYmd`, `sunnyGladeAnnounced`, `grass`, `sessionGoalIndex`, `twinIdA`/`twinIdB`, `uyut`, `mistyBiomeUnlocked`, `meadows`, `activeMeadowId`
+- Сохраняется: `herdProgress`, `herd[]` (id/level/x/y/role), `nextId`, `savedAtMs`, `lastDailyClaimYmd`, `sunnyGladeAnnounced`, `grass`, `sessionGoalIndex`, `twinIdA`/`twinIdB`, `uyut`, `mistyBiomeUnlocked`, `meadows`, `activeMeadowId`, `food`, `ownedDecor`, `placedDecor`, `researched`, `roleSlots`, `tentUnlocked`
 - Debounce **400 мс**; буст/ягоды — сессионные (не пишутся)
 
 ## Feedback / audio (Phase 2–3)
@@ -201,7 +201,23 @@ Zoom target = `min(baseZoom, fitZoom)` — если bbox семьи (+padding 0.
 
 Код: `GameState.uyut`, `BalanceV0.uyutAutoBoostPerPoint`. Docs: `PRESTIGE_V0.md`.
 
+## Multipliers v0 (кратко)
+
+Полные таблицы: [`MULTIPLIERS_V0.md`](MULTIPLIERS_V0.md). Код: `BalanceV0` + `models/multipliers/`.
+
+| Слой | Ключевые числа |
+|------|----------------|
+| Еда | Травка ×1.25/12с; Ягоды ×1.55/5с +8%; Орешки ×1.35/8с + twin/магнит |
+| Места | Пень магнит; Камень ×1.45/8с CD25; Тент ×1.30/15с CD40 |
+| Роли | Няня +15% авто; Собиратель +20% находки; Сторож soft-cap+1 |
+| Декор | +2–5% точечно (8 предметов) |
+| Research | more_flowers +8%; longer_mud +4с; soft_cap_plus +1 |
+| Стак | base → temp → roles → decor → research → Уют |
+
+Сейв дополнен: `food`, `ownedDecor`, `placedDecor`, `researched`, `roleSlots`, `tentUnlocked`, `role` у капи.
+
 ## Вне скоупа v0
 
 IAP, полные континенты, арт ракеты, regenerating store PNGs, richer adaptive music beds.
 Stub биома «Туманный бор» — **в скоупе** prestige v0.
+Polished unique pixel art для каждого декора/места — placeholders OK.

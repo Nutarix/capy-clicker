@@ -3,7 +3,7 @@
 Долгосрочный план и рабочие соглашения.
 
 Связанные документы: [`GAMELOOP_V1.md`](GAMELOOP_V1.md), [`WORLD_ZONES.md`](WORLD_ZONES.md),
-[`FOREST_MAP_V0.md`](FOREST_MAP_V0.md), [`PRESTIGE_V0.md`](PRESTIGE_V0.md),
+[`FOREST_MAP_V0.md`](FOREST_MAP_V0.md), [`PRESTIGE_V0.md`](PRESTIGE_V0.md), [`MULTIPLIERS_V0.md`](MULTIPLIERS_V0.md),
 [`V1_CHECKLIST.md`](V1_CHECKLIST.md).
 
 ---
@@ -60,6 +60,12 @@
 
 - Docs: [`PRESTIGE_V0.md`](PRESTIGE_V0.md)
 - Код: meta **Уют**, буст авто, stub биома **Туманный бор** (`mist_edge`), цели сессии без «игра окончена»
+
+## Статус Multipliers v0
+
+- Docs: [`MULTIPLIERS_V0.md`](MULTIPLIERS_V0.md), playtest [`PLAYTEST_MULTIPLIERS_V0.md`](PLAYTEST_MULTIPLIERS_V0.md)
+- Playable: семейная еда (3), места (пень/камень/тент), роли, декор «Уют дома», research-tree
+- HUD: sheet «Уют семьи» (табы); стак base→temp→roles→decor→research→Уют
 
 ## Voice
 

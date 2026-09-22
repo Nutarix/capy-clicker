@@ -8,6 +8,7 @@ import '../models/balance.dart';
 import '../models/capybara.dart';
 import '../models/game_state.dart';
 import '../models/meadow_snapshot.dart';
+import '../models/multipliers/multipliers.dart';
 import '../models/session_goals.dart';
 import '../models/world_zones.dart';
 import '../persistence/game_persistence.dart';
@@ -21,10 +22,13 @@ class GameController extends ChangeNotifier {
     DateTime Function()? now,
   }) : _persistence = persistence ?? GamePersistence(),
        _random = random ?? Random(),
+       // Separate stream so food/loot drops do not desync core progression RNG.
+       _lootRandom = Random(0xC4A7F00D),
        _now = now ?? DateTime.now;
 
   final GamePersistence _persistence;
   final Random _random;
+  final Random _lootRandom;
   final DateTime Function() _now;
 
   GameState _state = GameState.initial();
@@ -75,31 +79,167 @@ class GameController extends ChangeNotifier {
   /// Seconds until next twin-sparkle reroll attempt.
   double _twinRerollIn = BalanceV0.twinRerollSeconds.toDouble();
 
+  /// Active family-food temporary boost.
+  FamilyFood? _foodBoostKind;
+  DateTime? _foodBoostUntil;
+
+  /// Active cozy-place temporary boost.
+  CozyPlaceKind? _placeBoostKind;
+  DateTime? _placeBoostUntil;
+
+  /// Per-place cooldown ends-at.
+  final Map<CozyPlaceKind, DateTime> _placeCooldownUntil = {};
+
+  /// Selected food for next feed (UI picker).
+  FamilyFood _selectedFood = FamilyFood.travka;
+
   GameState get state => _state;
   bool get isReady => _ready;
 
-  /// Live auto fill rate (fraction/sec), including boosts + Уют — for HUD «+X%/с».
+  /// Live auto fill rate (fraction/sec) — full stack for HUD «+X%/с».
+  /// Order: base → temp (mud/grass/food/places) → roles → decor → research → Уют.
   double get autoRatePerSecond {
-    return BalanceV0.autoProgressPerSecond * _boostMultiplier * _uyutMultiplier;
+    return BalanceV0.autoProgressPerSecond *
+        _tempLayerMultiplier *
+        _roleAutoMultiplier *
+        _decorAutoMultiplier *
+        _researchAutoMultiplier *
+        _uyutMultiplier;
   }
 
   /// Permanent Уют multiplier (1 + uyut * 3%).
   double get _uyutMultiplier =>
       1.0 + _state.uyut * BalanceV0.uyutAutoBoostPerPoint;
 
-  double get _boostMultiplier {
-    var mult = 1.0;
+  /// Temporary layer: mud/grass take max; food & places multiply on top.
+  double get _tempLayerMultiplier {
+    var mudGrass = 1.0;
     if (isMudBoostActive) {
-      mult = mult < BalanceV0.mudBoostMultiplier
+      mudGrass = mudGrass < BalanceV0.mudBoostMultiplier
           ? BalanceV0.mudBoostMultiplier
-          : mult;
+          : mudGrass;
     }
     if (isGrassBoostActive) {
-      mult = mult < BalanceV0.grassBoostMultiplier
+      mudGrass = mudGrass < BalanceV0.grassBoostMultiplier
           ? BalanceV0.grassBoostMultiplier
-          : mult;
+          : mudGrass;
     }
-    return mult;
+    return mudGrass * _foodAutoMultiplier * _placeAutoMultiplier;
+  }
+
+  double get _foodAutoMultiplier {
+    if (!isFoodBoostActive || _foodBoostKind == null) return 1.0;
+    return switch (_foodBoostKind!) {
+      FamilyFood.travka => BalanceV0.foodTravkaAutoMult,
+      FamilyFood.yagody => BalanceV0.foodYagodyAutoMult,
+      FamilyFood.oreshki => BalanceV0.foodOreshkiAutoMult,
+    };
+  }
+
+  double get _placeAutoMultiplier {
+    if (!isPlaceBoostActive || _placeBoostKind == null) return 1.0;
+    return switch (_placeBoostKind!) {
+      CozyPlaceKind.warmStone => BalanceV0.warmStoneGrassAutoMult,
+      CozyPlaceKind.tent => BalanceV0.tentSpawnMult,
+      CozyPlaceKind.pen => 1.0, // magnet/twin only
+    };
+  }
+
+  double get _roleAutoMultiplier {
+    var bonus = 0.0;
+    for (final c in _state.herd) {
+      if (c.role == CapyRole.nanya) bonus += BalanceV0.roleNanyaAutoBonus;
+    }
+    return 1.0 + bonus;
+  }
+
+  double get _decorAutoMultiplier {
+    var bonus = 0.0;
+    for (final id in _state.ownedDecor) {
+      final d = HomeDecorX.tryParse(id);
+      if (d != null) bonus += d.autoBonus;
+    }
+    return 1.0 + bonus;
+  }
+
+  /// Research does not add a flat auto % in v0 (effects are targeted).
+  double get _researchAutoMultiplier => 1.0;
+
+  double get _flowerFindMultiplier {
+    var m = 1.0;
+    if (_state.hasResearch('more_flowers')) {
+      m += BalanceV0.researchFlowerBonus;
+    }
+    for (final id in _state.ownedDecor) {
+      final d = HomeDecorX.tryParse(id);
+      if (d != null) m += d.flowerBonus;
+    }
+    for (final c in _state.herd) {
+      if (c.role == CapyRole.sobiratel) {
+        m += BalanceV0.roleSobiratelFindBonus;
+      }
+    }
+    return m;
+  }
+
+  double get _grassAutoMultiplier {
+    var m = _uyutMultiplier;
+    for (final id in _state.ownedDecor) {
+      final d = HomeDecorX.tryParse(id);
+      if (d != null) m *= (1.0 + d.grassAutoBonus);
+    }
+    if (isPlaceBoostActive && _placeBoostKind == CozyPlaceKind.warmStone) {
+      m *= BalanceV0.warmStoneGrassAutoMult;
+    }
+    return m;
+  }
+
+  int get effectiveMaxHerdSize {
+    var cap = BalanceV0.maxHerdSize;
+    if (_state.hasResearch('soft_cap_plus')) cap += 1;
+    for (final c in _state.herd) {
+      if (c.role == CapyRole.storozh) {
+        cap += BalanceV0.roleStorozhSoftCapBonus;
+      }
+    }
+    return cap;
+  }
+
+  double get effectiveMagnetRadius {
+    var r = BalanceV0.magnetRadius;
+    if (isFoodBoostActive && _foodBoostKind == FamilyFood.oreshki) {
+      r *= (1.0 + BalanceV0.foodOreshkiMagnetBonus);
+    }
+    if (isPlaceBoostActive && _placeBoostKind == CozyPlaceKind.pen) {
+      r *= (1.0 + BalanceV0.penMagnetBonus);
+    }
+    return r;
+  }
+
+  double get _twinMarkChanceBonus {
+    var b = 0.0;
+    if (isFoodBoostActive && _foodBoostKind == FamilyFood.oreshki) {
+      b += BalanceV0.foodOreshkiTwinChanceBonus;
+    }
+    if (isPlaceBoostActive && _placeBoostKind == CozyPlaceKind.pen) {
+      b += BalanceV0.penTwinChanceBonus;
+    }
+    return b;
+  }
+
+  Duration get _mudBoostDuration {
+    var d = BalanceV0.mudBoostDuration;
+    if (_state.hasResearch('longer_mud')) {
+      d += BalanceV0.researchMudExtra;
+    }
+    return d;
+  }
+
+  FamilyFood get selectedFood => _selectedFood;
+
+  void selectFood(FamilyFood food) {
+    _selectedFood = food;
+    notifyListeners();
   }
   double get cameraZoom => BalanceV0.cameraZoomForHerd(
         _meadowKeyForCount(_state.herdCount),
@@ -129,7 +269,43 @@ class GameController extends ChangeNotifier {
     return 0;
   }
 
-  bool get isAnyBoostActive => isMudBoostActive || isGrassBoostActive;
+  bool get isFoodBoostActive =>
+      _foodBoostUntil != null && _now().isBefore(_foodBoostUntil!);
+
+  double get foodBoostRemainingSeconds {
+    if (!isFoodBoostActive) return 0;
+    return _foodBoostUntil!.difference(_now()).inMilliseconds / 1000.0;
+  }
+
+  FamilyFood? get activeFoodBoost => isFoodBoostActive ? _foodBoostKind : null;
+
+  bool get isPlaceBoostActive =>
+      _placeBoostUntil != null && _now().isBefore(_placeBoostUntil!);
+
+  double get placeBoostRemainingSeconds {
+    if (!isPlaceBoostActive) return 0;
+    return _placeBoostUntil!.difference(_now()).inMilliseconds / 1000.0;
+  }
+
+  CozyPlaceKind? get activePlaceBoost =>
+      isPlaceBoostActive ? _placeBoostKind : null;
+
+  bool isPlaceOnCooldown(CozyPlaceKind kind) {
+    final until = _placeCooldownUntil[kind];
+    return until != null && _now().isBefore(until);
+  }
+
+  double placeCooldownRemaining(CozyPlaceKind kind) {
+    final until = _placeCooldownUntil[kind];
+    if (until == null || !_now().isBefore(until)) return 0;
+    return until.difference(_now()).inMilliseconds / 1000.0;
+  }
+
+  bool get isAnyBoostActive =>
+      isMudBoostActive ||
+      isGrassBoostActive ||
+      isFoodBoostActive ||
+      isPlaceBoostActive;
 
   String? get wallowingCapyId => _wallowingCapyId;
   bool get isBerryVisible => _berryVisible;
@@ -267,8 +443,13 @@ class GameController extends ChangeNotifier {
     if (seconds > BalanceV0.offlineCapSeconds) {
       seconds = BalanceV0.offlineCapSeconds;
     }
+    var offlineMult = _uyutMultiplier * _decorAutoMultiplier * _roleAutoMultiplier;
+    // Tent is session-only; offline leans on research tent unlock + decor.
+    if (_state.tentUnlocked) {
+      offlineMult *= BalanceV0.tentOfflineMult;
+    }
     final amount =
-        BalanceV0.autoProgressPerSecond * _uyutMultiplier * seconds;
+        BalanceV0.autoProgressPerSecond * offlineMult * seconds;
     _offlineProgressGranted = amount;
     _offlineSecondsApplied = seconds;
     // Apply without live-tick dt guards; may spawn under herd cap.
@@ -303,9 +484,19 @@ class GameController extends ChangeNotifier {
       _grassBoostUntil = null;
       dirty = true;
     }
+    if (_foodBoostUntil != null && now.isAfter(_foodBoostUntil!)) {
+      _foodBoostUntil = null;
+      _foodBoostKind = null;
+      dirty = true;
+    }
+    if (_placeBoostUntil != null && now.isAfter(_placeBoostUntil!)) {
+      _placeBoostUntil = null;
+      _placeBoostKind = null;
+      dirty = true;
+    }
 
-    // Auto grass accrual (Уют boost).
-    _grassAcc += BalanceV0.autoGrassPerSecond * _uyutMultiplier * dt;
+    // Auto grass accrual (decor + Уют + warm stone).
+    _grassAcc += BalanceV0.autoGrassPerSecond * _grassAutoMultiplier * dt;
     if (_grassAcc >= 1.0) {
       final granted = _grassAcc.floor();
       _grassAcc -= granted;
@@ -327,10 +518,7 @@ class GameController extends ChangeNotifier {
 
     if (dirty) notifyListeners();
 
-    addProgress(
-      BalanceV0.autoProgressPerSecond * _boostMultiplier * _uyutMultiplier * dt,
-      fromTap: false,
-    );
+    addProgress(autoRatePerSecond * dt, fromTap: false);
   }
 
   /// Add progress; may spawn while under herd cap. Overflow carries over.
@@ -343,7 +531,7 @@ class GameController extends ChangeNotifier {
     var state = _state;
 
     while (progress >= BalanceV0.spawnThreshold &&
-        herd.length < BalanceV0.maxHerdSize) {
+        herd.length < effectiveMaxHerdSize) {
       progress -= BalanceV0.spawnThreshold;
       state = _spawnCapybara(
         state.copyWith(herd: herd, nextId: nextId, herdProgress: progress),
@@ -353,7 +541,7 @@ class GameController extends ChangeNotifier {
       nextId = state.nextId;
     }
 
-    if (herd.length >= BalanceV0.maxHerdSize) {
+    if (herd.length >= effectiveMaxHerdSize) {
       progress = progress.clamp(0.0, BalanceV0.spawnThreshold);
     }
 
@@ -364,19 +552,59 @@ class GameController extends ChangeNotifier {
 
   /// Returns progress fraction granted (for floating «+N%» feedback).
   double onFlowerTap() {
-    final gain =
+    final base =
         BalanceV0.flowerTapGainMin +
         _random.nextDouble() *
             (BalanceV0.flowerTapGainMax - BalanceV0.flowerTapGainMin);
+    final gain = base * _flowerFindMultiplier;
     final grass =
         BalanceV0.flowerTapGrassMin +
         _random.nextInt(
           BalanceV0.flowerTapGrassMax - BalanceV0.flowerTapGrassMin + 1,
         );
     lastTapGrass = grass;
-    _state = _state.copyWith(grass: _state.grass + grass);
+    var food = _state.food;
+    final dropped = _maybeDropFood();
+    if (dropped != null) {
+      food = food.add(dropped);
+      lastDroppedFood = dropped;
+    } else {
+      lastDroppedFood = null;
+    }
+    _state = _state.copyWith(grass: _state.grass + grass, food: food);
     addProgress(gain, fromTap: true);
     return gain;
+  }
+
+  /// Last food granted by flower/buy (UI float); null if none.
+  FamilyFood? lastDroppedFood;
+
+  double get _foodDropChance {
+    var c = BalanceV0.flowerFoodDropChance;
+    if (_state.hasResearch('food_pouch')) {
+      c += BalanceV0.researchFoodDropBonus;
+    }
+    for (final id in _state.ownedDecor) {
+      final d = HomeDecorX.tryParse(id);
+      if (d != null) c += d.foodDropBonus;
+    }
+    for (final cap in _state.herd) {
+      if (cap.role == CapyRole.sobiratel) {
+        c += BalanceV0.roleSobiratelFindBonus * 0.5;
+      }
+    }
+    return c.clamp(0.0, 0.85);
+  }
+
+  FamilyFood? _maybeDropFood() {
+    if (_lootRandom.nextDouble() > _foodDropChance) return null;
+    final wT = BalanceV0.foodDropTravkaWeight;
+    final wY = BalanceV0.foodDropYagodyWeight;
+    final wO = BalanceV0.foodDropOreshkiWeight;
+    final roll = _lootRandom.nextDouble() * (wT + wY + wO);
+    if (roll < wT) return FamilyFood.travka;
+    if (roll < wT + wY) return FamilyFood.yagody;
+    return FamilyFood.oreshki;
   }
 
   /// Returns progress fraction granted, or null if basket not visible.
@@ -404,7 +632,7 @@ class GameController extends ChangeNotifier {
   /// Spend grass to spawn a Lv.1 capy if under soft herd cap.
   bool spendCallCapy() {
     if (_state.grass < BalanceV0.callCapyGrassCost) return false;
-    if (_state.herdCount >= BalanceV0.maxHerdSize) return false;
+    if (_state.herdCount >= effectiveMaxHerdSize) return false;
     var next = _state.copyWith(
       grass: _state.grass - BalanceV0.callCapyGrassCost,
     );
@@ -426,7 +654,7 @@ class GameController extends ChangeNotifier {
 
   bool get canCallCapy =>
       _state.grass >= BalanceV0.callCapyGrassCost &&
-      _state.herdCount < BalanceV0.maxHerdSize;
+      _state.herdCount < effectiveMaxHerdSize;
 
   bool get canGrassBoost => _state.grass >= BalanceV0.grassBoostCost;
 
@@ -451,7 +679,7 @@ class GameController extends ChangeNotifier {
       notifyListeners();
     });
 
-    _mudBoostUntil = _now().add(BalanceV0.mudBoostDuration);
+    _mudBoostUntil = _now().add(_mudBoostDuration);
     notifyListeners();
     return true;
   }
@@ -484,6 +712,7 @@ class GameController extends ChangeNotifier {
         target.position,
         herdCount: _meadowKeyForCount(remaining.length + 1),
       ),
+      role: target.role ?? dragged.role,
     );
 
     var grass = _state.grass;
@@ -539,11 +768,30 @@ class GameController extends ChangeNotifier {
 
   void _scheduleBerryRespawn() {
     final span = BalanceV0.berryRespawnMax - BalanceV0.berryRespawnMin;
-    final delay =
-        BalanceV0.berryRespawnMin +
-        Duration(milliseconds: _random.nextInt(span.inMilliseconds + 1));
+    var delayMs =
+        BalanceV0.berryRespawnMin.inMilliseconds +
+        _random.nextInt(span.inMilliseconds + 1);
+    delayMs = (delayMs * _berryRespawnFactor).round();
+    final delay = Duration(milliseconds: delayMs.clamp(8000, 60000));
     _berryTimer?.cancel();
     _berryTimer = Timer(delay, _spawnBerry);
+  }
+
+  double get _berryRespawnFactor {
+    var f = 1.0;
+    if (_state.hasResearch('more_berries')) {
+      f *= BalanceV0.researchBerryRespawnFactor;
+    }
+    for (final id in _state.ownedDecor) {
+      final d = HomeDecorX.tryParse(id);
+      if (d != null) f *= d.berryRespawnFactor;
+    }
+    for (final c in _state.herd) {
+      if (c.role == CapyRole.storozh) {
+        f *= BalanceV0.roleStorozhBerryFactor;
+      }
+    }
+    return f.clamp(0.5, 1.0);
   }
 
   void _spawnBerry() {
@@ -786,6 +1034,16 @@ class GameController extends ChangeNotifier {
     if (state.grass < 0) {
       state = state.copyWith(grass: 0);
     }
+    if (state.uyut < 0) {
+      state = state.copyWith(uyut: 0);
+    }
+    // Keep roleSlots in sync with research.
+    if (state.hasResearch('role_slot_2') && state.roleSlots < 2) {
+      state = state.copyWith(roleSlots: 2);
+    }
+    if (state.hasResearch('unlock_tent') && !state.tentUnlocked) {
+      state = state.copyWith(tentUnlocked: true);
+    }
     state = _sanitizeTwins(state);
     state = _syncGladeAnnounced(state, announce: true);
     state = _maybeUnlockMistyBiome(state, announce: true);
@@ -901,7 +1159,9 @@ class GameController extends ChangeNotifier {
       }
     }
     // Quiet gaps so sparkle stays a skill window, not a permanent glow.
-    if (_random.nextDouble() > BalanceV0.twinMarkChance) {
+    final markChance =
+        (BalanceV0.twinMarkChance + _twinMarkChanceBonus).clamp(0.0, 0.95);
+    if (_random.nextDouble() > markChance) {
       return state.copyWith(clearTwin: true);
     }
     final pick = eligible[_random.nextInt(eligible.length)].value;
@@ -910,6 +1170,189 @@ class GameController extends ChangeNotifier {
       twinIdA: shuffled[0].id,
       twinIdB: shuffled[1].id,
     );
+  }
+
+
+  // --- Multipliers v0: food / places / roles / decor / research ---
+
+  /// Convert grass into one food unit of [food].
+  bool buyFood(FamilyFood food) {
+    final cost = switch (food) {
+      FamilyFood.travka => BalanceV0.grassToTravkaCost,
+      FamilyFood.yagody => BalanceV0.grassToYagodyCost,
+      FamilyFood.oreshki => BalanceV0.grassToOreshkiCost,
+    };
+    if (_state.grass < cost) return false;
+    _setState(
+      _state.copyWith(
+        grass: _state.grass - cost,
+        food: _state.food.add(food),
+      ),
+    );
+    lastDroppedFood = food;
+    return true;
+  }
+
+  /// Feed selected / given food to the family (temporary boost).
+  bool feedFamily([FamilyFood? food]) {
+    final kind = food ?? _selectedFood;
+    final nextInv = _state.food.trySpend(kind);
+    if (nextInv == null) return false;
+    _setState(_state.copyWith(food: nextInv));
+    _foodBoostKind = kind;
+    final dur = switch (kind) {
+      FamilyFood.travka => BalanceV0.foodTravkaDuration,
+      FamilyFood.yagody => BalanceV0.foodYagodyDuration,
+      FamilyFood.oreshki => BalanceV0.foodOreshkiDuration,
+    };
+    _foodBoostUntil = _now().add(dur);
+    if (kind == FamilyFood.yagody) {
+      addProgress(BalanceV0.foodYagodyProgressBurst, fromTap: false);
+    }
+    notifyListeners();
+    return true;
+  }
+
+  bool get canFeedSelected => _state.food.countOf(_selectedFood) > 0;
+
+  /// True if [normalized] is inside a cozy place hit circle.
+  CozyPlaceKind? placeAt(Offset normalized) {
+    for (final kind in CozyPlaceKind.values) {
+      if (kind == CozyPlaceKind.tent && !_state.tentUnlocked) continue;
+      final (cx, cy) = kind.center;
+      final dx = normalized.dx - cx;
+      final dy = normalized.dy - cy;
+      if (sqrt(dx * dx + dy * dy) <= BalanceV0.placeHitRadius) {
+        return kind;
+      }
+    }
+    return null;
+  }
+
+  bool isOverPlace(Offset normalized) => placeAt(normalized) != null;
+
+  /// Drag capy onto place OR tap place → activate (with cooldown).
+  bool tryActivatePlace(CozyPlaceKind kind, {String? capyId}) {
+    if (kind == CozyPlaceKind.tent && !_state.tentUnlocked) return false;
+    if (isPlaceOnCooldown(kind)) return false;
+
+    if (capyId != null) {
+      final (cx, cy) = kind.center;
+      updatePosition(
+        capyId,
+        WorldZones.clampToMeadow(
+          Offset(cx, cy),
+          herdCount: _meadowKeyForCount(_state.herdCount),
+        ),
+      );
+    }
+
+    final dur = switch (kind) {
+      CozyPlaceKind.pen => BalanceV0.penBoostDuration,
+      CozyPlaceKind.warmStone => BalanceV0.warmStoneDuration,
+      CozyPlaceKind.tent => BalanceV0.tentDuration,
+    };
+    final cd = switch (kind) {
+      CozyPlaceKind.pen => BalanceV0.penCooldown,
+      CozyPlaceKind.warmStone => BalanceV0.warmStoneCooldown,
+      CozyPlaceKind.tent => BalanceV0.tentCooldown,
+    };
+    _placeBoostKind = kind;
+    _placeBoostUntil = _now().add(dur);
+    _placeCooldownUntil[kind] = _now().add(cd);
+    notifyListeners();
+    return true;
+  }
+
+  /// Assign [role] to capy; respects role slot limit. Null clears.
+  bool assignRole(String capyId, CapyRole? role) {
+    final capy = _find(capyId);
+    if (capy == null) return false;
+    if (role != null) {
+      // Count slots excluding this capy's current role.
+      var used = 0;
+      for (final c in _state.herd) {
+        if (c.id == capyId) continue;
+        if (c.role != null) used++;
+      }
+      for (final e in _state.meadows.entries) {
+        if (e.key == _state.activeMeadowId) continue;
+        for (final c in e.value.herd) {
+          if (c.role != null) used++;
+        }
+      }
+      if (capy.role == null && used >= _state.roleSlots) return false;
+    }
+    final herd = [
+      for (final c in _state.herd)
+        if (c.id == capyId)
+          c.copyWith(role: role, clearRole: role == null)
+        else
+          c,
+    ];
+    _setState(_state.copyWith(herd: herd));
+    return true;
+  }
+
+  /// Buy a decor item if affordable and research-unlocked.
+  bool buyDecor(HomeDecor decor) {
+    if (_state.ownsDecor(decor)) return false;
+    final req = decor.requiresResearch;
+    if (req != null && !_state.hasResearch(req)) return false;
+    if (_state.grass < decor.grassCost) return false;
+    if (_state.uyut < decor.uyutCost) return false;
+    final owned = Set<String>.from(_state.ownedDecor)..add(decor.id);
+    final placed = Set<String>.from(_state.placedDecor)..add(decor.id);
+    _setState(
+      _state.copyWith(
+        grass: _state.grass - decor.grassCost,
+        uyut: _state.uyut - decor.uyutCost,
+        ownedDecor: owned,
+        placedDecor: placed,
+      ),
+    );
+    return true;
+  }
+
+  bool togglePlaceDecor(HomeDecor decor) {
+    if (!_state.ownsDecor(decor)) return false;
+    final placed = Set<String>.from(_state.placedDecor);
+    if (placed.contains(decor.id)) {
+      placed.remove(decor.id);
+    } else {
+      placed.add(decor.id);
+    }
+    _setState(_state.copyWith(placedDecor: placed));
+    return true;
+  }
+
+  /// Unlock a research node if prereqs + cost met.
+  bool unlockResearch(String nodeId) {
+    final node = UyutResearch.byId(nodeId);
+    if (node == null) return false;
+    if (!UyutResearch.canUnlock(
+      node: node,
+      unlocked: _state.researched,
+      grass: _state.grass,
+      uyut: _state.uyut,
+    )) {
+      return false;
+    }
+    final researched = Set<String>.from(_state.researched)..add(node.id);
+    var roleSlots = _state.roleSlots;
+    var tent = _state.tentUnlocked;
+    if (node.id == 'role_slot_2') roleSlots = 2;
+    if (node.id == 'unlock_tent') tent = true;
+    _setState(
+      _state.copyWith(
+        grass: _state.grass - node.grassCost,
+        uyut: _state.uyut - node.uyutCost,
+        researched: researched,
+        roleSlots: roleSlots,
+        tentUnlocked: tent,
+      ),
+    );
+    return true;
   }
 
   /// Force a twin mark (tests).
@@ -942,7 +1385,17 @@ class GameController extends ChangeNotifier {
       _grassBoostUntil = null;
       dirty = true;
     }
-    _grassAcc += BalanceV0.autoGrassPerSecond * _uyutMultiplier * dt;
+    if (_foodBoostUntil != null && now.isAfter(_foodBoostUntil!)) {
+      _foodBoostUntil = null;
+      _foodBoostKind = null;
+      dirty = true;
+    }
+    if (_placeBoostUntil != null && now.isAfter(_placeBoostUntil!)) {
+      _placeBoostUntil = null;
+      _placeBoostKind = null;
+      dirty = true;
+    }
+    _grassAcc += BalanceV0.autoGrassPerSecond * _grassAutoMultiplier * dt;
     if (_grassAcc >= 1.0) {
       final granted = _grassAcc.floor();
       _grassAcc -= granted;
@@ -960,10 +1413,7 @@ class GameController extends ChangeNotifier {
       }
     }
     if (dirty) notifyListeners();
-    addProgress(
-      BalanceV0.autoProgressPerSecond * _boostMultiplier * _uyutMultiplier * dt,
-      fromTap: false,
-    );
+    addProgress(autoRatePerSecond * dt, fromTap: false);
   }
 
   /// Force berry visible (tests / sims).

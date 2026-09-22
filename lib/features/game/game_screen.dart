@@ -19,6 +19,9 @@ import 'widgets/grass_spend_panel.dart';
 import 'widgets/progress_bar.dart';
 import 'widgets/morning_cozy_sheet.dart';
 import 'widgets/tip_overlay.dart';
+import 'widgets/uyut/cozy_place_marker.dart';
+import 'widgets/uyut/uyut_hub_sheet.dart';
+import 'models/multipliers/multipliers.dart';
 
 /// Live game screen: auto progress, flowers, herd, merge, mud, berries, zoom.
 class GameScreen extends StatefulWidget {
@@ -244,7 +247,12 @@ class _GameScreenState extends State<GameScreen> {
     final gain = _controller.onFlowerTap();
     final pct = (gain * 100).round().clamp(1, 99);
     final g = _controller.lastTapGrass;
-    _spawnFloat(g > 0 ? '+$pct% · +$g🌿' : '+$pct%', globalAnchor);
+    final food = _controller.lastDroppedFood;
+    final foodBit = food != null ? ' · ${food.emoji}' : '';
+    _spawnFloat(
+      g > 0 ? '+$pct% · +$g🌿$foodBit' : '+$pct%$foodBit',
+      globalAnchor,
+    );
   }
 
   void _onBerryTap(Offset globalAnchor) {
@@ -443,7 +451,17 @@ class _GameScreenState extends State<GameScreen> {
                                   goal: _controller.currentSessionGoal,
                                   progress: _controller.sessionGoalProgress,
                                 ),
-                                _UyutChip(uyut: state.uyut),
+                                _UyutChip(
+                                  uyut: state.uyut,
+                                  onPressed: () {
+                                    unawaited(_audio.noteUserGesture());
+                                    HapticFeedback.lightImpact();
+                                    UyutHubSheet.show(
+                                      context,
+                                      controller: _controller,
+                                    );
+                                  },
+                                ),
                                 _HerdSizeChip(count: state.herdCount),
                                 _SunnyGladeChip(
                                   nameRu: _controller.currentGlade.nameRu,
@@ -484,6 +502,15 @@ class _GameScreenState extends State<GameScreen> {
                       canCallCapy: _controller.canCallCapy,
                       canBoost: _controller.canGrassBoost,
                       boostActive: _controller.isGrassBoostActive,
+                      foodHint: 'Уют · ${state.food.total}🍽',
+                      onUyutHub: () {
+                        unawaited(_audio.noteUserGesture());
+                        HapticFeedback.lightImpact();
+                        UyutHubSheet.show(
+                          context,
+                          controller: _controller,
+                        );
+                      },
                       onCallCapy: () {
                         unawaited(_audio.noteUserGesture());
                         if (_controller.spendCallCapy()) {
@@ -533,6 +560,8 @@ class _GameScreenState extends State<GameScreen> {
                                       boostActive: boost,
                                     ),
                                   ),
+                                  // Cozy places (пень / камень / тент)
+                                  ..._buildCozyPlaces(w, h),
                                   ...List.generate(
                                     WorldZones.flowerPositions.length,
                                     (i) {
@@ -582,6 +611,33 @@ class _GameScreenState extends State<GameScreen> {
                                       twinSparkle: state.isTwinMarked(capy.id),
                                       magnetAttractedId: _magnetAttractedId,
                                       promoteLevelBadge: promote,
+                                      magnetRadius:
+                                          _controller.effectiveMagnetRadius,
+                                      placeAt: _controller.placeAt,
+                                      onPlaceDrop: (id, kind) {
+                                        unawaited(_audio.noteUserGesture());
+                                        final ok = _controller.tryActivatePlace(
+                                          kind,
+                                          capyId: id,
+                                        );
+                                        if (ok) {
+                                          _spawnFloat(
+                                            kind.emoji,
+                                            Offset.zero,
+                                          );
+                                        }
+                                        return ok;
+                                      },
+                                      onLongPress: () {
+                                        unawaited(_audio.noteUserGesture());
+                                        HapticFeedback.mediumImpact();
+                                        UyutHubSheet.show(
+                                          context,
+                                          controller: _controller,
+                                          initialTab: 1,
+                                          focusCapyId: capy.id,
+                                        );
+                                      },
                                       onDragBadge: () =>
                                           _promoteBadge(capy.id),
                                       onMagnetTargetChanged: (id) {
@@ -605,7 +661,7 @@ class _GameScreenState extends State<GameScreen> {
                       right: 16,
                     ),
                     child: Text(
-                      'Трава · позвать капи · ускорение · слияние · цели полян',
+                      'Трава · Уют · еда · места · роли · слияние',
                       textAlign: TextAlign.center,
                       style: CozyTheme.hudChipMutedStyle(fontSize: 11).copyWith(
                         color: Colors.brown.shade900.withValues(alpha: 0.55),
@@ -692,36 +748,72 @@ class _GameScreenState extends State<GameScreen> {
       ),
     );
   }
+
+  List<Widget> _buildCozyPlaces(double w, double h) {
+    final kinds = <CozyPlaceKind>[
+      CozyPlaceKind.pen,
+      CozyPlaceKind.warmStone,
+      if (_controller.state.tentUnlocked) CozyPlaceKind.tent,
+    ];
+    return [
+      for (final kind in kinds)
+        Positioned(
+          left: kind.center.$1 * w - 36,
+          top: kind.center.$2 * h - 32,
+          child: CozyPlaceMarker(
+            kind: kind,
+            active: _controller.activePlaceBoost == kind,
+            onCooldown: _controller.isPlaceOnCooldown(kind),
+            cooldownSeconds: _controller.placeCooldownRemaining(kind),
+            onTap: () {
+              unawaited(_audio.noteUserGesture());
+              final ok = _controller.tryActivatePlace(kind);
+              if (ok) {
+                _spawnFloat(kind.emoji, Offset.zero);
+              }
+            },
+          ),
+        ),
+    ];
+  }
 }
 
 
 
-/// Meta «Уют» / искры уюта — small cozy HUD chip.
+/// Meta «Уют» / искры уюта — small cozy HUD chip (opens Уют hub).
 class _UyutChip extends StatelessWidget {
-  const _UyutChip({required this.uyut});
+  const _UyutChip({required this.uyut, this.onPressed});
 
   final int uyut;
+  final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF3D6).withValues(alpha: 0.95),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onPressed,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE2CFA8)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('✨', style: TextStyle(fontSize: 13)),
-            const SizedBox(width: 4),
-            Text(
-              'уют $uyut',
-              style: CozyTheme.hudChipStyle(),
+        child: Ink(
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFF3D6).withValues(alpha: 0.95),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFE2CFA8)),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('✨', style: TextStyle(fontSize: 13)),
+                const SizedBox(width: 4),
+                Text(
+                  'уют $uyut',
+                  style: CozyTheme.hudChipStyle(),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

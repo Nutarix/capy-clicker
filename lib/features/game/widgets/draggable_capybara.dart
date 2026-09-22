@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 
 import '../models/balance.dart';
 import '../models/capybara.dart';
+import '../models/multipliers/capy_role.dart';
+import '../models/multipliers/cozy_place.dart';
 import '../models/merge_magnet.dart';
 import 'capybara_placeholder.dart';
 import 'mud_puddle.dart';
@@ -27,6 +29,10 @@ class MeadowDraggableCapybara extends StatefulWidget {
     this.promoteLevelBadge = false,
     this.onDragBadge,
     this.onMagnetTargetChanged,
+    this.magnetRadius = BalanceV0.magnetRadius,
+    this.onPlaceDrop,
+    this.placeAt,
+    this.onLongPress,
   });
 
   final Capybara capybara;
@@ -54,6 +60,18 @@ class MeadowDraggableCapybara extends StatefulWidget {
 
   /// Reports magnet target changes so the parent can glow the attracted capy.
   final ValueChanged<String?>? onMagnetTargetChanged;
+
+  /// Effective magnet radius (food/place bonuses).
+  final double magnetRadius;
+
+  /// Drop onto cozy place (пень / камень / тент).
+  final bool Function(String id, CozyPlaceKind kind)? onPlaceDrop;
+
+  /// Resolve place under normalized point.
+  final CozyPlaceKind? Function(Offset normalized)? placeAt;
+
+  /// Long-press → role menu.
+  final VoidCallback? onLongPress;
 
   @override
   State<MeadowDraggableCapybara> createState() =>
@@ -99,6 +117,7 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara> {
       draggedLevel: widget.capybara.level,
       dragNormalized: dragNormalized,
       herd: widget.herd,
+      radius: widget.magnetRadius,
     );
   }
 
@@ -151,7 +170,11 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara> {
     _updateMagnetVisual(hit, normalized);
 
     // Mid-drag complete only when clearly inside the snap band.
-    if (hit != null && MergeMagnet.withinSnapDistance(hit.distance)) {
+    if (hit != null &&
+        MergeMagnet.withinSnapDistance(
+          hit.distance,
+          radius: widget.magnetRadius,
+        )) {
       if (_tryMagnetMerge(hit)) {
         _mergedDuringDrag = true;
         _notifyMagnet(null);
@@ -176,6 +199,14 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara> {
 
     if (widget.isOverMud(normalized)) {
       final ok = widget.onMudDrop(widget.capybara.id);
+      if (ok) {
+        HapticFeedback.mediumImpact();
+        return;
+      }
+    }
+    final place = widget.placeAt?.call(normalized);
+    if (place != null && widget.onPlaceDrop != null) {
+      final ok = widget.onPlaceDrop!(widget.capybara.id, place);
       if (ok) {
         HapticFeedback.mediumImpact();
         return;
@@ -211,68 +242,87 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara> {
       visual = _MergePunch(child: visual);
     }
 
+    final role = widget.capybara.role;
+    if (role != null) {
+      visual = Stack(
+        clipBehavior: Clip.none,
+        children: [
+          visual,
+          Positioned(
+            right: -2,
+            top: -4,
+            child: Text(role.emoji, style: const TextStyle(fontSize: 14)),
+          ),
+        ],
+      );
+    }
+
     return Positioned(
       left: left,
       top: top,
-      child: DragTarget<String>(
-        onWillAcceptWithDetails: (details) => details.data != widget.capybara.id,
-        onAcceptWithDetails: (details) {
-          final ok = widget.onMerge(details.data, widget.capybara.id);
-          if (ok) HapticFeedback.mediumImpact();
-        },
-        builder: (context, candidate, _) {
-          final highlight = candidate.isNotEmpty || magnetHighlight;
-          return Draggable<String>(
-            data: widget.capybara.id,
-            feedback: Transform.translate(
-              offset: _pullOffset,
-              child: Material(
-                color: Colors.transparent,
-                child: Opacity(
-                  opacity: 0.92,
-                  child: CapybaraPlaceholder(
-                    level: widget.capybara.level,
-                    compactLabel: false,
+      child: GestureDetector(
+        onLongPress: widget.onLongPress,
+        child: DragTarget<String>(
+          onWillAcceptWithDetails: (details) =>
+              details.data != widget.capybara.id,
+          onAcceptWithDetails: (details) {
+            final ok = widget.onMerge(details.data, widget.capybara.id);
+            if (ok) HapticFeedback.mediumImpact();
+          },
+          builder: (context, candidate, _) {
+            final highlight = candidate.isNotEmpty || magnetHighlight;
+            return Draggable<String>(
+              data: widget.capybara.id,
+              feedback: Transform.translate(
+                offset: _pullOffset,
+                child: Material(
+                  color: Colors.transparent,
+                  child: Opacity(
+                    opacity: 0.92,
+                    child: CapybaraPlaceholder(
+                      level: widget.capybara.level,
+                      compactLabel: false,
+                    ),
                   ),
                 ),
               ),
-            ),
-            childWhenDragging: Opacity(
-              opacity: 0.22,
-              child: CapybaraPlaceholder(
-                level: widget.capybara.level,
-                compactLabel: true,
+              childWhenDragging: Opacity(
+                opacity: 0.22,
+                child: CapybaraPlaceholder(
+                  level: widget.capybara.level,
+                  compactLabel: true,
+                ),
               ),
-            ),
-            onDragStarted: _onDragStarted,
-            onDragUpdate: _onDragUpdate,
-            onDragEnd: _onDragEnd,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 120),
-              decoration: highlight
-                  ? BoxDecoration(
-                      borderRadius: BorderRadius.circular(20),
-                      border: magnetHighlight
-                          ? Border.all(
-                              color: const Color(0xFFFFD54F),
-                              width: 2.5,
-                            )
-                          : null,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.amber.withValues(
-                            alpha: magnetHighlight ? 0.85 : 0.55,
+              onDragStarted: _onDragStarted,
+              onDragUpdate: _onDragUpdate,
+              onDragEnd: _onDragEnd,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 120),
+                decoration: highlight
+                    ? BoxDecoration(
+                        borderRadius: BorderRadius.circular(20),
+                        border: magnetHighlight
+                            ? Border.all(
+                                color: const Color(0xFFFFD54F),
+                                width: 2.5,
+                              )
+                            : null,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.amber.withValues(
+                              alpha: magnetHighlight ? 0.85 : 0.55,
+                            ),
+                            blurRadius: magnetHighlight ? 26 : 16,
+                            spreadRadius: magnetHighlight ? 5 : 2,
                           ),
-                          blurRadius: magnetHighlight ? 26 : 16,
-                          spreadRadius: magnetHighlight ? 5 : 2,
-                        ),
-                      ],
-                    )
-                  : null,
-              child: visual,
-            ),
-          );
-        },
+                        ],
+                      )
+                    : null,
+                child: visual,
+              ),
+            );
+          },
+        ),
       ),
     );
   }

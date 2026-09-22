@@ -250,7 +250,71 @@ abstract final class BalanceV0 {
   /// First Уют grant when Great Glade + family Lv.4 chain completes.
   static const int firstMistyUyutGrant = 1;
 
+
+  // --- Multipliers v0: family food ---
+
+  /// Steady idle auto mult while Травка feed is active.
+  static const double foodTravkaAutoMult = 1.25;
+  static const Duration foodTravkaDuration = Duration(seconds: 12);
+
+  /// Burst-ish Ягоды feed.
+  static const double foodYagodyAutoMult = 1.55;
+  static const Duration foodYagodyDuration = Duration(seconds: 5);
+  static const double foodYagodyProgressBurst = 0.08;
+
+  /// Орешки: twin/magnet luck + short auto.
+  static const double foodOreshkiAutoMult = 1.35;
+  static const Duration foodOreshkiDuration = Duration(seconds: 8);
+  static const double foodOreshkiTwinChanceBonus = 0.25;
+  static const double foodOreshkiMagnetBonus = 0.35;
+
+  /// Chance flower tap grants a food item (base; research/decor add).
+  static const double flowerFoodDropChance = 0.18;
+  /// Relative weights travka : yagody : oreshki
+  static const double foodDropTravkaWeight = 0.55;
+  static const double foodDropYagodyWeight = 0.30;
+  static const double foodDropOreshkiWeight = 0.15;
+
+  /// Convert grass → Травка feed pack.
+  static const int grassToTravkaCost = 4;
+  static const int grassToYagodyCost = 7;
+  static const int grassToOreshkiCost = 12;
+
+  // --- Multipliers v0: cozy places ---
+
+  static const double placeHitRadius = 0.10;
+
+  static const double penMagnetBonus = 0.40;
+  static const double penTwinChanceBonus = 0.20;
+  static const Duration penBoostDuration = Duration(seconds: 8);
+  static const Duration penCooldown = Duration(seconds: 20);
+
+  static const double warmStoneGrassAutoMult = 1.45;
+  static const Duration warmStoneDuration = Duration(seconds: 8);
+  static const Duration warmStoneCooldown = Duration(seconds: 25);
+
+  static const double tentSpawnMult = 1.30;
+  static const double tentOfflineMult = 1.20;
+  static const Duration tentDuration = Duration(seconds: 15);
+  static const Duration tentCooldown = Duration(seconds: 40);
+
+  // --- Multipliers v0: roles ---
+
+  static const int roleSlotsStart = 1;
+  static const double roleNanyaAutoBonus = 0.15;
+  static const double roleSobiratelFindBonus = 0.20;
+  static const int roleStorozhSoftCapBonus = 1;
+  static const double roleStorozhBerryFactor = 0.90;
+
+  // --- Multipliers v0: research effects ---
+
+  static const double researchFlowerBonus = 0.08;
+  static const Duration researchMudExtra = Duration(seconds: 4);
+  static const double researchBerryRespawnFactor = 0.85;
+  static const double researchFoodDropBonus = 0.10;
+
   // --- Juice / tips ---
+
 
   /// Brief merge flash duration on the new merged capy.
   static const Duration mergeFlashDuration = Duration(milliseconds: 520);

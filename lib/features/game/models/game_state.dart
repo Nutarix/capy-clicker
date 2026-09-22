@@ -1,12 +1,15 @@
 import 'capybara.dart';
 import 'meadow_snapshot.dart';
+import 'multipliers/family_food.dart';
+import 'multipliers/home_decor.dart';
 import 'world_zones.dart';
 
 /// Immutable snapshot of playable herd + progress + session loop + forest map.
 ///
 /// **Shared globally:** grass wallet, session goals, daily claim, nextId,
-/// unlock index ([sunnyGladeAnnounced]), meta [uyut], [mistyBiomeUnlocked].
-/// **Per meadow:** herd, local progress bar, twin marks ([meadows]).
+/// unlock index ([sunnyGladeAnnounced]), meta [uyut], [mistyBiomeUnlocked],
+/// food inventory, owned decor, research, role slot count.
+/// **Per meadow:** herd (incl. roles), local progress bar, twin marks ([meadows]).
 class GameState {
   const GameState({
     required this.herdProgress,
@@ -23,6 +26,12 @@ class GameState {
     this.meadows = const {},
     this.uyut = 0,
     this.mistyBiomeUnlocked = false,
+    this.food = const FoodInventory(),
+    this.ownedDecor = const {},
+    this.placedDecor = const {},
+    this.researched = const {},
+    this.roleSlots = 1,
+    this.tentUnlocked = false,
   });
 
   /// Herd progress in range 0.0–1.0 (fills toward next spawn) — **active** meadow.
@@ -66,6 +75,24 @@ class GameState {
   /// Prestige v0: second forest biome «Туманный бор» unlocked.
   final bool mistyBiomeUnlocked;
 
+  /// Family food inventory (Травка / Ягоды / Орешки).
+  final FoodInventory food;
+
+  /// Owned home decor ids.
+  final Set<String> ownedDecor;
+
+  /// Placed decor ids (subset of owned; for meadow pins).
+  final Set<String> placedDecor;
+
+  /// Unlocked research node ids.
+  final Set<String> researched;
+
+  /// How many role assignments the family may hold at once.
+  final int roleSlots;
+
+  /// Whether Тент placeable is unlocked (research).
+  final bool tentUnlocked;
+
   int get herdCount => herd.length;
 
   /// Sum of herds across every stored meadow (menu «Продолжить»).
@@ -88,6 +115,25 @@ class GameState {
   }
 
   bool isTwinMarked(String id) => id == twinIdA || id == twinIdB;
+
+  bool ownsDecor(HomeDecor d) => ownedDecor.contains(d.id);
+
+  bool hasResearch(String id) => researched.contains(id);
+
+  int get assignedRoleCount {
+    var n = 0;
+    for (final c in herd) {
+      if (c.role != null) n++;
+    }
+    // Count roles on other meadows too (global slot pool).
+    for (final e in meadows.entries) {
+      if (e.key == activeMeadowId) continue;
+      for (final c in e.value.herd) {
+        if (c.role != null) n++;
+      }
+    }
+    return n;
+  }
 
   bool isMeadowUnlocked(String meadowId) {
     if (WorldZones.isMistyMeadow(meadowId)) return mistyBiomeUnlocked;
@@ -139,6 +185,12 @@ class GameState {
     Map<String, MeadowSnapshot>? meadows,
     int? uyut,
     bool? mistyBiomeUnlocked,
+    FoodInventory? food,
+    Set<String>? ownedDecor,
+    Set<String>? placedDecor,
+    Set<String>? researched,
+    int? roleSlots,
+    bool? tentUnlocked,
   }) {
     final nextActive = activeMeadowId ?? this.activeMeadowId;
     final nextHerd = herd ?? this.herd;
@@ -147,8 +199,6 @@ class GameState {
     final nextTwinB = clearTwin ? null : (twinIdB ?? this.twinIdB);
 
     var nextMeadows = meadows ?? this.meadows;
-    // Keep map in sync with active play fields whenever herd/progress/twins change
-    // or meadows map is replaced.
     if (herd != null ||
         herdProgress != null ||
         twinIdA != null ||
@@ -182,6 +232,12 @@ class GameState {
       meadows: nextMeadows,
       uyut: uyut ?? this.uyut,
       mistyBiomeUnlocked: mistyBiomeUnlocked ?? this.mistyBiomeUnlocked,
+      food: food ?? this.food,
+      ownedDecor: ownedDecor ?? this.ownedDecor,
+      placedDecor: placedDecor ?? this.placedDecor,
+      researched: researched ?? this.researched,
+      roleSlots: roleSlots ?? this.roleSlots,
+      tentUnlocked: tentUnlocked ?? this.tentUnlocked,
     );
   }
 
@@ -205,6 +261,12 @@ class GameState {
       },
       'uyut': synced.uyut,
       'mistyBiomeUnlocked': synced.mistyBiomeUnlocked,
+      'food': synced.food.toJson(),
+      'ownedDecor': synced.ownedDecor.toList(),
+      'placedDecor': synced.placedDecor.toList(),
+      'researched': synced.researched.toList(),
+      'roleSlots': synced.roleSlots,
+      'tentUnlocked': synced.tentUnlocked,
     };
   }
 
@@ -216,7 +278,19 @@ class GameState {
     return _fromLegacySingleHerdJson(json);
   }
 
-  /// Phase 2 format: `meadows` map + `activeMeadowId`.
+  static FoodInventory _parseFood(Map<String, dynamic> json) {
+    final raw = json['food'];
+    if (raw is Map) {
+      return FoodInventory.fromJson(Map<String, dynamic>.from(raw));
+    }
+    return const FoodInventory();
+  }
+
+  static Set<String> _parseStringSet(dynamic raw) {
+    if (raw is! List) return {};
+    return {for (final e in raw) e.toString()};
+  }
+
   static GameState _fromMultiMeadowJson(
     Map<String, dynamic> json,
     Map rawMeadows,
@@ -241,6 +315,9 @@ class GameState {
         );
     meadows.putIfAbsent(activeId, () => active);
 
+    final researched = _parseStringSet(json['researched']);
+    final tentFromResearch = researched.contains('unlock_tent');
+
     return GameState(
       herdProgress: active.herdProgress,
       herd: active.herd,
@@ -256,13 +333,16 @@ class GameState {
       meadows: meadows,
       uyut: (json['uyut'] as num?)?.toInt() ?? 0,
       mistyBiomeUnlocked: json['mistyBiomeUnlocked'] as bool? ?? false,
+      food: _parseFood(json),
+      ownedDecor: _parseStringSet(json['ownedDecor']),
+      placedDecor: _parseStringSet(json['placedDecor']),
+      researched: researched,
+      roleSlots: (json['roleSlots'] as num?)?.toInt() ??
+          (researched.contains('role_slot_2') ? 2 : 1),
+      tentUnlocked: json['tentUnlocked'] as bool? ?? tentFromResearch,
     );
   }
 
-  /// Act 1 format: single top-level herd → migrate into forest map.
-  ///
-  /// Current herd goes into **first** unlocked meadow (`warm_edge`). Other
-  /// unlocked meadows get empty placeholders (controller fills starters).
   static GameState _fromLegacySingleHerdJson(Map<String, dynamic> json) {
     final herd = _parseHerdList(json['herd']);
     final progress = (json['herdProgress'] as num?)?.toDouble() ?? 0;
@@ -286,6 +366,8 @@ class GameState {
       }
     }
 
+    final researched = _parseStringSet(json['researched']);
+
     return GameState(
       herdProgress: progress,
       herd: herd,
@@ -301,6 +383,14 @@ class GameState {
       meadows: meadows,
       uyut: (json['uyut'] as num?)?.toInt() ?? 0,
       mistyBiomeUnlocked: json['mistyBiomeUnlocked'] as bool? ?? false,
+      food: _parseFood(json),
+      ownedDecor: _parseStringSet(json['ownedDecor']),
+      placedDecor: _parseStringSet(json['placedDecor']),
+      researched: researched,
+      roleSlots: (json['roleSlots'] as num?)?.toInt() ??
+          (researched.contains('role_slot_2') ? 2 : 1),
+      tentUnlocked: json['tentUnlocked'] as bool? ??
+          researched.contains('unlock_tent'),
     );
   }
 
