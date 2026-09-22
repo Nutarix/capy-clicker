@@ -121,7 +121,7 @@ class ForestMapOverlay extends StatelessWidget {
                               herdCount: mistyBiomeUnlocked
                                   ? herdCountFor(WorldZones.mistEdgeMeadowId)
                                   : 0,
-                              lockedHintRu: 'откроется после Большого луга и Lv.4',
+                              lockedHintRu: 'После Большого луга и Капи Lv.4',
                               onTap: mistyBiomeUnlocked
                                   ? () {
                                       HapticFeedback.selectionClick();
@@ -133,7 +133,7 @@ class ForestMapOverlay extends StatelessWidget {
                         ),
                         const SizedBox(height: 12),
                         Text(
-                          'Трава и уют общие · семьи — у каждой поляны свои',
+                          'Трава и искры общие · семьи — у каждой поляны свои',
                           textAlign: TextAlign.center,
                           style: CozyTheme.hudChipMutedStyle(fontSize: 12),
                         ),

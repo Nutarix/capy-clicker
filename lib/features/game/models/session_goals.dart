@@ -49,6 +49,29 @@ class SessionGoal {
   final String? meadowId;
 
   String get hudLabelRu => 'Цель: $titleRu';
+
+  /// Extra HUD detail: herd count, level progress, etc. Empty if N/A.
+  String hudCountDetailRu({
+    required int herdCount,
+    required int maxCapyLevel,
+    required int uyut,
+  }) {
+    switch (kind) {
+      case SessionGoalKind.glade:
+        final idx = gladeIndex!;
+        final need = WorldZones.glades[idx].minHerd;
+        if (need <= 0) return '';
+        return 'семья $herdCount/$need';
+      case SessionGoalKind.maxLevel:
+        final need = targetLevel!;
+        return 'Lv.$maxCapyLevel/$need';
+      case SessionGoalKind.metaSoft:
+        return uyut > 0 ? '✨ $uyut' : '';
+      case SessionGoalKind.biomeUnlock:
+      case SessionGoalKind.visitMeadow:
+        return '';
+    }
+  }
 }
 
 /// Ordered session goals for a cozy play loop (infinite horizon).

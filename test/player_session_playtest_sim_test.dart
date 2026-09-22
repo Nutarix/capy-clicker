@@ -165,7 +165,7 @@ void main() {
         }
 
         for (final d in HomeDecor.values) {
-          if (!c.state.ownedDecor.contains(d) && c.buyDecor(d)) {
+          if (!c.state.ownedDecor.contains(d.id) && c.buyDecor(d)) {
             decorBuys++;
             break;
           }

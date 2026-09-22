@@ -73,6 +73,8 @@ class _UyutHubSheetState extends State<UyutHubSheet>
   @override
   Widget build(BuildContext context) {
     final state = c.state;
+    // Soft-gate permanent layers until Ягодная поляна (announced ≥ 1).
+    final permanentUnlocked = state.sunnyGladeAnnounced >= 1;
     final height = MediaQuery.sizeOf(context).height * 0.72;
     return SafeArea(
       child: Padding(
@@ -105,7 +107,7 @@ class _UyutHubSheetState extends State<UyutHubSheet>
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '🌿 ${state.grass}   ✨ уют ${state.uyut}',
+                  '🌿 ${state.grass}   ✨ искры ${state.uyut}',
                   style: CozyTheme.hudChipMutedStyle(fontSize: 12),
                 ),
                 TabBar(
@@ -117,11 +119,11 @@ class _UyutHubSheetState extends State<UyutHubSheet>
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                   ),
-                  tabs: const [
-                    Tab(text: 'Еда'),
-                    Tab(text: 'Роли'),
-                    Tab(text: 'Дом'),
-                    Tab(text: 'Наука'),
+                  tabs: [
+                    const Tab(text: 'Еда'),
+                    const Tab(text: 'Роли'),
+                    Tab(text: permanentUnlocked ? 'Дом' : 'Дом · скоро'),
+                    Tab(text: permanentUnlocked ? 'Наука' : 'Наука · скоро'),
                   ],
                 ),
                 Expanded(
@@ -133,8 +135,14 @@ class _UyutHubSheetState extends State<UyutHubSheet>
                         controller: c,
                         focusCapyId: widget.focusCapyId,
                       ),
-                      _DecorTab(controller: c),
-                      _ResearchTab(controller: c),
+                      _DecorTab(
+                        controller: c,
+                        softLocked: !permanentUnlocked,
+                      ),
+                      _ResearchTab(
+                        controller: c,
+                        softLocked: !permanentUnlocked,
+                      ),
                     ],
                   ),
                 ),
@@ -305,7 +313,7 @@ class _RolesTab extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         Text(
-          'Долгое нажатие на капи на лугу тоже открывает роли.',
+          'Подсказка: долгое нажатие на капи на лугу сразу открывает роли.',
           style: CozyTheme.hudChipMutedStyle(fontSize: 11),
         ),
         const SizedBox(height: 12),
@@ -384,8 +392,9 @@ class _RolesTab extends StatelessWidget {
 }
 
 class _DecorTab extends StatelessWidget {
-  const _DecorTab({required this.controller});
+  const _DecorTab({required this.controller, this.softLocked = false});
   final GameController controller;
+  final bool softLocked;
 
   @override
   Widget build(BuildContext context) {
@@ -397,12 +406,33 @@ class _DecorTab extends StatelessWidget {
           'Уют дома — постоянные бонусы',
           style: CozyTheme.hudChipMutedStyle(fontSize: 13),
         ),
+        if (softLocked) ...[
+          const SizedBox(height: 10),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: const Color(0xFFF0E6D4).withValues(alpha: 0.85),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE2CFA8)),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Text(
+                'Скоро — после Ягодной поляны. Пока корми семью на вкладке Еда.',
+                style: CozyTheme.hudChipMutedStyle(fontSize: 12),
+              ),
+            ),
+          ),
+        ],
         const SizedBox(height: 10),
         for (final d in HomeDecor.values) ...[
-          _DecorRow(controller: controller, decor: d),
+          _DecorRow(
+            controller: controller,
+            decor: d,
+            softLocked: softLocked,
+          ),
           const SizedBox(height: 8),
         ],
-        if (state.ownedDecor.isEmpty)
+        if (state.ownedDecor.isEmpty && !softLocked)
           Text(
             'Купи первый декор за траву — семья станет уютнее.',
             style: CozyTheme.hudChipMutedStyle(fontSize: 12),
@@ -413,16 +443,21 @@ class _DecorTab extends StatelessWidget {
 }
 
 class _DecorRow extends StatelessWidget {
-  const _DecorRow({required this.controller, required this.decor});
+  const _DecorRow({
+    required this.controller,
+    required this.decor,
+    this.softLocked = false,
+  });
   final GameController controller;
   final HomeDecor decor;
+  final bool softLocked;
 
   @override
   Widget build(BuildContext context) {
     final state = controller.state;
     final owned = state.ownsDecor(decor);
     final req = decor.requiresResearch;
-    final locked = req != null && !state.hasResearch(req);
+    final locked = softLocked || (req != null && !state.hasResearch(req));
     final cost =
         '${decor.grassCost}🌿${decor.uyutCost > 0 ? ' + ${decor.uyutCost}✨' : ''}';
     return DecoratedBox(
@@ -435,9 +470,11 @@ class _DecorRow extends StatelessWidget {
         leading: MultiplierIcon(assetPath: decor.assetPath, size: 36),
         title: Text(decor.labelRu, style: CozyTheme.hudChipStyle(fontSize: 13)),
         subtitle: Text(
-          locked
-              ? 'Нужно исследование'
-              : '${decor.effectRu}${owned ? '' : ' · $cost'}',
+          softLocked
+              ? 'Скоро'
+              : locked
+                  ? 'Нужно исследование'
+                  : '${decor.effectRu}${owned ? '' : ' · $cost'}',
           style: CozyTheme.hudChipMutedStyle(fontSize: 11),
         ),
         trailing: owned
@@ -457,7 +494,7 @@ class _DecorRow extends StatelessWidget {
                         HapticFeedback.lightImpact();
                         controller.buyDecor(decor);
                       },
-                child: const Text('Купить'),
+                child: Text(softLocked ? 'Скоро' : 'Купить'),
               ),
       ),
     );
@@ -465,8 +502,9 @@ class _DecorRow extends StatelessWidget {
 }
 
 class _ResearchTab extends StatelessWidget {
-  const _ResearchTab({required this.controller});
+  const _ResearchTab({required this.controller, this.softLocked = false});
   final GameController controller;
+  final bool softLocked;
 
   @override
   Widget build(BuildContext context) {
@@ -487,9 +525,31 @@ class _ResearchTab extends StatelessWidget {
             ),
           ],
         ),
+        if (softLocked) ...[
+          const SizedBox(height: 10),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: const Color(0xFFF0E6D4).withValues(alpha: 0.85),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE2CFA8)),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Text(
+                'Скоро — после Ягодной поляны. Первый узел уже недорогой (12🌿).',
+                style: CozyTheme.hudChipMutedStyle(fontSize: 12),
+              ),
+            ),
+          ),
+        ],
         const SizedBox(height: 10),
         for (final node in UyutResearch.all) ...[
-          _ResearchRow(controller: controller, node: node, unlocked: unlocked),
+          _ResearchRow(
+            controller: controller,
+            node: node,
+            unlocked: unlocked,
+            softLocked: softLocked,
+          ),
           const SizedBox(height: 8),
         ],
       ],
@@ -502,21 +562,24 @@ class _ResearchRow extends StatelessWidget {
     required this.controller,
     required this.node,
     required this.unlocked,
+    this.softLocked = false,
   });
 
   final GameController controller;
   final ResearchNode node;
   final Set<String> unlocked;
+  final bool softLocked;
 
   @override
   Widget build(BuildContext context) {
     final done = unlocked.contains(node.id);
-    final can = UyutResearch.canUnlock(
-      node: node,
-      unlocked: unlocked,
-      grass: controller.state.grass,
-      uyut: controller.state.uyut,
-    );
+    final can = !softLocked &&
+        UyutResearch.canUnlock(
+          node: node,
+          unlocked: unlocked,
+          grass: controller.state.grass,
+          uyut: controller.state.uyut,
+        );
     final prereqOk = node.requires.every(unlocked.contains);
     final cost =
         '${node.grassCost}🌿${node.uyutCost > 0 ? ' + ${node.uyutCost}✨' : ''}';
@@ -524,7 +587,7 @@ class _ResearchRow extends StatelessWidget {
       decoration: BoxDecoration(
         color: done
             ? const Color(0xFFE8F5D8)
-            : prereqOk
+            : prereqOk && !softLocked
                 ? const Color(0xFFFFF3D6)
                 : const Color(0xFFF0E6D4).withValues(alpha: 0.7),
         borderRadius: BorderRadius.circular(14),
@@ -539,10 +602,12 @@ class _ResearchRow extends StatelessWidget {
         ),
         title: Text(node.labelRu, style: CozyTheme.hudChipStyle(fontSize: 13)),
         subtitle: Text(
-          done
-              ? 'Открыто · ${node.effectRu}'
-              : '${node.effectRu} · $cost'
-                  '${node.requires.isEmpty ? '' : '\nнужно: ${node.requires.join(", ")}'}',
+          softLocked
+              ? 'Скоро · ${node.effectRu} · $cost'
+              : done
+                  ? 'Открыто · ${node.effectRu}'
+                  : '${node.effectRu} · $cost'
+                      '${node.requires.isEmpty ? '' : '\nнужно: ${node.requires.join(", ")}'}',
           style: CozyTheme.hudChipMutedStyle(fontSize: 11),
         ),
         trailing: done
@@ -554,7 +619,7 @@ class _ResearchRow extends StatelessWidget {
                         controller.unlockResearch(node.id);
                       }
                     : null,
-                child: const Text('Открыть'),
+                child: Text(softLocked ? 'Скоро' : 'Открыть'),
               ),
       ),
     );

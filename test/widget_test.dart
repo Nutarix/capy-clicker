@@ -97,7 +97,7 @@ void main() {
     await _pumpReady(tester);
 
     expect(find.text('Прогресс'), findsOneWidget);
-    expect(find.textContaining('семья'), findsOneWidget);
+    expect(find.textContaining('семья'), findsWidgets);
 
     // Back to menu; pump past soft daily Future.delayed so no pending timer.
     await tester.tap(find.text('меню'));
@@ -113,7 +113,7 @@ void main() {
     await _enterGameFromMenu(tester);
 
     expect(find.text('Прогресс'), findsOneWidget);
-    expect(find.textContaining('семья'), findsOneWidget);
+    expect(find.textContaining('семья'), findsWidgets);
     expect(find.textContaining('поляна:'), findsOneWidget);
     expect(find.text('меню'), findsOneWidget);
     // Idle badges are compact digits; at least one level mark is present.
@@ -152,8 +152,17 @@ void main() {
     await tester.tap(find.text('Далее'));
     await tester.pump(const Duration(milliseconds: 50));
     expect(find.textContaining('Корзина ягод'), findsOneWidget);
+    await tester.tap(find.text('Далее'));
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(find.textContaining('Копи траву'), findsOneWidget);
+    await tester.tap(find.text('Далее'));
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(find.textContaining('Уют семьи'), findsOneWidget);
+    await tester.tap(find.text('Далее'));
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(find.textContaining('Карта других полян'), findsOneWidget);
     await tester.tap(find.text('Понятно'));
     await tester.pump(const Duration(milliseconds: 50));
-    expect(find.textContaining('Корзина ягод'), findsNothing);
+    expect(find.textContaining('Карта других полян'), findsNothing);
   });
 }

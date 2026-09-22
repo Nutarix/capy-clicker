@@ -170,6 +170,7 @@ void main() {
           'roleSlots': 2,
           'tentUnlocked': true,
           'researched': ['more_flowers'],
+          'sunnyGladeAnnounced': 1,
           'activeMeadowId': 'warm_edge',
           'herd': [
             {
@@ -251,7 +252,7 @@ void main() {
       );
 
       // Дом
-      await tester.tap(find.text('Дом'));
+      await tester.tap(find.textContaining('Дом'));
       await pumpTab(tester);
       expect(tester.takeException(), isNull);
       expect(find.text('Фонарик'), findsOneWidget);
@@ -265,7 +266,7 @@ void main() {
       );
 
       // Наука
-      await tester.tap(find.text('Наука'));
+      await tester.tap(find.textContaining('Наука'));
       await pumpTab(tester);
       expect(tester.takeException(), isNull);
       expect(find.text('Исследования уюта'), findsOneWidget);

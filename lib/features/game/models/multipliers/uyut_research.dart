@@ -28,7 +28,7 @@ abstract final class UyutResearch {
     id: 'more_flowers',
     labelRu: 'Больше цветов',
     effectRu: '+8% с цветов',
-    grassCost: 20,
+    grassCost: 12,
     emoji: '🌸',
   );
 

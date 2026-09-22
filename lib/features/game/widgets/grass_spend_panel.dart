@@ -63,7 +63,7 @@ class GrassSpendPanel extends StatelessWidget {
                   ),
                   if (onUyutHub != null)
                     _SpendPill(
-                      label: foodHint ?? 'Уют',
+                      label: foodHint ?? 'Еда',
                       cost: 0,
                       enabled: true,
                       onTap: onUyutHub!,
@@ -94,7 +94,7 @@ class _GrassChip extends StatelessWidget {
         border: Border.all(color: const Color(0xFFA8C878)),
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -154,7 +154,7 @@ class _SpendPill extends StatelessWidget {
             ),
           ),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             child: Text(
               hideCost ? label : '$label · $cost🌿',
               style: CozyTheme.hudChipMutedStyle(fontSize: 11).copyWith(

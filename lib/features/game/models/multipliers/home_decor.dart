@@ -61,8 +61,8 @@ extension HomeDecorX on HomeDecor {
 
   /// Grass cost to buy once unlocked.
   int get grassCost => switch (this) {
-        HomeDecor.fonarik => 18,
-        HomeDecor.kovrik => 22,
+        HomeDecor.fonarik => 12,
+        HomeDecor.kovrik => 16,
         HomeDecor.vazon => 28,
         HomeDecor.girlyanda => 32,
         HomeDecor.skvorechnik => 40,

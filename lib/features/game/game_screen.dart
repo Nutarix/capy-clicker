@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'audio/game_audio.dart';
 import 'controllers/game_controller.dart';
 import 'models/balance.dart';
+import 'models/session_goals.dart';
 import 'models/world_zones.dart';
 import 'widgets/berry_basket.dart';
 import 'widgets/draggable_capybara.dart';
@@ -450,6 +451,9 @@ class _GameScreenState extends State<GameScreen> {
                                 _SessionGoalChip(
                                   goal: _controller.currentSessionGoal,
                                   progress: _controller.sessionGoalProgress,
+                                  herdCount: state.herdCount,
+                                  maxCapyLevel: state.maxCapyLevel,
+                                  uyut: state.uyut,
                                 ),
                                 _UyutChip(
                                   uyut: state.uyut,
@@ -502,7 +506,7 @@ class _GameScreenState extends State<GameScreen> {
                       canCallCapy: _controller.canCallCapy,
                       canBoost: _controller.canGrassBoost,
                       boostActive: _controller.isGrassBoostActive,
-                      foodHint: 'Уют · ${state.food.total}🍽',
+                      foodHint: 'Еда · ${state.food.total}🍽',
                       onUyutHub: () {
                         unawaited(_audio.noteUserGesture());
                         HapticFeedback.lightImpact();
@@ -661,7 +665,7 @@ class _GameScreenState extends State<GameScreen> {
                       right: 16,
                     ),
                     child: Text(
-                      'Трава · Уют · еда · места · роли · слияние',
+                      'держи капи · долгое нажатие — роль · Еда — хаб семьи',
                       textAlign: TextAlign.center,
                       style: CozyTheme.hudChipMutedStyle(fontSize: 11).copyWith(
                         color: Colors.brown.shade900.withValues(alpha: 0.55),
@@ -780,7 +784,7 @@ class _GameScreenState extends State<GameScreen> {
 
 
 
-/// Meta «Уют» / искры уюта — small cozy HUD chip (opens Уют hub).
+/// Meta искры уюта — HUD chip (opens Уют семьи hub).
 class _UyutChip extends StatelessWidget {
   const _UyutChip({required this.uyut, this.onPressed});
 
@@ -808,7 +812,7 @@ class _UyutChip extends StatelessWidget {
                 const Text('✨', style: TextStyle(fontSize: 13)),
                 const SizedBox(width: 4),
                 Text(
-                  'уют $uyut',
+                  'искры $uyut',
                   style: CozyTheme.hudChipStyle(),
                 ),
               ],
@@ -1007,17 +1011,36 @@ class _MenuBackChip extends StatelessWidget {
 
 
 class _SessionGoalChip extends StatelessWidget {
-  const _SessionGoalChip({required this.goal, required this.progress});
+  const _SessionGoalChip({
+    required this.goal,
+    required this.progress,
+    required this.herdCount,
+    required this.maxCapyLevel,
+    required this.uyut,
+  });
 
-  final dynamic goal;
+  final SessionGoal? goal;
   final double progress;
+  final int herdCount;
+  final int maxCapyLevel;
+  final int uyut;
 
   @override
   Widget build(BuildContext context) {
-    final title = goal == null
-        ? 'Цель: Собери искры уюта'
-        : 'Цель: ${goal.titleRu}';
-    final pct = (progress.clamp(0.0, 1.0) * 100).round();
+    final SessionGoal effective = goal ?? SessionGoals.sequence.last;
+    final detail = effective.hudCountDetailRu(
+      herdCount: herdCount,
+      maxCapyLevel: maxCapyLevel,
+      uyut: uyut,
+    );
+    final title = 'Цель: ${effective.titleRu}';
+    final String label;
+    if (detail.isNotEmpty) {
+      label = '$title · $detail';
+    } else {
+      final pct = (progress.clamp(0.0, 1.0) * 100).round();
+      label = '$title · $pct%';
+    }
     return DecoratedBox(
       decoration: BoxDecoration(
         color: const Color(0xFFFFF8EC).withValues(alpha: 0.95),
@@ -1032,8 +1055,10 @@ class _SessionGoalChip extends StatelessWidget {
             const Text('🎯', style: TextStyle(fontSize: 12)),
             const SizedBox(width: 5),
             Text(
-              goal == null ? title : '$title · $pct%',
+              label,
               style: CozyTheme.hudChipMutedStyle(),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),

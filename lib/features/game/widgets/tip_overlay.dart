@@ -28,6 +28,21 @@ class _FirstLaunchTipOverlayState extends State<FirstLaunchTipOverlay> {
       body: 'Корзина ягод появляется редко — нажми, пока она тут',
       icon: Icons.spa_rounded,
     ),
+    (
+      title: 'Трава 🌿',
+      body: 'Копи траву внизу — зови капи в семью или ускоряй прогресс',
+      icon: Icons.eco_rounded,
+    ),
+    (
+      title: 'Уют семьи',
+      body: 'Кнопка «Еда» открывает хаб: корм, роли, дом и наука',
+      icon: Icons.home_rounded,
+    ),
+    (
+      title: 'Лес',
+      body: 'Чип «Лес» — Карта других полян и будущий Туманный бор',
+      icon: Icons.map_rounded,
+    ),
   ];
 
   @override
