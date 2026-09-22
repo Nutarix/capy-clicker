@@ -58,3 +58,7 @@ fallback для float-текста / снекбаров.
 cream outline / muted) по референсу `ui-btn-kit-strip.png` — без обязательного
 9-slice. Шрифты Pixelify/Nunito из `CozyTheme`.
 
+### Анимации v0 — без новых walk-кадров
+
+Meadow life (idle bob, wander, flower sway, decor glow) — **procedural transforms**
+на существующих PNG. Новых frame-циклов не добавляли. См. [`ANIMATIONS_V0.md`](ANIMATIONS_V0.md).

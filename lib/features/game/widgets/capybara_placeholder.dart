@@ -12,6 +12,7 @@ class CapybaraPlaceholder extends StatelessWidget {
     this.sizeOverride,
     this.flash = false,
     this.twinSparkle = false,
+    this.faceRight = true,
   });
 
   final int level;
@@ -28,6 +29,9 @@ class CapybaraPlaceholder extends StatelessWidget {
 
   /// Soft twin-sparkle glow (merge skill window).
   final bool twinSparkle;
+
+  /// When false, horizontal-flip the body sprite only (labels stay readable).
+  final bool faceRight;
 
   double get _width => sizeOverride ?? BalanceV0.capySizeForLevel(level);
 
@@ -70,6 +74,13 @@ class CapybaraPlaceholder extends StatelessWidget {
       fit: BoxFit.contain,
       filterQuality: FilterQuality.none,
     );
+    if (!faceRight) {
+      sprite = Transform(
+        alignment: Alignment.center,
+        transform: Matrix4.diagonal3Values(-1.0, 1.0, 1.0),
+        child: sprite,
+      );
+    }
 
     // Optional warmer tint for higher levels (cheap ColorFiltered blend).
     if (_warmth > 0.01) {
@@ -82,7 +93,7 @@ class CapybaraPlaceholder extends StatelessWidget {
       );
     }
 
-    return Column(
+    Widget body = Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         AnimatedContainer(
@@ -102,12 +113,6 @@ class CapybaraPlaceholder extends StatelessWidget {
                   color: const Color(0xFFFFB74D).withValues(alpha: _halo),
                   blurRadius: 10 + level * 2.0,
                   spreadRadius: 1 + level * 0.4,
-                ),
-              if (twinSparkle)
-                BoxShadow(
-                  color: const Color(0xFF7EC8E3).withValues(alpha: 0.55),
-                  blurRadius: 16,
-                  spreadRadius: 3,
                 ),
               if (flash)
                 BoxShadow(
@@ -169,6 +174,71 @@ class CapybaraPlaceholder extends StatelessWidget {
           ),
         ],
       ],
+    );
+    if (twinSparkle) {
+      body = TwinSparkleHalo(size: w, child: body);
+    }
+    return body;
+  }
+}
+
+/// Soft opacity shimmer for twin-mark capys (procedural, no new frames).
+class TwinSparkleHalo extends StatefulWidget {
+  const TwinSparkleHalo({super.key, required this.child, required this.size});
+
+  final Widget child;
+  final double size;
+
+  @override
+  State<TwinSparkleHalo> createState() => _TwinSparkleHaloState();
+}
+
+class _TwinSparkleHaloState extends State<TwinSparkleHalo>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (context, child) {
+        final a = 0.35 + _ctrl.value * 0.45;
+        final blur = 10.0 + _ctrl.value * 10.0;
+        return Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(widget.size * 0.22),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF7EC8E3).withValues(alpha: a),
+                blurRadius: blur,
+                spreadRadius: 2 + _ctrl.value * 3,
+              ),
+              BoxShadow(
+                color: const Color(0xFFFFF8E1).withValues(alpha: a * 0.45),
+                blurRadius: blur * 0.6,
+                spreadRadius: 1,
+              ),
+            ],
+          ),
+          child: child,
+        );
+      },
+      child: widget.child,
     );
   }
 }

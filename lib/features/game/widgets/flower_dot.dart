@@ -2,14 +2,22 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-/// Tappable flower with enlarged hitbox, scale punch + petal burst.
+/// Tappable flower with enlarged hitbox, idle sway, scale punch + petal burst.
 class FlowerDot extends StatefulWidget {
-  const FlowerDot({super.key, required this.color, required this.onTap});
+  const FlowerDot({
+    super.key,
+    required this.color,
+    required this.onTap,
+    this.swayPhase = 0,
+  });
 
   final Color color;
 
   /// Called with the global anchor of the flower (for floating «+N%»).
   final ValueChanged<Offset> onTap;
+
+  /// 0..1 phase offset so meadow flowers sway out of sync.
+  final double swayPhase;
 
   /// Playtest P1: larger standardized hitbox (was 48).
   static const double hitSize = 68;
@@ -19,9 +27,9 @@ class FlowerDot extends StatefulWidget {
   State<FlowerDot> createState() => _FlowerDotState();
 }
 
-class _FlowerDotState extends State<FlowerDot>
-    with SingleTickerProviderStateMixin {
+class _FlowerDotState extends State<FlowerDot> with TickerProviderStateMixin {
   late final AnimationController _controller;
+  late final AnimationController _sway;
   late final Animation<double> _scale;
   bool _burst = false;
   final GlobalKey _key = GlobalKey();
@@ -43,11 +51,20 @@ class _FlowerDotState extends State<FlowerDot>
         setState(() => _burst = false);
       }
     });
+
+    final periodMs = (2200 + widget.swayPhase * 900).round();
+    _sway = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: periodMs),
+    );
+    _sway.value = widget.swayPhase.clamp(0.0, 1.0);
+    _sway.repeat(reverse: true);
   }
 
   @override
   void dispose() {
     _controller.dispose();
+    _sway.dispose();
     super.dispose();
   }
 
@@ -73,8 +90,10 @@ class _FlowerDotState extends State<FlowerDot>
         width: FlowerDot.hitSize,
         height: FlowerDot.hitSize,
         child: AnimatedBuilder(
-          animation: _controller,
+          animation: Listenable.merge([_controller, _sway]),
           builder: (context, _) {
+            final angle = (_sway.value - 0.5) * 0.22; // ~±6°
+            final tipY = (_sway.value - 0.5) * 2.5;
             return Stack(
               alignment: Alignment.center,
               clipBehavior: Clip.none,
@@ -95,14 +114,21 @@ class _FlowerDotState extends State<FlowerDot>
                       angle: i * math.pi / 3,
                       progress: Curves.easeOut.transform(_controller.value),
                     ),
-                ScaleTransition(
-                  scale: _scale,
-                  child: Image.asset(
-                    'assets/images/flower.png',
-                    width: FlowerDot.spriteSize,
-                    height: FlowerDot.spriteSize,
-                    fit: BoxFit.contain,
-                    filterQuality: FilterQuality.none,
+                Transform.translate(
+                  offset: Offset(0, tipY),
+                  child: Transform.rotate(
+                    angle: angle,
+                    alignment: Alignment.bottomCenter,
+                    child: ScaleTransition(
+                      scale: _scale,
+                      child: Image.asset(
+                        'assets/images/flower.png',
+                        width: FlowerDot.spriteSize,
+                        height: FlowerDot.spriteSize,
+                        fit: BoxFit.contain,
+                        filterQuality: FilterQuality.none,
+                      ),
+                    ),
                   ),
                 ),
               ],

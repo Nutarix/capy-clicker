@@ -70,11 +70,11 @@ class _BerryBasketState extends State<BerryBasket>
       child: AnimatedBuilder(
         animation: Listenable.merge([_bob, _pop, _glow]),
         builder: (context, _) {
-          final bobY = (_bob.value - 0.5) * 9;
+          final bobY = (_bob.value - 0.5) * 10;
           final scale =
               1.0 +
               (_pop.value < 0.5 ? _pop.value * 0.45 : (1 - _pop.value) * 0.45);
-          final glow = 0.22 + _glow.value * 0.28;
+          final glow = 0.26 + _glow.value * 0.32;
 
           return Transform.translate(
             offset: Offset(0, bobY),

@@ -63,8 +63,8 @@ glade (fixes playtest “Berry 4/12 → Warm after merge” regression feel).
 | Berry basket | `BalanceV0.berryPosX/Y` inside starter glade |
 | Mud puddle | `BalanceV0.mudCenterX/Y` inside starter glade |
 
-Idle wander (if added later) must also use `clampToMeadow` / `randomInMeadow`
-with the current herd count.
+Idle wander (`CapyWander` / `MeadowDraggableCapybara`) uses `clampToMeadow` /
+`randomInMeadow` with the current herd count; commits via `updatePosition`.
 
 ## Visual
 

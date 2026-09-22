@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/balance.dart';
 
 /// Static bush/rock decorations unlocked by herd-size milestones.
+/// Bushes get a tiny idle sway; rocks stay still.
 class MeadowDecorLayer extends StatelessWidget {
   const MeadowDecorLayer({
     super.key,
@@ -24,7 +25,7 @@ class MeadowDecorLayer extends StatelessWidget {
           Positioned(
             left: 0.08 * w,
             top: 0.34 * h,
-            child: const _BushSprite(scale: 1.0),
+            child: const _BushSprite(scale: 1.0, swayPhase: 0.1),
           ),
         if (herdCount >= BalanceV0.decorRockAt)
           Positioned(
@@ -36,27 +37,72 @@ class MeadowDecorLayer extends StatelessWidget {
           Positioned(
             left: 0.62 * w,
             top: 0.30 * h,
-            child: const _BushSprite(scale: 0.85, tint: Color(0xFF6BA85A)),
+            child: const _BushSprite(
+              scale: 0.85,
+              tint: Color(0xFF6BA85A),
+              swayPhase: 0.65,
+            ),
           ),
       ],
     );
   }
 }
 
-class _BushSprite extends StatelessWidget {
-  const _BushSprite({this.scale = 1.0, this.tint = const Color(0xFF4F8F3E)});
+class _BushSprite extends StatefulWidget {
+  const _BushSprite({
+    this.scale = 1.0,
+    this.tint = const Color(0xFF4F8F3E),
+    this.swayPhase = 0,
+  });
 
   final double scale;
   final Color tint;
+  final double swayPhase;
+
+  @override
+  State<_BushSprite> createState() => _BushSpriteState();
+}
+
+class _BushSpriteState extends State<_BushSprite>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _sway;
+
+  @override
+  void initState() {
+    super.initState();
+    _sway = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 3200),
+    );
+    _sway.value = widget.swayPhase.clamp(0.0, 1.0);
+    _sway.repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _sway.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Transform.scale(
-      scale: scale,
-      child: SizedBox(
-        width: 54,
-        height: 42,
-        child: CustomPaint(painter: _BushPainter(tint)),
+    return AnimatedBuilder(
+      animation: _sway,
+      builder: (context, child) {
+        final angle = (_sway.value - 0.5) * 0.06;
+        return Transform.rotate(
+          angle: angle,
+          alignment: Alignment.bottomCenter,
+          child: child,
+        );
+      },
+      child: Transform.scale(
+        scale: widget.scale,
+        child: SizedBox(
+          width: 54,
+          height: 42,
+          child: CustomPaint(painter: _BushPainter(widget.tint)),
+        ),
       ),
     );
   }

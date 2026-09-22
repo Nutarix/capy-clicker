@@ -1,7 +1,11 @@
+import 'dart:async';
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../models/balance.dart';
+import '../models/capy_wander.dart';
 import '../models/capybara.dart';
 import '../models/multipliers/capy_role.dart';
 import 'uyut/multiplier_icon.dart';
@@ -11,7 +15,7 @@ import 'capybara_placeholder.dart';
 import 'mud_puddle.dart';
 
 /// Meadow-aware draggable: merge on same-level drop, soft magnet assist,
-/// wallow on mud drop.
+/// wallow on mud drop, idle bob + wander walk.
 class MeadowDraggableCapybara extends StatefulWidget {
   const MeadowDraggableCapybara({
     super.key,
@@ -23,6 +27,7 @@ class MeadowDraggableCapybara extends StatefulWidget {
     required this.onDropPosition,
     required this.onMudDrop,
     required this.isOverMud,
+    this.herdCount = 0,
     this.isWallowing = false,
     this.mergeFlash = false,
     this.twinSparkle = false,
@@ -44,6 +49,10 @@ class MeadowDraggableCapybara extends StatefulWidget {
   final void Function(String id, Offset normalized) onDropPosition;
   final bool Function(String id) onMudDrop;
   final bool Function(Offset normalized) isOverMud;
+
+  /// Active herd size for [WorldZones] clamp / random wander.
+  final int herdCount;
+
   final bool isWallowing;
   final bool mergeFlash;
 
@@ -79,7 +88,8 @@ class MeadowDraggableCapybara extends StatefulWidget {
       _MeadowDraggableCapybaraState();
 }
 
-class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara> {
+class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
+    with TickerProviderStateMixin {
   /// Soft-magnet target id while dragging (for subtle pull glow).
   String? _magnetTargetId;
 
@@ -89,11 +99,142 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara> {
   /// Extra offset applied to feedback when soft-pulling toward a magnet.
   Offset _pullOffset = Offset.zero;
 
+  late final AnimationController _idleBob;
+  late final AnimationController _walk;
+
+  final math.Random _rng = math.Random();
+
+  /// Display position (may ease during wander before persisting).
+  late Offset _displayPos;
+  Offset? _walkFrom;
+  Offset? _walkTo;
+  bool _walking = false;
+  bool _dragging = false;
+  bool _faceRight = true;
+  Timer? _wanderTimer;
+
   double get _bodyWidth => BalanceV0.capySizeForLevel(widget.capybara.level);
 
   Size get _footprint {
     final w = _bodyWidth;
     return Size(w + 8, w * 0.95 + 26);
+  }
+
+  bool get _wanderBlocked =>
+      _dragging || widget.isWallowing || widget.mergeFlash;
+
+  @override
+  void initState() {
+    super.initState();
+    _displayPos = widget.capybara.position;
+    _idleBob = AnimationController(
+      vsync: this,
+      duration: CapyWander.idlePeriod(widget.capybara.id),
+    );
+    // Phase-offset start so the Семья does not bob in sync.
+    _idleBob.value = CapyWander.phase01(widget.capybara.id);
+    _idleBob.repeat(reverse: true);
+
+    _walk = AnimationController(vsync: this)
+      ..addListener(() {
+        if (!_walking || _walkFrom == null || _walkTo == null) return;
+        final next = CapyWander.lerp(_walkFrom!, _walkTo!, _walk.value);
+        if (mounted) setState(() => _displayPos = next);
+      })
+      ..addStatusListener((status) {
+        if (status == AnimationStatus.completed) {
+          _onWalkCompleted();
+        }
+      });
+
+    _scheduleWander(
+      CapyWander.initialDelay(widget.capybara.id, _rng.nextDouble),
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant MeadowDraggableCapybara oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isWallowing && !oldWidget.isWallowing) {
+      _cancelWalk(commit: false);
+    }
+    if (widget.mergeFlash && !oldWidget.mergeFlash) {
+      _cancelWalk(commit: false);
+    }
+    // External position change (merge spawn, mud snap, load) — sync when idle.
+    if (!_walking &&
+        !_dragging &&
+        widget.capybara.position != oldWidget.capybara.position) {
+      _displayPos = widget.capybara.position;
+    }
+  }
+
+  @override
+  void dispose() {
+    _wanderTimer?.cancel();
+    _idleBob.dispose();
+    _walk.dispose();
+    super.dispose();
+  }
+
+  void _scheduleWander(Duration delay) {
+    _wanderTimer?.cancel();
+    _wanderTimer = Timer(delay, _tryStartWalk);
+  }
+
+  void _tryStartWalk() {
+    if (!mounted) return;
+    if (_wanderBlocked) {
+      _scheduleWander(CapyWander.pauseBetweenWalks(_rng.nextDouble));
+      return;
+    }
+    final from = _displayPos;
+    final to = CapyWander.pickTarget(
+      from: from,
+      random01: _rng.nextDouble,
+      herdCount: widget.herdCount,
+    );
+    // Tiny hops look twitchy — skip and retry later.
+    if ((to - from).distance < 0.03) {
+      _scheduleWander(CapyWander.pauseBetweenWalks(_rng.nextDouble));
+      return;
+    }
+    _walkFrom = from;
+    _walkTo = to;
+    _faceRight = CapyWander.faceRight(from, to);
+    _walking = true;
+    _walk.duration = CapyWander.walkDuration(from, to);
+    _walk.forward(from: 0);
+  }
+
+  void _onWalkCompleted() {
+    if (!mounted) return;
+    final dest = _walkTo ?? _displayPos;
+    _walking = false;
+    _walkFrom = null;
+    _walkTo = null;
+    _displayPos = dest;
+    // Persist like drag-end (clamped inside controller).
+    widget.onDropPosition(widget.capybara.id, dest);
+    _scheduleWander(CapyWander.pauseBetweenWalks(_rng.nextDouble));
+  }
+
+  void _cancelWalk({required bool commit}) {
+    _wanderTimer?.cancel();
+    if (_walking) {
+      _walk.stop();
+      _walking = false;
+      if (commit && _walkTo != null) {
+        widget.onDropPosition(widget.capybara.id, _displayPos);
+      } else {
+        _displayPos = widget.capybara.position;
+      }
+      _walkFrom = null;
+      _walkTo = null;
+    }
+    if (!_dragging && mounted) {
+      _scheduleWander(CapyWander.pauseBetweenWalks(_rng.nextDouble));
+    }
   }
 
   Offset _normalizedFromFeedbackTopLeft(Offset feedbackTopLeft) {
@@ -158,6 +299,8 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara> {
   }
 
   void _onDragStarted() {
+    _dragging = true;
+    _cancelWalk(commit: false);
     _mergedDuringDrag = false;
     _pullOffset = Offset.zero;
     _notifyMagnet(null);
@@ -187,21 +330,29 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara> {
   void _onDragEnd(DraggableDetails details) {
     final mergedAlready = _mergedDuringDrag;
     _mergedDuringDrag = false;
+    _dragging = false;
     _notifyMagnet(null);
     if (mounted) setState(() => _pullOffset = Offset.zero);
 
-    if (mergedAlready || details.wasAccepted) return;
+    if (mergedAlready || details.wasAccepted) {
+      _scheduleWander(CapyWander.pauseBetweenWalks(_rng.nextDouble));
+      return;
+    }
 
     final normalized = _normalizedFromFeedbackTopLeft(details.offset);
 
     // Soft magnet on release: any same-level within full magnetRadius.
     final hit = _hitAt(normalized);
-    if (hit != null && _tryMagnetMerge(hit)) return;
+    if (hit != null && _tryMagnetMerge(hit)) {
+      _scheduleWander(CapyWander.pauseBetweenWalks(_rng.nextDouble));
+      return;
+    }
 
     if (widget.isOverMud(normalized)) {
       final ok = widget.onMudDrop(widget.capybara.id);
       if (ok) {
         HapticFeedback.mediumImpact();
+        _scheduleWander(CapyWander.pauseBetweenWalks(_rng.nextDouble));
         return;
       }
     }
@@ -210,21 +361,22 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara> {
       final ok = widget.onPlaceDrop!(widget.capybara.id, place);
       if (ok) {
         HapticFeedback.mediumImpact();
+        _scheduleWander(CapyWander.pauseBetweenWalks(_rng.nextDouble));
         return;
       }
     }
+    _displayPos = normalized;
     widget.onDropPosition(widget.capybara.id, normalized);
+    _scheduleWander(CapyWander.pauseBetweenWalks(_rng.nextDouble));
   }
 
   @override
   Widget build(BuildContext context) {
     final footprint = _footprint;
     final left =
-        widget.capybara.position.dx * widget.meadowSize.width -
-        footprint.width / 2;
+        _displayPos.dx * widget.meadowSize.width - footprint.width / 2;
     final top =
-        widget.capybara.position.dy * widget.meadowSize.height -
-        footprint.height / 2;
+        _displayPos.dy * widget.meadowSize.height - footprint.height / 2;
 
     final magnetHighlight =
         widget.magnetAttractedId == widget.capybara.id;
@@ -233,8 +385,9 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara> {
     Widget visual = CapybaraPlaceholder(
       level: widget.capybara.level,
       flash: widget.mergeFlash,
-        twinSparkle: widget.twinSparkle,
+      twinSparkle: widget.twinSparkle,
       compactLabel: !fullBadge,
+      faceRight: _faceRight,
     );
     if (widget.isWallowing) {
       visual = WallowOverlay(child: visual);
@@ -257,6 +410,28 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara> {
         ],
       );
     }
+
+    // Idle bob + walk bounce (facing is sprite-only via faceRight).
+    visual = AnimatedBuilder(
+      animation: Listenable.merge([_idleBob, _walk]),
+      builder: (context, child) {
+        final idleY =
+            _walking ? 0.0 : CapyWander.idleBobY(_idleBob.value);
+        final walkY =
+            _walking ? CapyWander.walkBounceY(_walk.value) : 0.0;
+        final squash =
+            _walking ? 1.0 : CapyWander.idleSquashY(_idleBob.value);
+        return Transform.translate(
+          offset: Offset(0, idleY + walkY),
+          child: Transform(
+            alignment: Alignment.bottomCenter,
+            transform: Matrix4.diagonal3Values(1.0, squash, 1.0),
+            child: child,
+          ),
+        );
+      },
+      child: visual,
+    );
 
     return Positioned(
       left: left,

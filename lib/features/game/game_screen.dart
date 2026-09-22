@@ -16,6 +16,7 @@ import 'widgets/floating_gain.dart';
 import 'widgets/forest_map_overlay.dart';
 import 'widgets/meadow_background.dart';
 import 'widgets/meadow_decor.dart';
+import 'widgets/placed_home_decor.dart';
 import 'widgets/mud_puddle.dart';
 import 'widgets/grass_spend_panel.dart';
 import 'widgets/progress_bar.dart';
@@ -556,6 +557,10 @@ class _GameScreenState extends State<GameScreen> {
                                     herdCount: state.herdCount,
                                     meadowSize: Size(w, h),
                                   ),
+                                  PlacedHomeDecorLayer(
+                                    placedIds: state.placedDecor,
+                                    meadowSize: Size(w, h),
+                                  ),
                                   // Mud puddle (behind capys)
                                   Positioned(
                                     left: BalanceV0.mudCenterX * w - 55,
@@ -579,6 +584,7 @@ class _GameScreenState extends State<GameScreen> {
                                         child: FlowerDot(
                                           color: _flowerColors[
                                               i % _flowerColors.length],
+                                          swayPhase: i / WorldZones.flowerPositions.length,
                                           onTap: _onFlowerTap,
                                         ),
                                       );
@@ -602,6 +608,7 @@ class _GameScreenState extends State<GameScreen> {
                                       key: ValueKey(capy.id),
                                       capybara: capy,
                                       herd: state.herd,
+                                      herdCount: state.herdCount,
                                       meadowSize: Size(w, h),
                                       meadowOriginGlobal: _meadowOriginGlobal(),
                                       onMerge: _onMerge,
