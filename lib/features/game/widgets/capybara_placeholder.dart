@@ -1,12 +1,19 @@
 import 'package:flutter/material.dart';
 
 import '../models/balance.dart';
+import '../models/capy_walk.dart';
+import '../models/multipliers/capy_role.dart';
 
 /// Pixel-sprite capybara; size + warmer tint + badge grow with [level].
+///
+/// Uses per-type walk sheets (`assets/images/walk/`) — role sheets are the
+/// role look (not only a badge). [walkFrame] cycles 0..3 while walking.
 class CapybaraPlaceholder extends StatelessWidget {
   const CapybaraPlaceholder({
     super.key,
     this.level = 1,
+    this.role,
+    this.walkFrame = 0,
     this.showLabel = true,
     this.compactLabel = false,
     this.sizeOverride,
@@ -16,6 +23,13 @@ class CapybaraPlaceholder extends StatelessWidget {
   });
 
   final int level;
+
+  /// Optional Семья role — selects nanny/gatherer/guard walk sheet.
+  final CapyRole? role;
+
+  /// Walk-cycle frame 0..3 (idle uses 0).
+  final int walkFrame;
+
   final bool showLabel;
 
   /// Smaller / quieter Lv badge (idle herd). Full badge when dragged / merged.
@@ -35,9 +49,10 @@ class CapybaraPlaceholder extends StatelessWidget {
 
   double get _width => sizeOverride ?? BalanceV0.capySizeForLevel(level);
 
-  /// lv1 sprite for levels 1–2, lv3 sprite for levels 3+.
-  String get _assetPath =>
-      level >= 3 ? 'assets/images/capy_lv3.png' : 'assets/images/capy_lv1.png';
+  CapyWalkSheet get walkSheet =>
+      CapyWalk.sheetFor(level: level, role: role);
+
+  String get _assetPath => CapyWalk.assetPath(walkSheet, walkFrame);
 
   /// Warm amber ColorFilter strength for higher levels (up to Lv.6).
   double get _warmth {
@@ -73,6 +88,20 @@ class CapybaraPlaceholder extends StatelessWidget {
       height: h,
       fit: BoxFit.contain,
       filterQuality: FilterQuality.none,
+      gaplessPlayback: true,
+      errorBuilder: (context, error, stackTrace) {
+        // Fallback to legacy static sprites if a walk frame is missing.
+        final fallback = level >= 3
+            ? 'assets/images/capy_lv3.png'
+            : 'assets/images/capy_lv1.png';
+        return Image.asset(
+          fallback,
+          width: w,
+          height: h,
+          fit: BoxFit.contain,
+          filterQuality: FilterQuality.none,
+        );
+      },
     );
     if (!faceRight) {
       sprite = Transform(

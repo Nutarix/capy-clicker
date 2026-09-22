@@ -5,7 +5,7 @@ import 'world_zones.dart';
 
 /// Pure helpers for meadow idle bob + wander (no Flutter ticker dependency).
 ///
-/// Visual walk uses transform/bob on existing sprites — no frame walk cycle.
+/// Walk position uses ease lerp + bounce; paw frames via [CapyWalk] sheets.
 abstract final class CapyWander {
   /// Stable 0..1 phase from [id] (idle bob offset / period jitter).
   static double phase01(String id) {

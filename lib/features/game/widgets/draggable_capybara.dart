@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 
 import '../models/balance.dart';
 import '../models/capy_wander.dart';
+import '../models/capy_walk.dart';
 import '../models/capybara.dart';
 import '../models/multipliers/capy_role.dart';
 import 'uyut/multiplier_icon.dart';
@@ -102,6 +103,9 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
   late final AnimationController _idleBob;
   late final AnimationController _walk;
 
+  /// 4-frame walk-cycle loop (paws); repeats only while [_walking].
+  late final AnimationController _walkCycle;
+
   final math.Random _rng = math.Random();
 
   /// Display position (may ease during wander before persisting).
@@ -123,17 +127,29 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
   bool get _wanderBlocked =>
       _dragging || widget.isWallowing || widget.mergeFlash;
 
+  CapyWalkSheet get _sheet => CapyWalk.sheetFor(
+        level: widget.capybara.level,
+        role: widget.capybara.role,
+      );
+
+  int get _currentWalkFrame {
+    if (!_walking) return 0;
+    return CapyWalk.frameFromLoop01(_walkCycle.value);
+  }
+
   @override
   void initState() {
     super.initState();
     _displayPos = widget.capybara.position;
     _idleBob = AnimationController(
       vsync: this,
-      duration: CapyWander.idlePeriod(widget.capybara.id),
+      duration: CapyWalk.idlePeriod(_sheet, widget.capybara.id),
     );
     // Phase-offset start so the Семья does not bob in sync.
     _idleBob.value = CapyWander.phase01(widget.capybara.id);
     _idleBob.repeat(reverse: true);
+
+    _walkCycle = AnimationController(vsync: this);
 
     _walk = AnimationController(vsync: this)
       ..addListener(() {
@@ -161,6 +177,20 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
     if (widget.mergeFlash && !oldWidget.mergeFlash) {
       _cancelWalk(commit: false);
     }
+    // Role / level change → switch walk sheet + idle flavour.
+    if (widget.capybara.role != oldWidget.capybara.role ||
+        widget.capybara.level != oldWidget.capybara.level) {
+      _idleBob.duration = CapyWalk.idlePeriod(_sheet, widget.capybara.id);
+      if (!_idleBob.isAnimating) {
+        _idleBob.repeat(reverse: true);
+      }
+      if (_walking) {
+        _walkCycle.duration = CapyWalk.loopDuration(_sheet);
+        if (!_walkCycle.isAnimating) {
+          _walkCycle.repeat();
+        }
+      }
+    }
     // External position change (merge spawn, mud snap, load) — sync when idle.
     if (!_walking &&
         !_dragging &&
@@ -173,6 +203,7 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
   void dispose() {
     _wanderTimer?.cancel();
     _idleBob.dispose();
+    _walkCycle.dispose();
     _walk.dispose();
     super.dispose();
   }
@@ -204,6 +235,8 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
     _faceRight = CapyWander.faceRight(from, to);
     _walking = true;
     _walk.duration = CapyWander.walkDuration(from, to);
+    _walkCycle.duration = CapyWalk.loopDuration(_sheet);
+    _walkCycle.repeat();
     _walk.forward(from: 0);
   }
 
@@ -211,6 +244,8 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
     if (!mounted) return;
     final dest = _walkTo ?? _displayPos;
     _walking = false;
+    _walkCycle.stop();
+    _walkCycle.value = 0;
     _walkFrom = null;
     _walkTo = null;
     _displayPos = dest;
@@ -223,6 +258,8 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
     _wanderTimer?.cancel();
     if (_walking) {
       _walk.stop();
+      _walkCycle.stop();
+      _walkCycle.value = 0;
       _walking = false;
       if (commit && _walkTo != null) {
         widget.onDropPosition(widget.capybara.id, _displayPos);
@@ -382,12 +419,53 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
         widget.magnetAttractedId == widget.capybara.id;
     final fullBadge = widget.promoteLevelBadge || magnetHighlight;
 
-    Widget visual = CapybaraPlaceholder(
-      level: widget.capybara.level,
-      flash: widget.mergeFlash,
-      twinSparkle: widget.twinSparkle,
-      compactLabel: !fullBadge,
-      faceRight: _faceRight,
+    // Idle bob (unique per sheet) + walk bounce; facing via faceRight.
+    // Walk-cycle frames rebuild via _walkCycle. Wallow/merge wrap OUTSIDE
+    // so stateful overlays are not recreated every tick.
+    Widget visual = AnimatedBuilder(
+      animation: Listenable.merge([_idleBob, _walk, _walkCycle]),
+      builder: (context, child) {
+        Widget body = CapybaraPlaceholder(
+          level: widget.capybara.level,
+          role: widget.capybara.role,
+          walkFrame: _currentWalkFrame,
+          flash: widget.mergeFlash,
+          twinSparkle: widget.twinSparkle,
+          compactLabel: !fullBadge,
+          faceRight: _faceRight,
+        );
+        final role = widget.capybara.role;
+        if (role != null) {
+          body = Stack(
+            clipBehavior: Clip.none,
+            children: [
+              body,
+              Positioned(
+                right: -4,
+                top: -6,
+                child: MultiplierIcon(assetPath: role.assetPath, size: 20),
+              ),
+            ],
+          );
+        }
+        final sheet = _sheet;
+        final idleY =
+            _walking ? 0.0 : CapyWalk.idleBobY(sheet, _idleBob.value);
+        final idleX =
+            _walking ? 0.0 : CapyWalk.idleSwayX(sheet, _idleBob.value);
+        final walkY =
+            _walking ? CapyWander.walkBounceY(_walk.value) : 0.0;
+        final squash =
+            _walking ? 1.0 : CapyWalk.idleSquashY(sheet, _idleBob.value);
+        return Transform.translate(
+          offset: Offset(idleX, idleY + walkY),
+          child: Transform(
+            alignment: Alignment.bottomCenter,
+            transform: Matrix4.diagonal3Values(1.0, squash, 1.0),
+            child: body,
+          ),
+        );
+      },
     );
     if (widget.isWallowing) {
       visual = WallowOverlay(child: visual);
@@ -395,43 +473,6 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
     if (widget.mergeFlash) {
       visual = _MergePunch(child: visual);
     }
-
-    final role = widget.capybara.role;
-    if (role != null) {
-      visual = Stack(
-        clipBehavior: Clip.none,
-        children: [
-          visual,
-          Positioned(
-            right: -4,
-            top: -6,
-            child: MultiplierIcon(assetPath: role.assetPath, size: 20),
-          ),
-        ],
-      );
-    }
-
-    // Idle bob + walk bounce (facing is sprite-only via faceRight).
-    visual = AnimatedBuilder(
-      animation: Listenable.merge([_idleBob, _walk]),
-      builder: (context, child) {
-        final idleY =
-            _walking ? 0.0 : CapyWander.idleBobY(_idleBob.value);
-        final walkY =
-            _walking ? CapyWander.walkBounceY(_walk.value) : 0.0;
-        final squash =
-            _walking ? 1.0 : CapyWander.idleSquashY(_idleBob.value);
-        return Transform.translate(
-          offset: Offset(0, idleY + walkY),
-          child: Transform(
-            alignment: Alignment.bottomCenter,
-            transform: Matrix4.diagonal3Values(1.0, squash, 1.0),
-            child: child,
-          ),
-        );
-      },
-      child: visual,
-    );
 
     return Positioned(
       left: left,
@@ -457,6 +498,8 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
                     opacity: 0.92,
                     child: CapybaraPlaceholder(
                       level: widget.capybara.level,
+                      role: widget.capybara.role,
+                      walkFrame: 0,
                       compactLabel: false,
                     ),
                   ),
@@ -466,6 +509,8 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
                 opacity: 0.22,
                 child: CapybaraPlaceholder(
                   level: widget.capybara.level,
+                  role: widget.capybara.role,
+                  walkFrame: 0,
                   compactLabel: true,
                 ),
               ),

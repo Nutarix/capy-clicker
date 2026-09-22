@@ -92,6 +92,7 @@ flutter:
     - assets/images/decor_lampa.png
     - assets/images/decor_kormushka.png
     - assets/images/research_uyut.png
+    - assets/images/walk/
     - assets/audio/bgm_cozy.wav
     - assets/audio/sfx_flower.wav
     - assets/audio/sfx_berry.wav

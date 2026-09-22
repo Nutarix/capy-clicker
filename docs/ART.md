@@ -58,7 +58,23 @@ fallback для float-текста / снекбаров.
 cream outline / muted) по референсу `ui-btn-kit-strip.png` — без обязательного
 9-slice. Шрифты Pixelify/Nunito из `CozyTheme`.
 
-### Анимации v0 — без новых walk-кадров
+### Walk-cycle pack — ✅ одобрено Никитой (approved-as-shipped)
 
-Meadow life (idle bob, wander, flower sway, decor glow) — **procedural transforms**
-на существующих PNG. Новых frame-циклов не добавляли. См. [`ANIMATIONS_V0.md`](ANIMATIONS_V0.md).
+Источник: `store/art-pack-walk/` (5 PNG, cream-bg, horizontal 4-frame).
+
+Пайплайн: `tool/slice_walk_pack.py` (chroma cream flood + island cleanup →
+crop → longest ≤ 256) → `assets/images/walk/{base,lv3,nanny,gatherer,guard}_{0..3}.png`.
+
+| Sheet | Когда |
+|-------|-------|
+| `base_*` | Lv1–2 без роли |
+| `lv3_*` | Lv3+ без роли |
+| `nanny_*` / `gatherer_*` / `guard_*` | роль Няня / Собиратель / Сторож |
+
+Ролевой walk sheet **и есть** внешний вид роли на лугу (не только бейдж
+`role_*.png`). См. [`ANIMATIONS_V0.md`](ANIMATIONS_V0.md).
+
+### Анимации v0 — meadow life + walk frames
+
+Idle / wander / flower sway / decor glow — procedural transforms; **walk** —
+покадровый cycle на уникальных sheet’ах выше.
