@@ -61,14 +61,15 @@ extension HomeDecorX on HomeDecor {
 
   /// Grass cost to buy once unlocked.
   int get grassCost => switch (this) {
+        // Showable v1: first two permanents cheap after berry unlock.
         HomeDecor.fonarik => 12,
-        HomeDecor.kovrik => 16,
-        HomeDecor.vazon => 28,
-        HomeDecor.girlyanda => 32,
-        HomeDecor.skvorechnik => 40,
-        HomeDecor.podushka => 36,
-        HomeDecor.lampa => 45,
-        HomeDecor.kormushka => 50,
+        HomeDecor.kovrik => 14,
+        HomeDecor.vazon => 24,
+        HomeDecor.girlyanda => 28,
+        HomeDecor.skvorechnik => 36,
+        HomeDecor.podushka => 32,
+        HomeDecor.lampa => 42,
+        HomeDecor.kormushka => 48,
       };
 
   /// Extra Уют cost (optional).

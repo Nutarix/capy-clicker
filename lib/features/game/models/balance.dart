@@ -193,30 +193,32 @@ abstract final class BalanceV0 {
   // --- Grass currency (session loop fork) ---
 
   /// Integer grass from a flower tap (inclusive range).
-  /// Playtest v1.1: always 1 — was 1–2; cuts call-spam unlocking Berry in <90s.
+  /// Showable v1: keep always-1 so Berry stays ~2–5′ (not <90s call-rush).
   static const int flowerTapGrassMin = 1;
   static const int flowerTapGrassMax = 1;
 
   /// Slow auto grass accrual (fractional units per second → integer grants).
-  /// Playtest v1.1: 0.12 → 0.07 (~14 с на 1🌿).
-  static const double autoGrassPerSecond = 0.07;
+  /// Showable v1: 0.07 → 0.110 (~9 с на 1🌿) — mid-session drip vs 🌿=0 despair.
+  static const double autoGrassPerSecond = 0.110;
 
   /// Berry basket grass burst (inclusive).
-  /// Playtest v1.1: 8–12 → 5–8.
-  static const int berryGrassMin = 5;
-  static const int berryGrassMax = 8;
+  /// Showable v1: 5–8 → 7–10 — post-berry buffer for Дом/Наука.
+  static const int berryGrassMin = 7;
+  static const int berryGrassMax = 10;
 
   /// Grass reward when a Sunny Glade first unlocks.
-  static const int gladeUnlockGrass = 6;
+  /// Showable v1: 6 → 10 — funds first permanent right after wow.
+  static const int gladeUnlockGrass = 10;
 
   /// Bonus grass for merging a marked twin-sparkle pair.
   static const int twinMergeBonusGrass = 5;
 
   /// Soft celebration grass when a session goal completes.
-  static const int goalCompleteGrass = 4;
+  /// Showable v1: 4 → 6.
+  static const int goalCompleteGrass = 6;
 
   /// Spend: call a new Lv.1 capy (if under soft herd cap).
-  /// Playtest v1.1: 8 → 12 so call-spam cannot skip the cozy first minutes.
+  /// Showable v1: keep 12 (2.4× boost) — fork stays real; soft-cap still matters.
   static const int callCapyGrassCost = 12;
 
   /// Spend: short auto-progress boost (weaker than mud wallow).
@@ -277,7 +279,8 @@ abstract final class BalanceV0 {
 
   /// Convert grass → Травка feed pack.
   static const int grassToTravkaCost = 4;
-  static const int grassToYagodyCost = 7;
+  /// Showable v1: 7 → 6 — food stays a light sink next to call/boost.
+  static const int grassToYagodyCost = 6;
   static const int grassToOreshkiCost = 12;
 
   // --- Multipliers v0: cozy places ---

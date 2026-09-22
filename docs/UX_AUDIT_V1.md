@@ -37,7 +37,7 @@
 | P2.1 | HUD chip density (7+ чипов) | Не redesign целого меню; Wrap держит |
 | P2.2 | Контраст muted brown на meadow | Нужен визуальный проход на устройстве |
 | P2.3 | Места на лугу без tip | Не в top-5; можно tip v1.3 |
-| P2.4 | Grass sink mid-session | Баланс-патч вне UX-скопа |
+| P2.4 | Grass sink mid-session | **Исправлено в showable v1** — см. BALANCE_SHOWABLE_V1 / PLAYTEST_SHOWABLE_V1 |
 | P2.5 | Linux `flutter run` crash | Desktop QA, не mobile ship blocker |
 
 ---

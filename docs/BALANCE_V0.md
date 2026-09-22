@@ -3,6 +3,10 @@
 Числа для короткой cozy-сессии + лёгкий offline. Источник правды в коде:
 `lib/features/game/models/balance.dart` (`BalanceV0`).
 
+**Showable v1 (P2.4):** актуальные тюны травы / sinks / beats —
+[`BALANCE_SHOWABLE_V1.md`](BALANCE_SHOWABLE_V1.md), playtest
+[`PLAYTEST_SHOWABLE_V1.md`](PLAYTEST_SHOWABLE_V1.md).
+
 ## Авто-прогресс (трава)
 
 | Параметр | Значение | Комментарий |
@@ -171,16 +175,17 @@ Zoom target = `min(baseZoom, fitZoom)` — если bbox семьи (+padding 0.
 
 | Параметр | Значение | Комментарий |
 |---|---|---|
-| `flowerTapGrassMin`…`Max` | **1–1** | вместе с % прогресса (было 1–2) |
-| `autoGrassPerSecond` | **0.07** | ~14 с на 1🌿 (было 0.12) |
-| `berryGrassMin`…`Max` | **5–8** | burst (было 8–12) |
-| `gladeUnlockGrass` | **6** | wow открытия поляны |
+| `flowerTapGrassMin`…`Max` | **1–1** | вместе с % прогресса |
+| `autoGrassPerSecond` | **0.110** | ~9 с на 1🌿 (showable v1; было 0.07) |
+| `berryGrassMin`…`Max` | **7–10** | burst (showable v1; было 5–8) |
+| `gladeUnlockGrass` | **10** | wow → buffer на Дом/Наука |
 | `twinMergeBonusGrass` | **5** | skill-merge |
-| `goalCompleteGrass` | **4** | soft celebration |
-| `callCapyGrassCost` | **12** | позвать Lv.1 (было 8) |
+| `goalCompleteGrass` | **6** | soft celebration (было 4) |
+| `callCapyGrassCost` | **12** | позвать Lv.1; вилка vs boost 5 |
 | `grassBoostCost` | **5** | |
 | `grassBoostMultiplier` | **1.5** | слабее лужи ×2 |
 | `grassBoostDuration` | **6 с** | |
+| `grassToYagodyCost` | **6** | было 7 |
 | `twinRerollSeconds` | **36** | редкая подсветка (~30–60 с feel) |
 | `twinPostMergeCooldownSeconds` | **28** | пауза после twin-merge |
 | `twinMarkChance` | **0.55** | иначе тихий gap |
@@ -210,8 +215,8 @@ Zoom target = `min(baseZoom, fitZoom)` — если bbox семьи (+padding 0.
 | Еда | Травка ×1.25/12с; Ягоды ×1.55/5с +8%; Орешки ×1.35/8с + twin/магнит |
 | Места | Пень магнит; Камень ×1.45/8с CD25; Тент ×1.30/15с CD40 |
 | Роли | Няня +15% авто; Собиратель +20% находки; Сторож soft-cap+1 |
-| Декор | +2–5% точечно (8 предметов) |
-| Research | more_flowers +8%; longer_mud +4с; soft_cap_plus +1 |
+| Декор | Фонарик 12🌿 … (см. MULTIPLIERS / SHOWABLE) |
+| Research | more_flowers 12🌿; longer_mud 18🌿; … |
 | Стак | base → temp → roles → decor → research → Уют |
 
 Сейв дополнен: `food`, `ownedDecor`, `placedDecor`, `researched`, `roleSlots`, `tentUnlocked`, `role` у капи.
