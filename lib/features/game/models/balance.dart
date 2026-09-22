@@ -184,6 +184,45 @@ abstract final class BalanceV0 {
   /// How strongly the drag feedback eases toward the magnet target (0–1).
   static const double magnetPullLerp = 0.28;
 
+
+  // --- Grass currency (session loop fork) ---
+
+  /// Integer grass from a flower tap (inclusive range).
+  static const int flowerTapGrassMin = 1;
+  static const int flowerTapGrassMax = 2;
+
+  /// Slow auto grass accrual (fractional units per second → integer grants).
+  static const double autoGrassPerSecond = 0.12;
+
+  /// Berry basket grass burst (inclusive).
+  static const int berryGrassMin = 8;
+  static const int berryGrassMax = 12;
+
+  /// Grass reward when a Sunny Glade first unlocks.
+  static const int gladeUnlockGrass = 6;
+
+  /// Bonus grass for merging a marked twin-sparkle pair.
+  static const int twinMergeBonusGrass = 5;
+
+  /// Soft celebration grass when a session goal completes.
+  static const int goalCompleteGrass = 4;
+
+  /// Spend: call a new Lv.1 capy (if under soft herd cap).
+  static const int callCapyGrassCost = 8;
+
+  /// Spend: short auto-progress boost (weaker than mud wallow).
+  static const int grassBoostCost = 5;
+  static const double grassBoostMultiplier = 1.5;
+  static const Duration grassBoostDuration = Duration(seconds: 6);
+
+  // --- Twin sparkle (merge skill window) ---
+
+  /// How often we try to mark a same-level pair (seconds).
+  static const int twinRerollSeconds = 18;
+
+  /// Minimum herd size before twin marking can appear.
+  static const int twinMinHerd = 2;
+
   // --- Juice / tips ---
 
   /// Brief merge flash duration on the new merged capy.

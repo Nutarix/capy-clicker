@@ -6,12 +6,23 @@ import '../models/balance.dart';
 /// Soft once-per-day claim sheet: «Утренний уют».
 /// Not an energy gate — dismissible, claimable until taken that calendar day.
 class MorningCozySheet extends StatelessWidget {
-  const MorningCozySheet({super.key, required this.onClaim});
+  const MorningCozySheet({
+    super.key,
+    required this.onClaim,
+    this.dailyGoalHint,
+  });
 
   final VoidCallback onClaim;
 
+  /// Soft daily tip, e.g. «Сегодня: доберись до Ягодной поляны».
+  final String? dailyGoalHint;
+
   /// Shows the sheet; returns true if the player claimed.
-  static Future<bool> show(BuildContext context, {required VoidCallback onClaim}) async {
+  static Future<bool> show(
+    BuildContext context, {
+    required VoidCallback onClaim,
+    String? dailyGoalHint,
+  }) async {
     var claimed = false;
     await showModalBottomSheet<void>(
       context: context,
@@ -19,6 +30,7 @@ class MorningCozySheet extends StatelessWidget {
       backgroundColor: Colors.transparent,
       builder: (ctx) {
         return MorningCozySheet(
+          dailyGoalHint: dailyGoalHint,
           onClaim: () {
             claimed = true;
             onClaim();
@@ -83,6 +95,18 @@ class MorningCozySheet extends StatelessWidget {
                     color: Colors.brown.shade800.withValues(alpha: 0.85),
                   ),
                 ),
+                if (dailyGoalHint != null && dailyGoalHint!.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    dailyGoalHint!,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.brown.shade800.withValues(alpha: 0.9),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 6),
                 Text(
                   'Один раз в календарный день · без таймеров давления',

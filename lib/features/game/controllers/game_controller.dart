@@ -7,11 +7,12 @@ import 'package:flutter/foundation.dart';
 import '../models/balance.dart';
 import '../models/capybara.dart';
 import '../models/game_state.dart';
+import '../models/session_goals.dart';
 import '../models/world_zones.dart';
 import '../persistence/game_persistence.dart';
 
 /// Owns [GameState], tick loop, spawn/merge, mud boost, berry basket,
-/// offline progress, soft daily bonus, persist.
+/// grass currency, session goals, twin sparkle, offline, soft daily, persist.
 class GameController extends ChangeNotifier {
   GameController({
     GamePersistence? persistence,
@@ -55,13 +56,45 @@ class GameController extends ChangeNotifier {
   /// Elapsed seconds used for the offline grant (capped).
   int _offlineSecondsApplied = 0;
 
+  /// Grass-spend auto boost (weaker than mud).
+  DateTime? _grassBoostUntil;
+
+  /// Fractional auto-grass accumulator (grants integers when ≥ 1).
+  double _grassAcc = 0;
+
+  /// Soft session-goal celebration toast (RU), consumed by UI.
+  String? _goalCompleteToast;
+
+  /// Extra grass granted with the last glade unlock (for UI float).
+  int _lastGladeGrassReward = 0;
+
+  /// Grass granted by the most recent flower/berry tap (for UI float).
+  int lastTapGrass = 0;
+
+  /// Seconds until next twin-sparkle reroll attempt.
+  double _twinRerollIn = BalanceV0.twinRerollSeconds.toDouble();
+
   GameState get state => _state;
   bool get isReady => _ready;
 
-  /// Live auto fill rate (fraction/sec), including mud boost — for HUD «+X%/с».
+  /// Live auto fill rate (fraction/sec), including boosts — for HUD «+X%/с».
   double get autoRatePerSecond {
-    final mult = isMudBoostActive ? BalanceV0.mudBoostMultiplier : 1.0;
-    return BalanceV0.autoProgressPerSecond * mult;
+    return BalanceV0.autoProgressPerSecond * _boostMultiplier;
+  }
+
+  double get _boostMultiplier {
+    var mult = 1.0;
+    if (isMudBoostActive) {
+      mult = mult < BalanceV0.mudBoostMultiplier
+          ? BalanceV0.mudBoostMultiplier
+          : mult;
+    }
+    if (isGrassBoostActive) {
+      mult = mult < BalanceV0.grassBoostMultiplier
+          ? BalanceV0.grassBoostMultiplier
+          : mult;
+    }
+    return mult;
   }
   double get cameraZoom => BalanceV0.cameraZoomForHerd(
         _meadowKeyForCount(_state.herdCount),
@@ -76,12 +109,54 @@ class GameController extends ChangeNotifier {
     return _mudBoostUntil!.difference(_now()).inMilliseconds / 1000.0;
   }
 
+  bool get isGrassBoostActive =>
+      _grassBoostUntil != null && _now().isBefore(_grassBoostUntil!);
+
+  double get grassBoostRemainingSeconds {
+    if (!isGrassBoostActive) return 0;
+    return _grassBoostUntil!.difference(_now()).inMilliseconds / 1000.0;
+  }
+
+  /// Combined boost remaining for HUD (prefer mud label when both).
+  double get activeBoostRemainingSeconds {
+    if (isMudBoostActive) return mudBoostRemainingSeconds;
+    if (isGrassBoostActive) return grassBoostRemainingSeconds;
+    return 0;
+  }
+
+  bool get isAnyBoostActive => isMudBoostActive || isGrassBoostActive;
+
   String? get wallowingCapyId => _wallowingCapyId;
   bool get isBerryVisible => _berryVisible;
   String? get mergeFlashId => _mergeFlashId;
 
   /// Pending «Солнечные поляны» unlock line (e.g. «Открылась Ягодная поляна»).
   String? get gladeUnlockToast => _gladeUnlockToast;
+
+  /// Grass granted with the last glade unlock (0 if none).
+  int get lastGladeGrassReward => _lastGladeGrassReward;
+
+  /// Pending session-goal celebration line.
+  String? get goalCompleteToast => _goalCompleteToast;
+
+  /// Current session goal, or null when the sequence is finished.
+  SessionGoal? get currentSessionGoal =>
+      SessionGoals.at(_state.sessionGoalIndex);
+
+  /// 0–1 progress toward [currentSessionGoal] (1 if all done).
+  double get sessionGoalProgress {
+    final goal = currentSessionGoal;
+    if (goal == null) return 1.0;
+    return SessionGoals.progressToward(
+      goal: goal,
+      sunnyGladeAnnounced: _state.sunnyGladeAnnounced,
+      herdCount: _state.herdCount,
+      maxCapyLevel: _state.maxCapyLevel,
+    );
+  }
+
+  /// Soft daily tip tied to the active goal.
+  String get dailyGoalHintRu => SessionGoals.dailyHintRu(currentSessionGoal);
 
   /// Active Sunny Glade — herd band, but once unlocked it stays open after merge.
   SunnyGlade get currentGlade =>
@@ -100,6 +175,11 @@ class GameController extends ChangeNotifier {
   /// Clear unlock toast after the UI shows it (once).
   void acknowledgeGladeUnlock() {
     _gladeUnlockToast = null;
+    _lastGladeGrassReward = 0;
+  }
+
+  void acknowledgeGoalComplete() {
+    _goalCompleteToast = null;
   }
 
   /// Offline grant from this session's [init] (consume once for UI).
@@ -133,7 +213,12 @@ class GameController extends ChangeNotifier {
   bool claimDailyBonus() {
     if (!isDailyBonusAvailable) return false;
     final day = _todayKey;
-    _setState(_state.copyWith(lastDailyClaimYmd: day));
+    _setState(
+      _state.copyWith(
+        lastDailyClaimYmd: day,
+        grass: _state.grass + 3,
+      ),
+    );
     addProgress(BalanceV0.dailyBonusProgress, fromTap: false);
     return true;
   }
@@ -145,6 +230,8 @@ class GameController extends ChangeNotifier {
       _state = _clampHerdToMeadow(loaded);
       // Sync announced index quietly — no FOMO toast on relaunch.
       _state = _syncGladeAnnounced(_state, announce: false);
+      _state = _sanitizeTwins(_state);
+      _state = _advanceGoalsQuiet(_state);
       _applyOfflineProgress();
     } else {
       _state = _bootstrap();
@@ -153,6 +240,7 @@ class GameController extends ChangeNotifier {
     }
     _ready = true;
     _lastTick = _now();
+    _twinRerollIn = BalanceV0.twinRerollSeconds.toDouble() * 0.4;
     _tickTimer?.cancel();
     _tickTimer = Timer.periodic(const Duration(milliseconds: 50), _onTick);
     _scheduleFirstBerry();
@@ -194,14 +282,45 @@ class GameController extends ChangeNotifier {
     _lastTick = now;
     if (dt <= 0 || dt > 1.0) return;
 
-    // Clear expired mud boost.
+    var dirty = false;
+
+    // Clear expired boosts.
     if (_mudBoostUntil != null && now.isAfter(_mudBoostUntil!)) {
       _mudBoostUntil = null;
-      notifyListeners();
+      dirty = true;
+    }
+    if (_grassBoostUntil != null && now.isAfter(_grassBoostUntil!)) {
+      _grassBoostUntil = null;
+      dirty = true;
     }
 
-    final mult = isMudBoostActive ? BalanceV0.mudBoostMultiplier : 1.0;
-    addProgress(BalanceV0.autoProgressPerSecond * mult * dt, fromTap: false);
+    // Auto grass accrual.
+    _grassAcc += BalanceV0.autoGrassPerSecond * dt;
+    if (_grassAcc >= 1.0) {
+      final granted = _grassAcc.floor();
+      _grassAcc -= granted;
+      _state = _state.copyWith(grass: _state.grass + granted);
+      dirty = true;
+    }
+
+    // Twin sparkle reroll.
+    _twinRerollIn -= dt;
+    if (_twinRerollIn <= 0) {
+      _twinRerollIn = BalanceV0.twinRerollSeconds.toDouble();
+      final next = _maybeMarkTwins(_state);
+      if (next != _state) {
+        _state = next;
+        dirty = true;
+        _schedulePersist();
+      }
+    }
+
+    if (dirty) notifyListeners();
+
+    addProgress(
+      BalanceV0.autoProgressPerSecond * _boostMultiplier * dt,
+      fromTap: false,
+    );
   }
 
   /// Add progress; may spawn while under herd cap. Overflow carries over.
@@ -239,6 +358,13 @@ class GameController extends ChangeNotifier {
         BalanceV0.flowerTapGainMin +
         _random.nextDouble() *
             (BalanceV0.flowerTapGainMax - BalanceV0.flowerTapGainMin);
+    final grass =
+        BalanceV0.flowerTapGrassMin +
+        _random.nextInt(
+          BalanceV0.flowerTapGrassMax - BalanceV0.flowerTapGrassMin + 1,
+        );
+    lastTapGrass = grass;
+    _state = _state.copyWith(grass: _state.grass + grass);
     addProgress(gain, fromTap: true);
     return gain;
   }
@@ -250,12 +376,49 @@ class GameController extends ChangeNotifier {
         BalanceV0.berryTapGainMin +
         _random.nextDouble() *
             (BalanceV0.berryTapGainMax - BalanceV0.berryTapGainMin);
+    final grass =
+        BalanceV0.berryGrassMin +
+        _random.nextInt(
+          BalanceV0.berryGrassMax - BalanceV0.berryGrassMin + 1,
+        );
+    lastTapGrass = grass;
+    _state = _state.copyWith(grass: _state.grass + grass);
     addProgress(gain, fromTap: true);
     _berryVisible = false;
     _scheduleBerryRespawn();
     notifyListeners();
     return gain;
   }
+
+
+  /// Spend grass to spawn a Lv.1 capy if under soft herd cap.
+  bool spendCallCapy() {
+    if (_state.grass < BalanceV0.callCapyGrassCost) return false;
+    if (_state.herdCount >= BalanceV0.maxHerdSize) return false;
+    var next = _state.copyWith(
+      grass: _state.grass - BalanceV0.callCapyGrassCost,
+    );
+    next = _spawnCapybara(next, level: BalanceV0.startingLevel);
+    _setState(next);
+    return true;
+  }
+
+  /// Spend grass for a short auto-progress boost (weaker than mud).
+  bool spendGrassBoost() {
+    if (_state.grass < BalanceV0.grassBoostCost) return false;
+    _setState(
+      _state.copyWith(grass: _state.grass - BalanceV0.grassBoostCost),
+    );
+    _grassBoostUntil = _now().add(BalanceV0.grassBoostDuration);
+    notifyListeners();
+    return true;
+  }
+
+  bool get canCallCapy =>
+      _state.grass >= BalanceV0.callCapyGrassCost &&
+      _state.herdCount < BalanceV0.maxHerdSize;
+
+  bool get canGrassBoost => _state.grass >= BalanceV0.grassBoostCost;
 
   /// Drop a capybara onto the mud puddle → wallow anim + temporary boost.
   bool tryMudWallow(String capyId) {
@@ -298,6 +461,7 @@ class GameController extends ChangeNotifier {
     if (dragged == null || target == null) return false;
     if (dragged.level != target.level) return false;
 
+    final twinBonus = _isTwinPair(draggedId, targetId);
     final newLevel = dragged.level + 1;
     final remaining = _state.herd
         .where((c) => c.id != draggedId && c.id != targetId)
@@ -312,10 +476,23 @@ class GameController extends ChangeNotifier {
       ),
     );
 
+    var grass = _state.grass;
+    if (twinBonus) {
+      grass += BalanceV0.twinMergeBonusGrass;
+    }
+
     _setState(
-      _state.copyWith(herd: [...remaining, merged], nextId: _state.nextId + 1),
+      _state.copyWith(
+        herd: [...remaining, merged],
+        nextId: _state.nextId + 1,
+        grass: grass,
+        clearTwin: twinBonus,
+      ),
     );
     _triggerMergeFlash(merged.id);
+    if (twinBonus) {
+      _twinRerollIn = 4.0;
+    }
     return true;
   }
 
@@ -439,6 +616,11 @@ class GameController extends ChangeNotifier {
     if (glade.index <= state.sunnyGladeAnnounced) return state;
     if (announce && _ready && glade.unlockToastRu.isNotEmpty) {
       _gladeUnlockToast = glade.unlockToastRu;
+      _lastGladeGrassReward = BalanceV0.gladeUnlockGrass;
+      return state.copyWith(
+        sunnyGladeAnnounced: glade.index,
+        grass: state.grass + BalanceV0.gladeUnlockGrass,
+      );
     }
     return state.copyWith(sunnyGladeAnnounced: glade.index);
   }
@@ -446,7 +628,9 @@ class GameController extends ChangeNotifier {
   void _setState(GameState next) {
     // Reclamp to active Sunny Glade; soft-announce when a new glade opens.
     var state = _clampHerdToMeadow(next);
+    state = _sanitizeTwins(state);
     state = _syncGladeAnnounced(state, announce: true);
+    state = _checkGoals(state, celebrate: true);
     _state = state;
     notifyListeners();
     _schedulePersist();
@@ -458,6 +642,112 @@ class GameController extends ChangeNotifier {
       const Duration(milliseconds: BalanceV0.persistDebounceMs),
       () => _persistence.save(_withSavedAt(_state)),
     );
+  }
+
+
+  bool _isTwinPair(String a, String b) {
+    final tA = _state.twinIdA;
+    final tB = _state.twinIdB;
+    if (tA == null || tB == null) return false;
+    return (a == tA && b == tB) || (a == tB && b == tA);
+  }
+
+  /// Drop twin marks if either id is missing / levels diverge.
+  GameState _sanitizeTwins(GameState state) {
+    final a = state.twinIdA;
+    final b = state.twinIdB;
+    if (a == null && b == null) return state;
+    final ids = {for (final c in state.herd) c.id};
+    if (a == null || b == null || !ids.contains(a) || !ids.contains(b)) {
+      return state.copyWith(clearTwin: true);
+    }
+    final ca = state.herd.firstWhere((c) => c.id == a);
+    final cb = state.herd.firstWhere((c) => c.id == b);
+    if (ca.level != cb.level) return state.copyWith(clearTwin: true);
+    return state;
+  }
+
+  /// Quietly catch up goal index on load (no celebration toast).
+  GameState _advanceGoalsQuiet(GameState state) {
+    var idx = state.sessionGoalIndex.clamp(0, SessionGoals.sequence.length);
+    while (idx < SessionGoals.sequence.length) {
+      final goal = SessionGoals.sequence[idx];
+      if (!SessionGoals.isComplete(
+        goal: goal,
+        sunnyGladeAnnounced: state.sunnyGladeAnnounced,
+        maxCapyLevel: state.maxCapyLevel,
+      )) {
+        break;
+      }
+      idx++;
+    }
+    if (idx == state.sessionGoalIndex) return state;
+    return state.copyWith(sessionGoalIndex: idx);
+  }
+
+  /// Check / advance session goals; may set [_goalCompleteToast].
+  GameState _checkGoals(GameState state, {required bool celebrate}) {
+    var idx = state.sessionGoalIndex.clamp(0, SessionGoals.sequence.length);
+    var grass = state.grass;
+    String? toast;
+    while (idx < SessionGoals.sequence.length) {
+      final goal = SessionGoals.sequence[idx];
+      if (!SessionGoals.isComplete(
+        goal: goal,
+        sunnyGladeAnnounced: state.sunnyGladeAnnounced,
+        maxCapyLevel: state.maxCapyLevel,
+      )) {
+        break;
+      }
+      if (celebrate && _ready) {
+        toast = goal.celebrationRu;
+        grass += BalanceV0.goalCompleteGrass;
+      }
+      idx++;
+    }
+    if (toast != null) {
+      _goalCompleteToast = toast;
+    }
+    if (idx == state.sessionGoalIndex && grass == state.grass) return state;
+    return state.copyWith(sessionGoalIndex: idx, grass: grass);
+  }
+
+  /// Pick a random same-level pair for twin sparkle (or clear).
+  GameState _maybeMarkTwins(GameState state) {
+    if (state.herd.length < BalanceV0.twinMinHerd) {
+      return state.copyWith(clearTwin: true);
+    }
+    final byLevel = <int, List<Capybara>>{};
+    for (final c in state.herd) {
+      byLevel.putIfAbsent(c.level, () => []).add(c);
+    }
+    final eligible =
+        byLevel.entries.where((e) => e.value.length >= 2).toList();
+    if (eligible.isEmpty) {
+      return state.copyWith(clearTwin: true);
+    }
+    final pick = eligible[_random.nextInt(eligible.length)].value;
+    if (state.twinIdA != null && state.twinIdB != null) {
+      final ids = {for (final c in state.herd) c.id};
+      if (ids.contains(state.twinIdA) && ids.contains(state.twinIdB)) {
+        final a = state.herd.firstWhere((c) => c.id == state.twinIdA);
+        final b = state.herd.firstWhere((c) => c.id == state.twinIdB);
+        if (a.level == b.level && _random.nextDouble() < 0.55) {
+          return state; // linger
+        }
+      }
+    }
+    final shuffled = List<Capybara>.from(pick)..shuffle(_random);
+    return state.copyWith(
+      twinIdA: shuffled[0].id,
+      twinIdB: shuffled[1].id,
+    );
+  }
+
+  /// Force a twin mark (tests).
+  @visibleForTesting
+  void debugMarkTwins(String a, String b) {
+    _setState(_state.copyWith(twinIdA: a, twinIdB: b));
   }
 
   @override

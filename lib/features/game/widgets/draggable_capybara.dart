@@ -22,6 +22,7 @@ class MeadowDraggableCapybara extends StatefulWidget {
     required this.isOverMud,
     this.isWallowing = false,
     this.mergeFlash = false,
+    this.twinSparkle = false,
     this.magnetAttractedId,
     this.promoteLevelBadge = false,
     this.onDragBadge,
@@ -38,6 +39,9 @@ class MeadowDraggableCapybara extends StatefulWidget {
   final bool Function(Offset normalized) isOverMud;
   final bool isWallowing;
   final bool mergeFlash;
+
+  /// Subtle twin-sparkle mark for the skill-merge pair.
+  final bool twinSparkle;
 
   /// Herd id currently being soft-pulled toward (set by the dragged sibling).
   final String? magnetAttractedId;
@@ -197,6 +201,7 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara> {
     Widget visual = CapybaraPlaceholder(
       level: widget.capybara.level,
       flash: widget.mergeFlash,
+        twinSparkle: widget.twinSparkle,
       compactLabel: !fullBadge,
     );
     if (widget.isWallowing) {

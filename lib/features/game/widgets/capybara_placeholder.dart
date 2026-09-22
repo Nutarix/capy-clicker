@@ -11,6 +11,7 @@ class CapybaraPlaceholder extends StatelessWidget {
     this.compactLabel = false,
     this.sizeOverride,
     this.flash = false,
+    this.twinSparkle = false,
   });
 
   final int level;
@@ -24,6 +25,9 @@ class CapybaraPlaceholder extends StatelessWidget {
 
   /// Golden merge flash ring.
   final bool flash;
+
+  /// Soft twin-sparkle glow (merge skill window).
+  final bool twinSparkle;
 
   double get _width => sizeOverride ?? BalanceV0.capySizeForLevel(level);
 
@@ -98,6 +102,12 @@ class CapybaraPlaceholder extends StatelessWidget {
                   color: const Color(0xFFFFB74D).withValues(alpha: _halo),
                   blurRadius: 10 + level * 2.0,
                   spreadRadius: 1 + level * 0.4,
+                ),
+              if (twinSparkle)
+                BoxShadow(
+                  color: const Color(0xFF7EC8E3).withValues(alpha: 0.55),
+                  blurRadius: 16,
+                  spreadRadius: 3,
                 ),
               if (flash)
                 BoxShadow(

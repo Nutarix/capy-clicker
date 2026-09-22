@@ -351,4 +351,94 @@ void main() {
     c.dispose();
   });
 
+
+  test('flower tap grants grass and spendCallCapy spawns under cap', () async {
+    final c = GameController(persistence: GamePersistence());
+    await c.init();
+    expect(c.state.grass, 0);
+    c.onFlowerTap();
+    expect(c.state.grass, greaterThanOrEqualTo(BalanceV0.flowerTapGrassMin));
+    expect(c.lastTapGrass, greaterThanOrEqualTo(BalanceV0.flowerTapGrassMin));
+
+    // Force enough grass to call a capy.
+    while (c.state.grass < BalanceV0.callCapyGrassCost) {
+      c.onFlowerTap();
+    }
+    final before = c.state.herdCount;
+    expect(c.canCallCapy, isTrue);
+    expect(c.spendCallCapy(), isTrue);
+    expect(c.state.herdCount, before + 1);
+    expect(c.state.grass, lessThan(BalanceV0.callCapyGrassCost + BalanceV0.flowerTapGrassMax));
+    c.dispose();
+  });
+
+  test('spendGrassBoost refuses without grass then activates', () async {
+    final c = GameController(persistence: GamePersistence());
+    await c.init();
+    expect(c.spendGrassBoost(), isFalse);
+    expect(c.isGrassBoostActive, isFalse);
+    while (c.state.grass < BalanceV0.grassBoostCost) {
+      c.onFlowerTap();
+    }
+    expect(c.spendGrassBoost(), isTrue);
+    expect(c.isGrassBoostActive, isTrue);
+    expect(c.canGrassBoost, c.state.grass >= BalanceV0.grassBoostCost);
+    c.dispose();
+  });
+
+  test('session goal advances on Berry Glade unlock', () async {
+    final c = GameController(persistence: GamePersistence());
+    await c.init();
+    expect(c.currentSessionGoal?.id, 'berry_glade');
+    expect(c.sessionGoalProgress, lessThan(1.0));
+
+    // Grow to 3 → Berry Glade + goal complete.
+    c.addProgress(1.0, fromTap: true);
+    c.addProgress(1.0, fromTap: true);
+    expect(c.state.herdCount, 3);
+    expect(c.state.sunnyGladeAnnounced, 1);
+    expect(c.goalCompleteToast, isNotNull);
+    expect(c.state.sessionGoalIndex, greaterThanOrEqualTo(1));
+    expect(c.currentSessionGoal?.id, 'sunny_clearing');
+    c.acknowledgeGoalComplete();
+    expect(c.goalCompleteToast, isNull);
+    c.dispose();
+  });
+
+  test('twin merge grants bonus grass', () async {
+    final c = GameController(persistence: GamePersistence());
+    await c.init();
+    c.addProgress(1.0, fromTap: true);
+    expect(c.state.herdCount, 2);
+    final a = c.state.herd[0].id;
+    final b = c.state.herd[1].id;
+    c.debugMarkTwins(a, b);
+    expect(c.state.isTwinMarked(a), isTrue);
+    final grassBefore = c.state.grass;
+    expect(c.tryMerge(a, b), isTrue);
+    expect(
+      c.state.grass,
+      greaterThanOrEqualTo(grassBefore + BalanceV0.twinMergeBonusGrass),
+    );
+    expect(c.state.twinIdA, isNull);
+    c.dispose();
+  });
+
+  test('grass and goals round-trip through GameState JSON', () {
+    final s = GameState(
+      herdProgress: 0.2,
+      herd: const [],
+      nextId: 2,
+      grass: 17,
+      sessionGoalIndex: 2,
+      twinIdA: 'c1',
+      twinIdB: 'c2',
+    );
+    final back = GameState.fromJson(s.toJson());
+    expect(back.grass, 17);
+    expect(back.sessionGoalIndex, 2);
+    expect(back.twinIdA, 'c1');
+    expect(back.twinIdB, 'c2');
+  });
+
 }

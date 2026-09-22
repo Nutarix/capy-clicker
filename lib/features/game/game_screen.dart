@@ -14,6 +14,7 @@ import 'widgets/floating_gain.dart';
 import 'widgets/meadow_background.dart';
 import 'widgets/meadow_decor.dart';
 import 'widgets/mud_puddle.dart';
+import 'widgets/grass_spend_panel.dart';
 import 'widgets/progress_bar.dart';
 import 'widgets/morning_cozy_sheet.dart';
 import 'widgets/tip_overlay.dart';
@@ -100,11 +101,13 @@ class _GameScreenState extends State<GameScreen> {
     _maybeShowOfflineWelcome();
     _maybeShowDailyBonus();
     _maybeShowGladeUnlock();
+    _maybeShowGoalComplete();
   }
 
   void _maybeShowGladeUnlock() {
     final msg = _controller.gladeUnlockToast;
     if (msg == null || msg.isEmpty) return;
+    final grassReward = _controller.lastGladeGrassReward;
     _controller.acknowledgeGladeUnlock();
     _audio.playGlade();
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -117,6 +120,40 @@ class _GameScreenState extends State<GameScreen> {
           content: Row(
             children: [
               const Text('☀️', style: TextStyle(fontSize: 18)),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  grassReward > 0 ? '$msg · +$grassReward🌿' : msg,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    });
+  }
+
+
+  void _maybeShowGoalComplete() {
+    final msg = _controller.goalCompleteToast;
+    if (msg == null || msg.isEmpty) return;
+    _controller.acknowledgeGoalComplete();
+    _audio.playGlade();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 3),
+          backgroundColor: const Color(0xFFC47820).withValues(alpha: 0.94),
+          content: Row(
+            children: [
+              const Text('✨', style: TextStyle(fontSize: 18)),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
@@ -202,7 +239,8 @@ class _GameScreenState extends State<GameScreen> {
     _audio.playFlower();
     final gain = _controller.onFlowerTap();
     final pct = (gain * 100).round().clamp(1, 99);
-    _spawnFloat('+$pct%', globalAnchor);
+    final g = _controller.lastTapGrass;
+    _spawnFloat(g > 0 ? '+$pct% · +$g🌿' : '+$pct%', globalAnchor);
   }
 
   void _onBerryTap(Offset globalAnchor) {
@@ -213,7 +251,12 @@ class _GameScreenState extends State<GameScreen> {
     if (gain == null) return;
     _berryHintSeen = true;
     final pct = (gain * 100).round().clamp(1, 99);
-    _spawnFloat('+$pct%', globalAnchor, color: const Color(0xFFE03A5C));
+    final g = _controller.lastTapGrass;
+    _spawnFloat(
+      g > 0 ? '+$pct% · +$g🌿' : '+$pct%',
+      globalAnchor,
+      color: const Color(0xFFE03A5C),
+    );
   }
 
   void _promoteBadge(String id, {Duration hold = const Duration(seconds: 2)}) {
@@ -238,6 +281,7 @@ class _GameScreenState extends State<GameScreen> {
       _dailySheetOpen = true;
       final claimed = await MorningCozySheet.show(
         context,
+        dailyGoalHint: _controller.dailyGoalHintRu,
         onClaim: () {
           _controller.claimDailyBonus();
         },
@@ -265,8 +309,9 @@ class _GameScreenState extends State<GameScreen> {
     if (!_controller.isDailyBonusAvailable || _dailySheetOpen) return;
     _dailySheetOpen = true;
     final claimed = await MorningCozySheet.show(
-      context,
-      onClaim: () {
+        context,
+        dailyGoalHint: _controller.dailyGoalHintRu,
+        onClaim: () {
         _controller.claimDailyBonus();
       },
     );
@@ -390,6 +435,10 @@ class _GameScreenState extends State<GameScreen> {
                               runSpacing: 6,
                               crossAxisAlignment: WrapCrossAlignment.center,
                               children: [
+                                _SessionGoalChip(
+                                  goal: _controller.currentSessionGoal,
+                                  progress: _controller.sessionGoalProgress,
+                                ),
                                 _HerdSizeChip(count: state.herdCount),
                                 _SunnyGladeChip(
                                   nameRu: _controller.currentGlade.nameRu,
@@ -414,6 +463,29 @@ class _GameScreenState extends State<GameScreen> {
                           ],
                         ),
                       ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+                    child: GrassSpendPanel(
+                      grass: state.grass,
+                      canCallCapy: _controller.canCallCapy,
+                      canBoost: _controller.canGrassBoost,
+                      boostActive: _controller.isGrassBoostActive,
+                      onCallCapy: () {
+                        unawaited(_audio.noteUserGesture());
+                        if (_controller.spendCallCapy()) {
+                          HapticFeedback.lightImpact();
+                          _spawnFloat('+капи', Offset.zero);
+                        }
+                      },
+                      onBoost: () {
+                        unawaited(_audio.noteUserGesture());
+                        if (_controller.spendGrassBoost()) {
+                          HapticFeedback.lightImpact();
+                          setState(() => _progressPulseToken++);
+                        }
+                      },
                     ),
                   ),
                   Expanded(
@@ -495,6 +567,7 @@ class _GameScreenState extends State<GameScreen> {
                                           capy.id,
                                       mergeFlash:
                                           _controller.mergeFlashId == capy.id,
+                                      twinSparkle: state.isTwinMarked(capy.id),
                                       magnetAttractedId: _magnetAttractedId,
                                       promoteLevelBadge: promote,
                                       onDragBadge: () =>
@@ -520,7 +593,7 @@ class _GameScreenState extends State<GameScreen> {
                       right: 16,
                     ),
                     child: Text(
-                      'Цветы · ягоды · лужа (×2) · слияние одинакового уровня',
+                      'Трава · позвать капи · ускорение · слияние · цели полян',
                       textAlign: TextAlign.center,
                       style: CozyTheme.hudChipMutedStyle(fontSize: 11).copyWith(
                         color: Colors.brown.shade900.withValues(alpha: 0.55),
@@ -734,6 +807,41 @@ class _MenuBackChip extends StatelessWidget {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+
+class _SessionGoalChip extends StatelessWidget {
+  const _SessionGoalChip({required this.goal, required this.progress});
+
+  final dynamic goal;
+  final double progress;
+
+  @override
+  Widget build(BuildContext context) {
+    final title = goal == null ? 'Цели закрыты' : 'Цель: ${goal.titleRu}';
+    final pct = (progress.clamp(0.0, 1.0) * 100).round();
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF8EC).withValues(alpha: 0.95),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2CFA8)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('🎯', style: TextStyle(fontSize: 12)),
+            const SizedBox(width: 5),
+            Text(
+              goal == null ? title : '$title · $pct%',
+              style: CozyTheme.hudChipMutedStyle(),
+            ),
+          ],
         ),
       ),
     );

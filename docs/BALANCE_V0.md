@@ -143,7 +143,7 @@ Zoom target = `min(baseZoom, fitZoom)` — если bbox стада (+padding 0.
 ## Персист
 
 - `shared_preferences`, ключ `capy_clicker_game_state_v1`
-- Сохраняется: `herdProgress`, `herd[]` (id/level/x/y), `nextId`, `savedAtMs`, `lastDailyClaimYmd`, `sunnyGladeAnnounced`
+- Сохраняется: `herdProgress`, `herd[]` (id/level/x/y), `nextId`, `savedAtMs`, `lastDailyClaimYmd`, `sunnyGladeAnnounced`, `grass`, `sessionGoalIndex`, `twinIdA`/`twinIdB`
 - Debounce **400 мс**; буст/ягоды — сессионные (не пишутся)
 
 ## Feedback / audio (Phase 2–3)
@@ -165,6 +165,27 @@ Zoom target = `min(baseZoom, fitZoom)` — если bbox стада (+padding 0.
 
 Код: `WorldZones` / `SunnyGlade` (`lib/features/game/models/world_zones.dart`).
 Подробнее: `docs/WORLD_ZONES.md`.
+
+
+## Трава + цели сессии + twin sparkle (loop v1)
+
+| Параметр | Значение | Комментарий |
+|---|---|---|
+| `flowerTapGrassMin`…`Max` | **1–2** | вместе с % прогресса |
+| `autoGrassPerSecond` | **0.12** | ~8 с на 1🌿 |
+| `berryGrassMin`…`Max` | **8–12** | burst |
+| `gladeUnlockGrass` | **6** | wow открытия поляны |
+| `twinMergeBonusGrass` | **5** | skill-merge |
+| `goalCompleteGrass` | **4** | soft celebration |
+| `callCapyGrassCost` | **8** | позвать Lv.1 |
+| `grassBoostCost` | **5** | |
+| `grassBoostMultiplier` | **1.5** | слабее лужи ×2 |
+| `grassBoostDuration` | **6 с** | |
+| `twinRerollSeconds` | **18** | редкая подсветка пары |
+| `twinMinHerd` | **2** | |
+
+Цели: Ягодная поляна → Солнечный прогал → Большой луг → Капи Lv.4.
+См. `docs/GAMELOOP_V1.md`.
 
 ## Вне скоупа v0
 

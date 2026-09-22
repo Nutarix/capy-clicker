@@ -1,6 +1,6 @@
 import 'capybara.dart';
 
-/// Immutable snapshot of playable herd + progress.
+/// Immutable snapshot of playable herd + progress + session loop.
 class GameState {
   const GameState({
     required this.herdProgress,
@@ -9,6 +9,10 @@ class GameState {
     this.savedAtMs,
     this.lastDailyClaimYmd,
     this.sunnyGladeAnnounced = 0,
+    this.grass = 0,
+    this.sessionGoalIndex = 0,
+    this.twinIdA,
+    this.twinIdB,
   });
 
   /// Herd progress in range 0.0–1.0 (fills toward next spawn).
@@ -30,7 +34,28 @@ class GameState {
   /// Starter (Тёплая опушка) is 0 — no toast. Prevents re-toasting on relaunch.
   final int sunnyGladeAnnounced;
 
+  /// Spendable grass currency (integer).
+  final int grass;
+
+  /// Index into [SessionGoals.sequence]; equals length when all complete.
+  final int sessionGoalIndex;
+
+  /// Ids of the currently marked twin-sparkle pair (same level), if any.
+  final String? twinIdA;
+  final String? twinIdB;
+
   int get herdCount => herd.length;
+
+  int get maxCapyLevel {
+    if (herd.isEmpty) return 0;
+    var m = 0;
+    for (final c in herd) {
+      if (c.level > m) m = c.level;
+    }
+    return m;
+  }
+
+  bool isTwinMarked(String id) => id == twinIdA || id == twinIdB;
 
   GameState copyWith({
     double? herdProgress,
@@ -40,6 +65,11 @@ class GameState {
     String? lastDailyClaimYmd,
     bool clearLastDailyClaimYmd = false,
     int? sunnyGladeAnnounced,
+    int? grass,
+    int? sessionGoalIndex,
+    String? twinIdA,
+    String? twinIdB,
+    bool clearTwin = false,
   }) {
     return GameState(
       herdProgress: herdProgress ?? this.herdProgress,
@@ -50,6 +80,10 @@ class GameState {
           ? null
           : (lastDailyClaimYmd ?? this.lastDailyClaimYmd),
       sunnyGladeAnnounced: sunnyGladeAnnounced ?? this.sunnyGladeAnnounced,
+      grass: grass ?? this.grass,
+      sessionGoalIndex: sessionGoalIndex ?? this.sessionGoalIndex,
+      twinIdA: clearTwin ? null : (twinIdA ?? this.twinIdA),
+      twinIdB: clearTwin ? null : (twinIdB ?? this.twinIdB),
     );
   }
 
@@ -60,6 +94,10 @@ class GameState {
     if (savedAtMs != null) 'savedAtMs': savedAtMs,
     if (lastDailyClaimYmd != null) 'lastDailyClaimYmd': lastDailyClaimYmd,
     'sunnyGladeAnnounced': sunnyGladeAnnounced,
+    'grass': grass,
+    'sessionGoalIndex': sessionGoalIndex,
+    if (twinIdA != null) 'twinIdA': twinIdA,
+    if (twinIdB != null) 'twinIdB': twinIdB,
   };
 
   factory GameState.fromJson(Map<String, dynamic> json) {
@@ -73,6 +111,10 @@ class GameState {
       savedAtMs: (json['savedAtMs'] as num?)?.toInt(),
       lastDailyClaimYmd: json['lastDailyClaimYmd'] as String?,
       sunnyGladeAnnounced: (json['sunnyGladeAnnounced'] as num?)?.toInt() ?? 0,
+      grass: (json['grass'] as num?)?.toInt() ?? 0,
+      sessionGoalIndex: (json['sessionGoalIndex'] as num?)?.toInt() ?? 0,
+      twinIdA: json['twinIdA'] as String?,
+      twinIdB: json['twinIdB'] as String?,
     );
   }
 
