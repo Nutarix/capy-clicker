@@ -16,10 +16,10 @@ class GamePersistence {
     return _prefs ??= await SharedPreferences.getInstance();
   }
 
-  /// True when a non-empty herd save blob exists (menu «Продолжить»).
+  /// True when any meadow has a non-empty herd (menu «Продолжить»).
   Future<bool> hasSave() async {
     final state = await load();
-    return state != null && state.herd.isNotEmpty;
+    return state != null && state.totalHerdAcrossMeadows > 0;
   }
 
   Future<GameState?> load() async {

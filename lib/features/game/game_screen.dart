@@ -11,6 +11,7 @@ import 'widgets/berry_basket.dart';
 import 'widgets/draggable_capybara.dart';
 import 'widgets/flower_dot.dart';
 import 'widgets/floating_gain.dart';
+import 'widgets/forest_map_overlay.dart';
 import 'widgets/meadow_background.dart';
 import 'widgets/meadow_decor.dart';
 import 'widgets/mud_puddle.dart';
@@ -63,6 +64,9 @@ class _GameScreenState extends State<GameScreen> {
 
   /// Soft first-appearance hint on berry basket (session).
   bool _berryHintSeen = false;
+
+  /// Forest map overlay visible.
+  bool _forestMapOpen = false;
 
   /// Capy ids that should show a prominent Lv badge (drag / recent merge).
   final Set<String> _badgePromoted = {};
@@ -443,6 +447,13 @@ class _GameScreenState extends State<GameScreen> {
                                 _SunnyGladeChip(
                                   nameRu: _controller.currentGlade.nameRu,
                                 ),
+                                _ForestMapChip(
+                                  onPressed: () {
+                                    unawaited(_audio.noteUserGesture());
+                                    HapticFeedback.lightImpact();
+                                    setState(() => _forestMapOpen = true);
+                                  },
+                                ),
                                 _MuteChip(
                                   muted: _audio.isMuted,
                                   onToggle: () {
@@ -659,6 +670,20 @@ class _GameScreenState extends State<GameScreen> {
                     ),
                   ),
                 ),
+              if (_forestMapOpen)
+                Positioned.fill(
+                  child: ForestMapOverlay(
+                    unlockedIds: _controller.unlockedMeadowIds,
+                    activeMeadowId: _controller.state.activeMeadowId,
+                    herdCountFor: _controller.herdCountForMeadow,
+                    onClose: () => setState(() => _forestMapOpen = false),
+                    onSelect: (id) {
+                      if (_controller.switchToMeadow(id)) {
+                        setState(() => _forestMapOpen = false);
+                      }
+                    },
+                  ),
+                ),
             ],
           ),
         ),
@@ -719,6 +744,46 @@ class _SunnyGladeChip extends StatelessWidget {
               style: CozyTheme.hudChipMutedStyle(),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+
+/// Opens the forest map (Phase 2 named meadows).
+class _ForestMapChip extends StatelessWidget {
+  const _ForestMapChip({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(14),
+        child: Ink(
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFF8EC).withValues(alpha: 0.95),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFE2CFA8)),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('🌲', style: TextStyle(fontSize: 12)),
+                const SizedBox(width: 4),
+                Text(
+                  'Лес',
+                  style: CozyTheme.hudChipMutedStyle(),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

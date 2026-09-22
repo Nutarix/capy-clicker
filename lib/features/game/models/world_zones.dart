@@ -127,6 +127,25 @@ abstract final class WorldZones {
     ),
   ];
 
+  /// Starter meadow id (Тёплая опушка) — default [GameState.activeMeadowId].
+  static const String starterMeadowId = 'warm_edge';
+
+  /// Lookup by stable machine id (`warm_edge`, …). Throws if unknown.
+  static SunnyGlade gladeById(String id) {
+    for (final g in glades) {
+      if (g.id == id) return g;
+    }
+    throw ArgumentError.value(id, 'id', 'Unknown meadow id');
+  }
+
+  /// Index of [id] in [glades], or -1.
+  static int indexOfMeadowId(String id) {
+    for (final g in glades) {
+      if (g.id == id) return g.index;
+    }
+    return -1;
+  }
+
   /// @nodoc Legacy alias used by older call sites / docs tables.
   static List<SunnyGlade> get tiers => glades;
 

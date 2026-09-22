@@ -29,6 +29,10 @@ abstract final class BalanceV0 {
   static const int startingHerdSize = 1;
   static const int startingLevel = 1;
 
+  /// Starter herd size when a **new** meadow unlocks on the forest map
+  /// (Phase 2). First meadow still uses [startingHerdSize].
+  static const int meadowStarterHerdSize = 2;
+
   /// Highest level we polish visually (scale + warmer tint + badge).
   static const int maxVisualLevel = 6;
 

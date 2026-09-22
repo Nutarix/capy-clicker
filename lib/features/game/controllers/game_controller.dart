@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import '../models/balance.dart';
 import '../models/capybara.dart';
 import '../models/game_state.dart';
+import '../models/meadow_snapshot.dart';
 import '../models/session_goals.dart';
 import '../models/world_zones.dart';
 import '../persistence/game_persistence.dart';
@@ -158,19 +159,16 @@ class GameController extends ChangeNotifier {
   /// Soft daily tip tied to the active goal.
   String get dailyGoalHintRu => SessionGoals.dailyHintRu(currentSessionGoal);
 
-  /// Active Sunny Glade — herd band, but once unlocked it stays open after merge.
+  /// Active named meadow (fixed Sunny Glade identity — Phase 2 forest map).
   SunnyGlade get currentGlade =>
-      WorldZones.gladeForHerd(_meadowKeyForCount(_state.herdCount));
+      WorldZones.gladeById(_state.activeMeadowId);
 
-  /// Meadow / camera key: never below the unlocked glade's minHerd.
-  /// Fixes playtest "Berry 3/12 → Warm 2/12" feel: merge shrinks herd (correct)
-  /// but must not revoke an already-opened Sunny Glade.
-  int _meadowKeyForCount(int herdCount) {
-    final idx =
-        _state.sunnyGladeAnnounced.clamp(0, WorldZones.glades.length - 1);
-    final unlockedMin = WorldZones.glades[idx].minHerd;
-    return herdCount < unlockedMin ? unlockedMin : herdCount;
-  }
+  /// Meadow ids unlocked so far (forest map chips).
+  List<String> get unlockedMeadowIds => _state.unlockedMeadowIds;
+
+  /// Walkable / camera key for the **active named meadow** (fixed rect, not
+  /// expanding with local herd). [herdCount] is ignored — kept for call-site compat.
+  int _meadowKeyForCount(int herdCount) => currentGlade.minHerd;
 
   /// Clear unlock toast after the UI shows it (once).
   void acknowledgeGladeUnlock() {
@@ -226,8 +224,10 @@ class GameController extends ChangeNotifier {
   /// Load save (or bootstrap), grant capped offline progress, start ticker.
   Future<void> init() async {
     final loaded = await _persistence.load();
-    if (loaded != null && loaded.herd.isNotEmpty) {
-      _state = _clampHerdToMeadow(loaded);
+    if (loaded != null && loaded.totalHerdAcrossMeadows > 0) {
+      _state = _clampHerdToMeadow(loaded.withActiveSynced());
+      // Fill legacy empty unlocked meadows with cozy starters (no toast).
+      _state = _fillEmptyUnlockedMeadows(_state);
       // Sync announced index quietly — no FOMO toast on relaunch.
       _state = _syncGladeAnnounced(_state, announce: false);
       _state = _sanitizeTwins(_state);
@@ -595,34 +595,134 @@ class GameController extends ChangeNotifier {
   }
 
 
-  /// Re-seat positions onto the active Sunny Glade
-  /// (trees/canopy stay blocked; shrinks after merge, expands after spawn).
+  /// Re-seat positions onto the active named meadow rect (trees stay blocked).
   GameState _clampHerdToMeadow(GameState state) {
-    final idx = state.sunnyGladeAnnounced.clamp(0, WorldZones.glades.length - 1);
-    final unlockedMin = WorldZones.glades[idx].minHerd;
-    final n = state.herd.length < unlockedMin ? unlockedMin : state.herd.length;
+    final key = WorldZones.gladeById(state.activeMeadowId).minHerd;
     final herd = [
       for (final c in state.herd)
         c.copyWith(
-          position: WorldZones.clampToMeadow(c.position, herdCount: n),
+          position: WorldZones.clampToMeadow(c.position, herdCount: key),
         ),
     ];
     return state.copyWith(herd: herd);
   }
 
-  /// Keep [GameState.sunnyGladeAnnounced] ≥ current glade; optionally queue toast.
+  /// Unlock named meadows when active herd reaches glade bands; seed starters.
   GameState _syncGladeAnnounced(GameState state, {required bool announce}) {
-    final glade = WorldZones.gladeForHerd(state.herdCount);
-    if (glade.index <= state.sunnyGladeAnnounced) return state;
-    if (announce && _ready && glade.unlockToastRu.isNotEmpty) {
-      _gladeUnlockToast = glade.unlockToastRu;
+    final reached = WorldZones.gladeForHerd(state.herdCount);
+    if (reached.index <= state.sunnyGladeAnnounced) return state;
+
+    var nextId = state.nextId;
+    final meadows = Map<String, MeadowSnapshot>.from(state.withActiveSynced().meadows);
+
+    for (var i = state.sunnyGladeAnnounced + 1; i <= reached.index; i++) {
+      final g = WorldZones.glades[i];
+      final existing = meadows[g.id];
+      if (existing == null || existing.herd.isEmpty) {
+        final built = _buildStarterHerd(
+          meadowId: g.id,
+          startNextId: nextId,
+          count: BalanceV0.meadowStarterHerdSize,
+        );
+        nextId = built.nextId;
+        meadows[g.id] = MeadowSnapshot(herd: built.herd);
+      }
+    }
+
+    if (announce && _ready && reached.unlockToastRu.isNotEmpty) {
+      _gladeUnlockToast = reached.unlockToastRu;
       _lastGladeGrassReward = BalanceV0.gladeUnlockGrass;
       return state.copyWith(
-        sunnyGladeAnnounced: glade.index,
+        sunnyGladeAnnounced: reached.index,
         grass: state.grass + BalanceV0.gladeUnlockGrass,
+        meadows: meadows,
+        nextId: nextId,
       );
     }
-    return state.copyWith(sunnyGladeAnnounced: glade.index);
+    return state.copyWith(
+      sunnyGladeAnnounced: reached.index,
+      meadows: meadows,
+      nextId: nextId,
+    );
+  }
+
+  /// After legacy migrate: empty unlocked meadows get a small starter herd.
+  GameState _fillEmptyUnlockedMeadows(GameState state) {
+    var nextId = state.nextId;
+    final meadows =
+        Map<String, MeadowSnapshot>.from(state.withActiveSynced().meadows);
+    var dirty = false;
+    for (final g in WorldZones.glades) {
+      if (g.index > state.sunnyGladeAnnounced) continue;
+      if (g.id == state.activeMeadowId) continue;
+      final existing = meadows[g.id];
+      if (existing == null || existing.herd.isEmpty) {
+        final built = _buildStarterHerd(
+          meadowId: g.id,
+          startNextId: nextId,
+          count: BalanceV0.meadowStarterHerdSize,
+        );
+        nextId = built.nextId;
+        meadows[g.id] = MeadowSnapshot(herd: built.herd);
+        dirty = true;
+      }
+    }
+    if (!dirty) return state;
+    return state.copyWith(meadows: meadows, nextId: nextId);
+  }
+
+  ({List<Capybara> herd, int nextId}) _buildStarterHerd({
+    required String meadowId,
+    required int startNextId,
+    required int count,
+  }) {
+    final key = WorldZones.gladeById(meadowId).minHerd;
+    var nextId = startNextId;
+    final herd = <Capybara>[];
+    for (var i = 0; i < count; i++) {
+      final raw = WorldZones.randomInMeadow(
+        _random.nextDouble,
+        herdCount: key,
+      );
+      final pos = WorldZones.clampToMeadow(raw, herdCount: key);
+      herd.add(Capybara(id: 'c$nextId', level: BalanceV0.startingLevel, position: pos));
+      nextId++;
+    }
+    return (herd: herd, nextId: nextId);
+  }
+
+  /// Herd size on a meadow (active uses live fields).
+  int herdCountForMeadow(String meadowId) {
+    if (meadowId == _state.activeMeadowId) return _state.herdCount;
+    return _state.meadows[meadowId]?.herdCount ?? 0;
+  }
+
+  /// Forest map: switch playable meadow. Shared grass stays; herd restores.
+  bool switchToMeadow(String meadowId) {
+    if (!_ready) return false;
+    if (meadowId == _state.activeMeadowId) return true;
+    if (!_state.isMeadowUnlocked(meadowId)) return false;
+    final synced = _state.withActiveSynced();
+    final meadows = Map<String, MeadowSnapshot>.from(synced.meadows);
+    final target = meadows[meadowId];
+    if (target == null) return false;
+
+    _wallowTimer?.cancel();
+    _wallowingCapyId = null;
+
+    final clearTwin = target.twinIdA == null || target.twinIdB == null;
+    _setState(
+      synced.copyWith(
+        activeMeadowId: meadowId,
+        herd: List<Capybara>.from(target.herd),
+        herdProgress: target.herdProgress,
+        meadows: meadows,
+        twinIdA: target.twinIdA,
+        twinIdB: target.twinIdB,
+        clearTwin: clearTwin,
+      ),
+    );
+    return true;
   }
 
   void _setState(GameState next) {
