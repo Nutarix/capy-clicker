@@ -194,11 +194,15 @@ class _FoodTab extends StatelessWidget {
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
             children: [
               MultiplierIcon(assetPath: selected.assetPath, size: 22),
               const SizedBox(width: 8),
-              Text('Покормить семью · ${selected.labelRu}'),
+              Flexible(
+                child: Text(
+                  'Покормить семью · ${selected.labelRu}',
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
             ],
           ),
         ),
