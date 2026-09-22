@@ -104,3 +104,12 @@ UX: перетащи капи на место **или** тап по марке�
 - Нет soft-lock: отказ трат если не хватает; grass/uyut ≥ 0.
 - Места с CD; еда списывается только при успехе.
 - Семья на всех полянах сохраняет роли в сейве.
+
+---
+
+## Арт (одобрено)
+
+Пак soft-pixel иконок multipliers **одобрен Никитой** и вшит в
+`assets/images/` (см. [`ART.md`](ART.md)). Исходники:
+`store/art-pack-multipliers/`. Chroma-key cream → transparent через
+`tool/chroma_cream.py`.

@@ -13,6 +13,19 @@ enum HomeDecor {
 extension HomeDecorX on HomeDecor {
   String get id => name;
 
+
+  /// Soft-pixel icon (chroma-keyed).
+  String get assetPath => switch (this) {
+        HomeDecor.fonarik => 'assets/images/decor_fonarik.png',
+        HomeDecor.kovrik => 'assets/images/decor_kovrik.png',
+        HomeDecor.vazon => 'assets/images/decor_vazon.png',
+        HomeDecor.girlyanda => 'assets/images/decor_girlyanda.png',
+        HomeDecor.skvorechnik => 'assets/images/decor_skvorechnik.png',
+        HomeDecor.podushka => 'assets/images/decor_podushka.png',
+        HomeDecor.lampa => 'assets/images/decor_lampa.png',
+        HomeDecor.kormushka => 'assets/images/decor_kormushka.png',
+      };
+
   String get emoji => switch (this) {
         HomeDecor.fonarik => '🏮',
         HomeDecor.kovrik => '🧶',

@@ -5,6 +5,7 @@ import '../../../../theme/cozy_theme.dart';
 import '../../controllers/game_controller.dart';
 import '../../models/balance.dart';
 import '../../models/multipliers/multipliers.dart';
+import 'multiplier_icon.dart';
 
 /// Bottom sheet «Уют» with tabs: Еда / Роли / Дом / Исследования.
 class UyutHubSheet extends StatefulWidget {
@@ -191,8 +192,14 @@ class _FoodTab extends StatelessWidget {
             backgroundColor: const Color(0xFF6B9B4A),
             foregroundColor: Colors.white,
           ),
-          child: Text(
-            'Покормить семью · ${selected.emoji} ${selected.labelRu}',
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              MultiplierIcon(assetPath: selected.assetPath, size: 22),
+              const SizedBox(width: 8),
+              Text('Покормить семью · ${selected.labelRu}'),
+            ],
           ),
         ),
         if (controller.isFoodBoostActive) ...[
@@ -250,7 +257,14 @@ class _FoodChip extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('${food.emoji} ${food.labelRu} ×$count'),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  MultiplierIcon(assetPath: food.assetPath, size: 28),
+                  const SizedBox(width: 6),
+                  Text('${food.labelRu} ×$count'),
+                ],
+              ),
               Text(food.effectRu, style: CozyTheme.hudChipMutedStyle(fontSize: 10)),
               TextButton(
                 onPressed: onBuy,
@@ -305,10 +319,23 @@ class _RolesTab extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Капи ${capy.id} · Lv.${capy.level}'
-                    '${capy.role != null ? ' · ${capy.role!.emoji} ${capy.role!.labelRu}' : ''}',
-                    style: CozyTheme.hudChipStyle(fontSize: 13),
+                  Row(
+                    children: [
+                      if (capy.role != null) ...[
+                        MultiplierIcon(
+                          assetPath: capy.role!.assetPath,
+                          size: 22,
+                        ),
+                        const SizedBox(width: 6),
+                      ],
+                      Expanded(
+                        child: Text(
+                          'Капи ${capy.id} · Lv.${capy.level}'
+                          '${capy.role != null ? ' · ${capy.role!.labelRu}' : ''}',
+                          style: CozyTheme.hudChipStyle(fontSize: 13),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 6),
                   Wrap(
@@ -316,7 +343,11 @@ class _RolesTab extends StatelessWidget {
                     children: [
                       for (final role in CapyRole.values)
                         ActionChip(
-                          label: Text('${role.emoji} ${role.labelRu}',
+                          avatar: MultiplierIcon(
+                            assetPath: role.assetPath,
+                            size: 18,
+                          ),
+                          label: Text(role.labelRu,
                               style: const TextStyle(fontSize: 11)),
                           onPressed: () {
                             HapticFeedback.lightImpact();
@@ -397,7 +428,7 @@ class _DecorRow extends StatelessWidget {
         border: Border.all(color: const Color(0xFFE2CFA8)),
       ),
       child: ListTile(
-        leading: Text(decor.emoji, style: const TextStyle(fontSize: 22)),
+        leading: MultiplierIcon(assetPath: decor.assetPath, size: 36),
         title: Text(decor.labelRu, style: CozyTheme.hudChipStyle(fontSize: 13)),
         subtitle: Text(
           locked
@@ -439,9 +470,18 @@ class _ResearchTab extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        Text(
-          'Исследования уюта',
-          style: CozyTheme.hudChipMutedStyle(fontSize: 13),
+        Row(
+          children: [
+            const MultiplierIcon(
+              assetPath: UyutResearch.assetPath,
+              size: 32,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'Исследования уюта',
+              style: CozyTheme.hudChipMutedStyle(fontSize: 13),
+            ),
+          ],
         ),
         const SizedBox(height: 10),
         for (final node in UyutResearch.all) ...[
@@ -489,7 +529,10 @@ class _ResearchRow extends StatelessWidget {
         ),
       ),
       child: ListTile(
-        leading: Text(node.emoji, style: const TextStyle(fontSize: 22)),
+        leading: const MultiplierIcon(
+          assetPath: UyutResearch.assetPath,
+          size: 32,
+        ),
         title: Text(node.labelRu, style: CozyTheme.hudChipStyle(fontSize: 13)),
         subtitle: Text(
           done

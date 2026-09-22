@@ -69,6 +69,24 @@ flutter:
     - assets/images/mud.png
     - assets/images/berry_basket.png
     - assets/images/app_icon.png
+    - assets/images/role_nanny.png
+    - assets/images/role_gatherer.png
+    - assets/images/role_guard.png
+    - assets/images/food_travka.png
+    - assets/images/food_yagody.png
+    - assets/images/food_oreshki.png
+    - assets/images/place_pen.png
+    - assets/images/place_warm_stone.png
+    - assets/images/place_tent.png
+    - assets/images/decor_fonarik.png
+    - assets/images/decor_kovrik.png
+    - assets/images/decor_vazon.png
+    - assets/images/decor_girlyanda.png
+    - assets/images/decor_skvorechnik.png
+    - assets/images/decor_podushka.png
+    - assets/images/decor_lampa.png
+    - assets/images/decor_kormushka.png
+    - assets/images/research_uyut.png
     - assets/audio/bgm_cozy.wav
     - assets/audio/sfx_flower.wav
     - assets/audio/sfx_berry.wav

@@ -21,6 +21,9 @@ class ResearchNode {
 
 /// Vertical tech tree — unlock order via [requires].
 abstract final class UyutResearch {
+  /// Approved soft-pixel research / Уют icon.
+  static const assetPath = 'assets/images/research_uyut.png';
+
   static const moreFlowers = ResearchNode(
     id: 'more_flowers',
     labelRu: 'Больше цветов',

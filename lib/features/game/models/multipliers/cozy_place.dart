@@ -13,6 +13,14 @@ enum CozyPlaceKind {
 extension CozyPlaceKindX on CozyPlaceKind {
   String get id => name;
 
+
+  /// Soft-pixel icon (chroma-keyed).
+  String get assetPath => switch (this) {
+        CozyPlaceKind.pen => 'assets/images/place_pen.png',
+        CozyPlaceKind.warmStone => 'assets/images/place_warm_stone.png',
+        CozyPlaceKind.tent => 'assets/images/place_tent.png',
+      };
+
   String get emoji => switch (this) {
         CozyPlaceKind.pen => '🪵',
         CozyPlaceKind.warmStone => '🪨',

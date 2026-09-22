@@ -13,6 +13,14 @@ enum FamilyFood {
 extension FamilyFoodX on FamilyFood {
   String get id => name;
 
+
+  /// Soft-pixel icon (chroma-keyed).
+  String get assetPath => switch (this) {
+        FamilyFood.travka => 'assets/images/food_travka.png',
+        FamilyFood.yagody => 'assets/images/food_yagody.png',
+        FamilyFood.oreshki => 'assets/images/food_oreshki.png',
+      };
+
   String get emoji => switch (this) {
         FamilyFood.travka => '🌱',
         FamilyFood.yagody => '🫐',

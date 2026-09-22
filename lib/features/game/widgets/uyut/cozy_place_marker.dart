@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../models/multipliers/cozy_place.dart';
+import 'multiplier_icon.dart';
 
-/// Simple placeable marker on the meadow (пень / камень / тент).
+/// Placeable marker on the meadow (пень / камень / тент).
 class CozyPlaceMarker extends StatelessWidget {
   const CozyPlaceMarker({
     super.key,
@@ -50,7 +51,11 @@ class CozyPlaceMarker extends StatelessWidget {
                 ),
               ),
               child: Center(
-                child: Text(kind.emoji, style: const TextStyle(fontSize: 22)),
+                child: MultiplierIcon(
+                  assetPath: kind.assetPath,
+                  size: 30,
+                  opacity: dim ? 0.55 : 1,
+                ),
               ),
             ),
             if (onCooldown && cooldownSeconds > 0.4)

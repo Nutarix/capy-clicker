@@ -13,6 +13,14 @@ enum CapyRole {
 extension CapyRoleX on CapyRole {
   String get id => name;
 
+
+  /// Soft-pixel icon (chroma-keyed).
+  String get assetPath => switch (this) {
+        CapyRole.nanya => 'assets/images/role_nanny.png',
+        CapyRole.sobiratel => 'assets/images/role_gatherer.png',
+        CapyRole.storozh => 'assets/images/role_guard.png',
+      };
+
   String get emoji => switch (this) {
         CapyRole.nanya => '🍼',
         CapyRole.sobiratel => '🧺',

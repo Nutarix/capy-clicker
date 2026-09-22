@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../models/balance.dart';
 import '../models/capybara.dart';
 import '../models/multipliers/capy_role.dart';
+import 'uyut/multiplier_icon.dart';
 import '../models/multipliers/cozy_place.dart';
 import '../models/merge_magnet.dart';
 import 'capybara_placeholder.dart';
@@ -249,9 +250,9 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara> {
         children: [
           visual,
           Positioned(
-            right: -2,
-            top: -4,
-            child: Text(role.emoji, style: const TextStyle(fontSize: 14)),
+            right: -4,
+            top: -6,
+            child: MultiplierIcon(assetPath: role.assetPath, size: 20),
           ),
         ],
       );
