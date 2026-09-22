@@ -34,9 +34,19 @@ extension CapyRoleX on CapyRole {
       };
 
   String get effectRu => switch (this) {
-        CapyRole.nanya => '+авто семьи',
-        CapyRole.sobiratel => 'больше находок с цветов',
-        CapyRole.storozh => 'мягкий лимит / ягоды',
+        CapyRole.nanya => '+15% авто',
+        CapyRole.sobiratel => '+20% находки с цветов',
+        CapyRole.storozh => '+1 к мягкому лимиту · ягоды',
+      };
+
+  /// Toast / HUD when the role is assigned («Няня: +15% авто»).
+  String get assignToastRu => '$labelRu: $effectRu';
+
+  /// One-liner under Роли tab.
+  String get tipRu => switch (this) {
+        CapyRole.nanya => 'Няня ускоряет авто-прогресс семьи (+15%).',
+        CapyRole.sobiratel => 'Собиратель чаще находит еду на цветах (+20%).',
+        CapyRole.storozh => 'Сторож расширяет мягкий лимит стада и бережёт ягоды.',
       };
 
   static CapyRole? tryParse(String? raw) {

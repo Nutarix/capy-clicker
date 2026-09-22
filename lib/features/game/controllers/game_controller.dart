@@ -54,6 +54,7 @@ class GameController extends ChangeNotifier {
 
   /// Soft one-shot Sunny Glade unlock toast (RU), consumed by UI.
   String? _gladeUnlockToast;
+  String? _lastRoleToast;
 
   /// Progress granted on this launch from offline elapsed time (0 if none).
   double _offlineProgressGranted = 0;
@@ -314,6 +315,48 @@ class GameController extends ChangeNotifier {
   /// Pending «Солнечные поляны» unlock line (e.g. «Открылась Ягодная поляна»).
   String? get gladeUnlockToast => _gladeUnlockToast;
 
+  /// One-shot toast after assigning a role («Няня: +15% авто»).
+  String? get lastRoleToast => _lastRoleToast;
+
+  void acknowledgeRoleToast() {
+    _lastRoleToast = null;
+  }
+
+  /// Live RU summary of active role bonuses for Уют / HUD.
+  String get activeRoleBonusesRu {
+    var nanya = 0;
+    var sobi = 0;
+    var stor = 0;
+    for (final c in _state.herd) {
+      switch (c.role) {
+        case CapyRole.nanya:
+          nanya++;
+        case CapyRole.sobiratel:
+          sobi++;
+        case CapyRole.storozh:
+          stor++;
+        case null:
+          break;
+      }
+    }
+    final parts = <String>[];
+    if (nanya > 0) {
+      final pct = (nanya * BalanceV0.roleNanyaAutoBonus * 100).round();
+      parts.add('Няня +$pct% авто');
+    }
+    if (sobi > 0) {
+      final pct = (sobi * BalanceV0.roleSobiratelFindBonus * 100).round();
+      parts.add('Собиратель +$pct% находки');
+    }
+    if (stor > 0) {
+      final extra = stor * BalanceV0.roleStorozhSoftCapBonus;
+      parts.add('Сторож +$extra лимит');
+    }
+    if (parts.isEmpty) return 'Роли пока не назначены';
+    return parts.join(' · ');
+  }
+
+
   /// Grass granted with the last glade unlock (0 if none).
   int get lastGladeGrassReward => _lastGladeGrassReward;
 
@@ -336,6 +379,7 @@ class GameController extends ChangeNotifier {
       mistyBiomeUnlocked: _state.mistyBiomeUnlocked,
       activeMeadowId: _state.activeMeadowId,
       uyut: _state.uyut,
+      familyPower: _state.familyPower,
     );
   }
 
@@ -867,7 +911,7 @@ class GameController extends ChangeNotifier {
 
   /// Unlock named meadows when active herd reaches glade bands; seed starters.
   GameState _syncGladeAnnounced(GameState state, {required bool announce}) {
-    final reached = WorldZones.gladeForHerd(state.herdCount);
+    final reached = WorldZones.gladeForFamilyPower(state.familyPower);
     if (reached.index <= state.sunnyGladeAnnounced) return state;
 
     var nextId = state.nextId;
@@ -1291,6 +1335,9 @@ class GameController extends ChangeNotifier {
           c,
     ];
     _setState(_state.copyWith(herd: herd));
+    if (role != null) {
+      _lastRoleToast = role.assignToastRu;
+    }
     return true;
   }
 

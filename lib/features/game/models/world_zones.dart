@@ -26,9 +26,12 @@ class SunnyGlade {
   /// 0 = starter … 3 = Great Meadow.
   final int index;
 
-  /// Inclusive herd-count band.
-  final int minHerd;
-  final int maxHerd;
+  /// Inclusive **family-power** band (sum of capy levels on the active meadow).
+  ///
+  /// Soft-cap still limits **bodies**; power grows via merge/levels so levels
+  /// matter for glade unlock (12×Lv1 = power 12 → Солнечный, not Большой).
+  final int minHerd; // legacy field name = min family power
+  final int maxHerd; // legacy field name = max family power
 
   /// Display name (RU) — used in UI toast / chip.
   final String nameRu;
@@ -59,12 +62,12 @@ class SunnyGlade {
 abstract final class WorldZones {
   /// Four Sunny Glade circles (herd → rect + base zoom).
   ///
-  /// | # | Name | Herd | Rect (L,T,R,B) | Zoom |
-  /// |---|------|------|----------------|------|
+  /// | # | Name | Family power | Rect (L,T,R,B) | Zoom |
+  /// |---|------|--------------|----------------|------|
   /// | 0 | Тёплая опушка | 0–4 | 0.10, 0.52, 0.86, 0.92 | 1.00 |
-  /// | 1 | Ягодная поляна | 5–7 | 0.06, 0.50, 0.90, 0.93 | 0.82 |
-  /// | 2 | Солнечный прогал | 8–10 | 0.05, 0.40, 0.91, 0.945 | 0.66 |
-  /// | 3 | Большой луг | 11–12 | 0.03, 0.34, 0.94, 0.96 | 0.50 |
+  /// | 1 | Ягодная поляна | 5–9 | 0.06, 0.50, 0.90, 0.93 | 0.82 |
+  /// | 2 | Солнечный прогал | 10–15 | 0.05, 0.40, 0.91, 0.945 | 0.66 |
+  /// | 3 | Большой луг | 16+ | 0.03, 0.34, 0.94, 0.96 | 0.50 |
   static const List<SunnyGlade> glades = [
     SunnyGlade(
       id: 'warm_edge',
@@ -84,7 +87,7 @@ abstract final class WorldZones {
       id: 'berry_glade',
       index: 1,
       minHerd: 5,
-      maxHerd: 7,
+      maxHerd: 9,
       nameRu: 'Ягодная поляна',
       nameEn: 'Berry Glade',
       // Wider sides — berry bushes along the tree line.
@@ -98,8 +101,8 @@ abstract final class WorldZones {
     SunnyGlade(
       id: 'sunny_clearing',
       index: 2,
-      minHerd: 8,
-      maxHerd: 10,
+      minHerd: 10,
+      maxHerd: 15,
       nameRu: 'Солнечный прогал',
       nameEn: 'Sunny Clearing',
       // Deeper into the forest (taller meadow), still under canopy wall.
@@ -113,8 +116,8 @@ abstract final class WorldZones {
     SunnyGlade(
       id: 'great_meadow',
       index: 3,
-      minHerd: 11,
-      maxHerd: 12,
+      minHerd: 16,
+      maxHerd: 999,
       nameRu: 'Большой луг',
       nameEn: 'Great Meadow',
       // Most of the lower ~2/3; dense canopy stays a soft wall above.
@@ -163,14 +166,20 @@ abstract final class WorldZones {
         meadowBottom,
       );
 
-  /// Active Sunny Glade for [herdCount] (clamped into Большой луг above soft-cap).
-  static SunnyGlade gladeForHerd(int herdCount) {
-    final n = herdCount < 0 ? 0 : herdCount;
+  /// Active Sunny Glade for [familyPower] (sum of levels; see [GameState.familyPower]).
+  ///
+  /// Legacy name [gladeForHerd] kept — argument is **family power**, not raw headcount.
+  static SunnyGlade gladeForHerd(int familyPower) {
+    final n = familyPower < 0 ? 0 : familyPower;
     for (final g in glades) {
       if (n <= g.maxHerd) return g;
     }
     return glades.last;
   }
+
+  /// Preferred name: family-power → glade.
+  static SunnyGlade gladeForFamilyPower(int familyPower) =>
+      gladeForHerd(familyPower);
 
   /// @nodoc Alias for [gladeForHerd].
   static SunnyGlade tierForHerd(int herdCount) => gladeForHerd(herdCount);

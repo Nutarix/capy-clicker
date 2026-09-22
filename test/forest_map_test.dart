@@ -191,36 +191,62 @@ void main() {
     c.dispose();
   });
 
-  test('unlock thresholds at herd 5 / 8 / 11', () async {
+  test('unlock thresholds by family power 5 / 10 / 16', () async {
     final c = GameController(persistence: GamePersistence());
     await c.init();
     expect(c.state.sunnyGladeAnnounced, 0);
     expect(c.unlockedMeadowIds, ['warm_edge']);
 
-    // Start with 1; +4 → herd 5 → berry.
+    // Start with 1; +4 → power 5 (5×Lv1) → berry.
     for (var i = 0; i < 4; i++) {
       c.addProgress(1.0, fromTap: true);
     }
     expect(c.state.herdCount, 5);
+    expect(c.state.familyPower, 5);
     expect(c.state.sunnyGladeAnnounced, 1);
     expect(c.state.isMeadowUnlocked('berry_glade'), isTrue);
     expect(c.state.isMeadowUnlocked('sunny_clearing'), isFalse);
 
-    // +3 → herd 8 → sunny_clearing.
-    for (var i = 0; i < 3; i++) {
+    // +5 → power 10 (10×Lv1) → sunny_clearing.
+    for (var i = 0; i < 5; i++) {
       c.addProgress(1.0, fromTap: true);
     }
-    expect(c.state.herdCount, 8);
+    expect(c.state.herdCount, 10);
+    expect(c.state.familyPower, 10);
     expect(c.state.sunnyGladeAnnounced, 2);
     expect(c.state.isMeadowUnlocked('sunny_clearing'), isTrue);
     expect(c.state.isMeadowUnlocked('great_meadow'), isFalse);
     expect(c.herdCountForMeadow('sunny_clearing'), BalanceV0.meadowStarterHerdSize);
 
-    // +3 → herd 11 → great_meadow.
-    for (var i = 0; i < 3; i++) {
+    // Soft-cap bodies at 12 (= power 12) is not enough for Great (needs 16).
+    for (var i = 0; i < 2; i++) {
       c.addProgress(1.0, fromTap: true);
     }
-    expect(c.state.herdCount, 11);
+    expect(c.state.herdCount, 12);
+    expect(c.state.familyPower, 12);
+    expect(c.state.sunnyGladeAnnounced, 2);
+
+    // Merge + refill raises family power: each merge+spawn nets +1 power.
+    var guard = 0;
+    while (c.state.familyPower < 16 && guard < 40) {
+      guard++;
+      final ones = c.state.herd.where((e) => e.level == 1).toList();
+      if (ones.length >= 2) {
+        expect(c.tryMerge(ones[0].id, ones[1].id), isTrue);
+      } else {
+        final twos = c.state.herd.where((e) => e.level == 2).toList();
+        if (twos.length >= 2) {
+          expect(c.tryMerge(twos[0].id, twos[1].id), isTrue);
+        } else {
+          break;
+        }
+      }
+      // Freed soft-cap slot → spawn another Lv1.
+      if (c.state.herdCount < BalanceV0.maxHerdSize) {
+        c.addProgress(1.0, fromTap: true);
+      }
+    }
+    expect(c.state.familyPower, greaterThanOrEqualTo(16));
     expect(c.state.sunnyGladeAnnounced, 3);
     expect(
       c.unlockedMeadowIds,
@@ -309,10 +335,12 @@ void main() {
     expect(c.state.grass, grassMid);
     expect(c.herdCountForMeadow('berry_glade'), berryHerd);
 
-    // Push warm to 8 → unlock sunny_clearing without visiting it.
-    for (var i = 0; i < 3; i++) {
+    // Push warm to power 10 (10×Lv1) → unlock sunny_clearing without visiting.
+    for (var i = 0; i < 5; i++) {
       c.addProgress(1.0, fromTap: true);
     }
+    expect(c.state.herdCount, 10);
+    expect(c.state.familyPower, 10);
     expect(c.state.sunnyGladeAnnounced, 2);
     expect(c.switchToMeadow('sunny_clearing'), isTrue);
     expect(c.state.herdCount, BalanceV0.meadowStarterHerdSize);

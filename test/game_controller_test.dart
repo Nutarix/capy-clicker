@@ -117,10 +117,13 @@ void main() {
 
   test('zoom widens with Sunny Glade circles', () {
     expect(BalanceV0.zoomForHerdCount(1), BalanceV0.zoomClose);
-    expect(BalanceV0.zoomForHerdCount(5), BalanceV0.zoomMid);
-    expect(BalanceV0.zoomForHerdCount(8), BalanceV0.zoomFar);
-    expect(BalanceV0.zoomForHerdCount(11), BalanceV0.zoomWidest);
-    expect(BalanceV0.zoomForHerdCount(12), BalanceV0.zoomWidest);
+    // Zoom bands follow **family power** (Σ levels), not raw headcount.
+    expect(BalanceV0.zoomForHerdCount(5), BalanceV0.zoomMid); // berry ≥5
+    expect(BalanceV0.zoomForHerdCount(9), BalanceV0.zoomMid);
+    expect(BalanceV0.zoomForHerdCount(10), BalanceV0.zoomFar); // sunny ≥10
+    expect(BalanceV0.zoomForHerdCount(15), BalanceV0.zoomFar);
+    expect(BalanceV0.zoomForHerdCount(16), BalanceV0.zoomWidest); // great ≥16
+    expect(BalanceV0.zoomForHerdCount(20), BalanceV0.zoomWidest);
   });
 
   test('glade unlock toast fires once when Berry Glade opens', () async {
@@ -282,12 +285,32 @@ void main() {
         isTrue,
       );
     }
-    // Fill herd on warm_edge — stays on warm rect; unlocks others on the map.
+    // Fill herd on warm_edge — stays on warm rect; 12×Lv1 = power 12 → Sunny.
     for (var i = 0; i < 11; i++) {
       c.addProgress(1.0, fromTap: true);
     }
     expect(c.state.herdCount, BalanceV0.maxHerdSize);
+    expect(c.state.familyPower, 12);
     expect(c.currentGlade.id, 'warm_edge');
+    expect(c.state.sunnyGladeAnnounced, 2); // Great needs power ≥16 (merge path)
+
+    // Merge + refill until Great unlocks (power ≥16).
+    var guard = 0;
+    while (c.state.familyPower < 16 && guard < 40) {
+      guard++;
+      final ones = c.state.herd.where((e) => e.level == 1).toList();
+      if (ones.length >= 2) {
+        c.tryMerge(ones[0].id, ones[1].id);
+      } else {
+        final twos = c.state.herd.where((e) => e.level == 2).toList();
+        if (twos.length < 2) break;
+        c.tryMerge(twos[0].id, twos[1].id);
+      }
+      if (c.state.herdCount < BalanceV0.maxHerdSize) {
+        c.addProgress(1.0, fromTap: true);
+      }
+    }
+    expect(c.state.familyPower, greaterThanOrEqualTo(16));
     expect(c.state.sunnyGladeAnnounced, 3);
     for (final capy in c.state.herd) {
       expect(
@@ -340,6 +363,23 @@ void main() {
     expect(c.cameraZoom, lessThanOrEqualTo(BalanceV0.zoomClose + 0.001));
     expect(c.cameraZoom, greaterThanOrEqualTo(BalanceV0.zoomWidest));
 
+    // Raise family power to unlock Great, then visit it.
+    var guard = 0;
+    while (c.state.familyPower < 16 && guard < 40) {
+      guard++;
+      final ones = c.state.herd.where((e) => e.level == 1).toList();
+      if (ones.length >= 2) {
+        c.tryMerge(ones[0].id, ones[1].id);
+      } else {
+        final twos = c.state.herd.where((e) => e.level == 2).toList();
+        if (twos.length < 2) break;
+        c.tryMerge(twos[0].id, twos[1].id);
+      }
+      if (c.state.herdCount < BalanceV0.maxHerdSize) {
+        c.addProgress(1.0, fromTap: true);
+      }
+    }
+    expect(c.state.sunnyGladeAnnounced, 3);
     expect(c.switchToMeadow('great_meadow'), isTrue);
     expect(c.cameraZoom, lessThanOrEqualTo(BalanceV0.zoomWidest + 0.001));
     c.dispose();

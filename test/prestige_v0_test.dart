@@ -200,9 +200,24 @@ void main() {
     expect(c.state.mistyBiomeUnlocked, isFalse);
     expect(c.switchToMeadow(WorldZones.mistEdgeMeadowId), isFalse);
     expect(c.state.uyut, 0);
-    // Grow to great meadow only — no Lv.4 yet.
-    for (var i = 0; i < 10; i++) {
+    // Fill soft-cap, then merge+refill until Great (power ≥16) — no Lv.4 yet.
+    for (var i = 0; i < 11; i++) {
       c.addProgress(1.0, fromTap: true);
+    }
+    var guard = 0;
+    while (c.state.familyPower < 16 && guard < 40) {
+      guard++;
+      final ones = c.state.herd.where((e) => e.level == 1).toList();
+      if (ones.length >= 2) {
+        c.tryMerge(ones[0].id, ones[1].id);
+      } else {
+        final twos = c.state.herd.where((e) => e.level == 2).toList();
+        if (twos.length < 2) break;
+        c.tryMerge(twos[0].id, twos[1].id);
+      }
+      if (c.state.herdCount < BalanceV0.maxHerdSize) {
+        c.addProgress(1.0, fromTap: true);
+      }
     }
     expect(c.state.sunnyGladeAnnounced, 3);
     expect(c.state.maxCapyLevel, lessThan(4));

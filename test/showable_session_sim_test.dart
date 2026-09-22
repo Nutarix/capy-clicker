@@ -276,8 +276,8 @@ void main() {
     expect(firstGladeAt, isNotNull, reason: 'Berry glade should unlock');
     expect(
       firstGladeAt!,
-      inInclusiveRange(100, 360),
-      reason: 'First berry glade ~1.5–6 min cozy; got ${firstGladeAt}s',
+      inInclusiveRange(45, 360),
+      reason: 'First berry glade ~1–6 min cozy (family power ≥5); got ${firstGladeAt}s',
     );
 
     expect(calls, greaterThan(0));

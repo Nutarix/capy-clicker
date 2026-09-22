@@ -114,6 +114,18 @@ class GameState {
     return m;
   }
 
+  /// Family power = Σ levels on the **active** meadow.
+  ///
+  /// Drives Sunny Glade unlock thresholds (Ягодная ≥5, Солнечный ≥10,
+  /// Большой ≥16). Soft-cap still limits body count; merge raises power.
+  int get familyPower {
+    var p = 0;
+    for (final c in herd) {
+      p += c.level;
+    }
+    return p;
+  }
+
   bool isTwinMarked(String id) => id == twinIdA || id == twinIdB;
 
   bool ownsDecor(HomeDecor d) => ownedDecor.contains(d.id);

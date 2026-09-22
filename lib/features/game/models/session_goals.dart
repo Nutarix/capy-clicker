@@ -55,13 +55,15 @@ class SessionGoal {
     required int herdCount,
     required int maxCapyLevel,
     required int uyut,
+    int? familyPower,
   }) {
     switch (kind) {
       case SessionGoalKind.glade:
         final idx = gladeIndex!;
         final need = WorldZones.glades[idx].minHerd;
         if (need <= 0) return '';
-        return 'семья $herdCount/$need';
+        final power = familyPower ?? herdCount;
+        return 'сила $power/$need';
       case SessionGoalKind.maxLevel:
         final need = targetLevel!;
         return 'Lv.$maxCapyLevel/$need';
@@ -146,6 +148,7 @@ abstract final class SessionGoals {
     required bool mistyBiomeUnlocked,
     required String activeMeadowId,
     required int uyut,
+    int? familyPower,
   }) {
     switch (goal.kind) {
       case SessionGoalKind.glade:
@@ -153,7 +156,8 @@ abstract final class SessionGoals {
         if (sunnyGladeAnnounced >= idx) return 1.0;
         final need = WorldZones.glades[idx].minHerd;
         if (need <= 0) return 1.0;
-        return (herdCount / need).clamp(0.0, 1.0);
+        final power = familyPower ?? herdCount;
+        return (power / need).clamp(0.0, 1.0);
       case SessionGoalKind.maxLevel:
         final need = goal.targetLevel!;
         if (need <= 0) return 1.0;

@@ -1,4 +1,6 @@
 import 'dart:async';
+
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
 import '../../theme/cozy_theme.dart';
 import '../../widgets/cozy_pixel_button.dart';
@@ -74,6 +76,10 @@ class _GameScreenState extends State<GameScreen> {
   /// Forest map overlay visible.
   bool _forestMapOpen = false;
 
+  /// Collapsed «задания» cream HUD (persisted).
+  bool _goalsCollapsed = false;
+  static const _goalsCollapsedPrefsKey = 'capy_clicker_goals_collapsed_v1';
+
   /// Capy ids that should show a prominent Lv badge (drag / recent merge).
   final Set<String> _badgePromoted = {};
   Timer? _badgeClearTimer;
@@ -98,6 +104,20 @@ class _GameScreenState extends State<GameScreen> {
     _controller.addListener(_onControllerChanged);
     _controller.init();
     _audio.init();
+    unawaited(_loadGoalsCollapsedPref());
+  }
+
+  Future<void> _loadGoalsCollapsedPref() async {
+    final prefs = await SharedPreferences.getInstance();
+    final v = prefs.getBool(_goalsCollapsedPrefsKey) ?? false;
+    if (!mounted) return;
+    setState(() => _goalsCollapsed = v);
+  }
+
+  Future<void> _setGoalsCollapsed(bool value) async {
+    setState(() => _goalsCollapsed = value);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_goalsCollapsedPrefsKey, value);
   }
 
   void _onAudioChanged() {
@@ -407,16 +427,31 @@ class _GameScreenState extends State<GameScreen> {
     final zoom = _controller.cameraZoom;
     final boost = _controller.isMudBoostActive;
 
+    final topInset = MediaQuery.paddingOf(context).top;
+    final goal = _controller.currentSessionGoal;
+    final goalLine = () {
+      if (goal == null) return 'Задания';
+      final detail = goal.hudCountDetailRu(
+        herdCount: state.herdCount,
+        maxCapyLevel: state.maxCapyLevel,
+        uyut: state.uyut,
+        familyPower: state.familyPower,
+      );
+      return detail.isEmpty
+          ? 'Цель: ${goal.titleRu}'
+          : 'Цель: ${goal.titleRu} · $detail';
+    }();
+
     return Scaffold(
+      backgroundColor: const Color(0xFFFFF8EC),
       body: MeadowBackground(
         meadowId: state.activeMeadowId,
-        child: SafeArea(
-          child: Stack(
+        child: Stack(
             children: [
               Column(
                 children: [
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                    padding: EdgeInsets.fromLTRB(16, topInset + 8, 16, 8),
                     child: DecoratedBox(
                       decoration: BoxDecoration(
                         color: const Color(0xFFF8EDD8).withValues(alpha: 0.82),
@@ -433,17 +468,71 @@ class _GameScreenState extends State<GameScreen> {
                         ],
                       ),
                       child: Padding(
-                        padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-                        child: Column(
+                        padding: EdgeInsets.fromLTRB(
+                          12,
+                          _goalsCollapsed ? 6 : 10,
+                          4,
+                          _goalsCollapsed ? 6 : 12,
+                        ),
+                        child: _goalsCollapsed
+                            ? Row(
+                                children: [
+                                  const Text('🎯', style: TextStyle(fontSize: 13)),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      goalLine,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: CozyTheme.hudChipMutedStyle(fontSize: 12),
+                                    ),
+                                  ),
+                                  IconButton(
+                                    visualDensity: VisualDensity.compact,
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(
+                                      minWidth: 32,
+                                      minHeight: 32,
+                                    ),
+                                    tooltip: 'Развернуть задания',
+                                    onPressed: () {
+                                      unawaited(_audio.noteUserGesture());
+                                      unawaited(_setGoalsCollapsed(false));
+                                    },
+                                    icon: const Icon(Icons.expand_more, size: 22),
+                                  ),
+                                ],
+                              )
+                            : Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            CreamProgressBar(
-                              value: state.herdProgress,
-                              boostActive: boost,
-                              boostSeconds:
-                                  _controller.mudBoostRemainingSeconds,
-                              autoRatePerSecond: _controller.autoRatePerSecond,
-                              pulseToken: _progressPulseToken,
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: CreamProgressBar(
+                                    value: state.herdProgress,
+                                    boostActive: boost,
+                                    boostSeconds:
+                                        _controller.mudBoostRemainingSeconds,
+                                    autoRatePerSecond: _controller.autoRatePerSecond,
+                                    pulseToken: _progressPulseToken,
+                                  ),
+                                ),
+                                IconButton(
+                                  visualDensity: VisualDensity.compact,
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(
+                                    minWidth: 32,
+                                    minHeight: 32,
+                                  ),
+                                  tooltip: 'Свернуть задания',
+                                  onPressed: () {
+                                    unawaited(_audio.noteUserGesture());
+                                    unawaited(_setGoalsCollapsed(true));
+                                  },
+                                  icon: const Icon(Icons.expand_less, size: 22),
+                                ),
+                              ],
                             ),
                             const SizedBox(height: 8),
                             Wrap(
@@ -457,6 +546,7 @@ class _GameScreenState extends State<GameScreen> {
                                   herdCount: state.herdCount,
                                   maxCapyLevel: state.maxCapyLevel,
                                   uyut: state.uyut,
+                                  familyPower: state.familyPower,
                                 ),
                                 _UyutChip(
                                   uyut: state.uyut,
@@ -668,8 +758,8 @@ class _GameScreenState extends State<GameScreen> {
                     ),
                   ),
                   Padding(
-                    padding: const EdgeInsets.only(
-                      bottom: 12,
+                    padding: EdgeInsets.only(
+                      bottom: 12 + MediaQuery.paddingOf(context).bottom,
                       left: 16,
                       right: 16,
                     ),
@@ -757,7 +847,6 @@ class _GameScreenState extends State<GameScreen> {
                 ),
             ],
           ),
-        ),
       ),
     );
   }
@@ -977,6 +1066,7 @@ class _SessionGoalChip extends StatelessWidget {
     required this.herdCount,
     required this.maxCapyLevel,
     required this.uyut,
+    this.familyPower,
   });
 
   final SessionGoal? goal;
@@ -984,6 +1074,7 @@ class _SessionGoalChip extends StatelessWidget {
   final int herdCount;
   final int maxCapyLevel;
   final int uyut;
+  final int? familyPower;
 
   @override
   Widget build(BuildContext context) {
@@ -992,6 +1083,7 @@ class _SessionGoalChip extends StatelessWidget {
       herdCount: herdCount,
       maxCapyLevel: maxCapyLevel,
       uyut: uyut,
+      familyPower: familyPower,
     );
     final title = 'Цель: ${effective.titleRu}';
     final String label;

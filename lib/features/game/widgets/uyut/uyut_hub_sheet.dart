@@ -304,9 +304,23 @@ class _RolesTab extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         Text(
+          controller.activeRoleBonusesRu,
+          style: CozyTheme.hudChipStyle(fontSize: 12),
+        ),
+        const SizedBox(height: 6),
+        Text(
           'Подсказка: долгое нажатие на капи на лугу сразу открывает роли.',
           style: CozyTheme.hudChipMutedStyle(fontSize: 11),
         ),
+        const SizedBox(height: 8),
+        for (final role in CapyRole.values)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Text(
+              '• ${role.tipRu}',
+              style: CozyTheme.hudChipMutedStyle(fontSize: 11),
+            ),
+          ),
         const SizedBox(height: 12),
         for (final capy in herd) ...[
           DecoratedBox(
@@ -355,13 +369,28 @@ class _RolesTab extends StatelessWidget {
                           onPressed: () {
                             HapticFeedback.lightImpact();
                             final ok = controller.assignRole(capy.id, role);
-                            if (!ok && context.mounted) {
+                            if (!context.mounted) return;
+                            if (!ok) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
                                   content: Text('Нет свободного слота роли'),
                                   behavior: SnackBarBehavior.floating,
                                 ),
                               );
+                            } else {
+                              final toast = controller.lastRoleToast;
+                              if (toast != null) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(toast),
+                                    behavior: SnackBarBehavior.floating,
+                                    backgroundColor:
+                                        const Color(0xFF5A9A48).withValues(alpha: 0.94),
+                                    duration: const Duration(milliseconds: 1600),
+                                  ),
+                                );
+                                controller.acknowledgeRoleToast();
+                              }
                             }
                           },
                         ),

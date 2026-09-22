@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="ic_launcher_background">#FFF8EC</color>
+    <!-- Solid cream / meadow — never system gray behind Flutter -->
+    <color name="launch_cream">#FFF8EC</color>
+    <color name="meadow_cream">#FFF8EC</color>
 </resources>

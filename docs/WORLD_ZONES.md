@@ -13,15 +13,19 @@ capybaras never rest on trunks.
 
 ## Четыре круга полян
 
-| # | Название | Herd | Rect (L, T, R, B) | Base zoom | Feel |
-|---|----------|------|-------------------|-----------|------|
+| # | Название | Family power (Σ levels) | Rect (L, T, R, B) | Base zoom | Feel |
+|---|----------|-------------------------|-------------------|-----------|------|
 | 0 | **Тёплая опушка** | 0–4 | 0.10, 0.52, 0.86, 0.92 | **1.00** | Small starter meadow by the tree line |
-| 1 | **Ягодная поляна** | 5–7 | 0.06, 0.50, 0.90, 0.93 | **0.82** | Wider sides — room for berry bushes |
-| 2 | **Солнечный прогал** | 8–10 | 0.05, 0.40, 0.91, 0.945 | **0.66** | Deeper into the forest (taller clearing) |
-| 3 | **Большой луг** | 11–12 | 0.03, 0.34, 0.94, 0.96 | **0.50** | Most of the lower ~⅔; canopy stays wall |
+| 1 | **Ягодная поляна** | 5–9 | 0.06, 0.50, 0.90, 0.93 | **0.82** | Wider sides — room for berry bushes |
+| 2 | **Солнечный прогал** | 10–15 | 0.05, 0.40, 0.91, 0.945 | **0.66** | Deeper into the forest (taller clearing) |
+| 3 | **Большой луг** | **16+** | 0.03, 0.34, 0.94, 0.96 | **0.50** | Most of the lower ~⅔; canopy stays wall |
 
-API: `WorldZones.gladeForHerd(count)` → `SunnyGlade` (name, rect, `baseZoom`).
-Clamp/spawn: `clampToMeadow` / `randomInMeadow` with `herdCount:`.
+Unlock metric is **family power** = sum of capy levels on the active meadow
+(not raw headcount). Soft-cap still limits **bodies** (12); merge + refill
+raises power so levels matter (12×Lv1 = power 12 → Солнечный, not Большой).
+
+API: `WorldZones.gladeForFamilyPower(power)` / legacy `gladeForHerd(power)`.
+Clamp/spawn keys still use the active named meadow’s `minHerd` power key.
 
 **Trees are blocked** outside the active glade rect.
 
@@ -47,7 +51,8 @@ When a new glade opens for the first time (persisted
 
 No toast on relaunch. HUD chips under the progress bar are split:
 
-- **«семья N/12»** — herd size only
+- **«семья N/12»** — body count (soft-cap)
+- **«сила N/need»** — family power toward the next glade goal
 - **«поляна: …»** — current Sunny Glade name only
 
 Once a glade is unlocked (`sunnyGladeAnnounced`), merge that shrinks the herd
