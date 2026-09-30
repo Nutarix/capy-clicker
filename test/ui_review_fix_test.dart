@@ -115,6 +115,42 @@ void main() {
       }
     });
 
+    test('six bodies keep a grass gap on the starter meadow', () {
+      const meadow = CapyWander.fallbackMeadow;
+      final sep = CapyWander.pairSeparation(meadow);
+      // Drawn sheet plus a strip of grass, not a circle that only clears centers.
+      expect(sep.minX * meadow.width, greaterThan(70 + 12));
+      expect(sep.minY * meadow.height, greaterThan(50));
+      final rng = math.Random(5);
+      final parked = <Offset>[];
+      for (var n = 0; n < 6; n++) {
+        final from = parked.isEmpty ? const Offset(0.40, 0.74) : parked.last;
+        final t = CapyWander.pickTarget(
+          from: from,
+          random01: rng.nextDouble,
+          herdCount: 0,
+          others: parked,
+          meadowSize: meadow,
+          spreadSalt: n / 6,
+        );
+        expect(CapyWander.onGrass(t, 0), isTrue, reason: 'grass $n');
+        expect(
+          CapyWander.hitsProp(t, meadowSize: meadow),
+          isFalse,
+          reason: 'prop $n',
+        );
+        expect(
+          CapyWander.overlapsPeer(t, parked, meadowSize: meadow),
+          isFalse,
+          reason: 'gap $n $t',
+        );
+        for (final o in parked) {
+          expect((t - o).distance, greaterThan(0.04), reason: 'not stacked');
+        }
+        parked.add(t);
+      }
+    });
+
     test('a body already on the stump is sent off it', () {
       final t = CapyWander.pickTarget(
         from: CapyWander.stumpCenter,

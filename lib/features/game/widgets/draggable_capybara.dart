@@ -148,6 +148,7 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
   void initState() {
     super.initState();
     _displayPos = widget.capybara.position;
+    CapyWander.livePositions[widget.capybara.id] = _displayPos;
     _idleBob = AnimationController(
       vsync: this,
       duration: CapyWalk.idlePeriod(_sheet, widget.capybara.id),
@@ -162,6 +163,22 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
       ..addListener(() {
         if (!_walking || _walkFrom == null || _walkTo == null) return;
         final next = CapyWander.lerp(_walkFrom!, _walkTo!, _walk.value);
+        final peers = _peers();
+        if (_walkEntersNew(next, peers)) {
+          // Hold the last clear spot. Stopping the controller from its
+          // listener must not re-enter via the completed status.
+          _walking = false;
+          _walk.stop();
+          _walkCycle.stop();
+          _walkCycle.value = 0;
+          _walkFrom = null;
+          _walkTo = null;
+          CapyWander.livePositions[widget.capybara.id] = _displayPos;
+          widget.onDropPosition(widget.capybara.id, _displayPos);
+          _scheduleWander(CapyWander.pauseBetweenWalks(_rng.nextDouble));
+          return;
+        }
+        CapyWander.livePositions[widget.capybara.id] = next;
         if (mounted) setState(() => _displayPos = next);
       })
       ..addStatusListener((status) {
@@ -181,6 +198,7 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
     if (widget.isWallowing && !oldWidget.isWallowing) {
       _cancelWalk(commit: false);
       _displayPos = widget.capybara.position;
+      CapyWander.livePositions[widget.capybara.id] = _displayPos;
     }
     if (widget.mergeFlash && !oldWidget.mergeFlash) {
       _cancelWalk(commit: false);
@@ -204,16 +222,71 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
         !_dragging &&
         widget.capybara.position != oldWidget.capybara.position) {
       _displayPos = widget.capybara.position;
+      CapyWander.livePositions[widget.capybara.id] = _displayPos;
     }
   }
 
   @override
   void dispose() {
+    CapyWander.livePositions.remove(widget.capybara.id);
     _wanderTimer?.cancel();
     _idleBob.dispose();
     _walkCycle.dispose();
     _walk.dispose();
     super.dispose();
+  }
+
+  bool _walkEntersNew(
+    Offset next,
+    ({List<Offset> positions, List<double> widths}) peers,
+  ) {
+    final meadow = widget.meadowSize;
+    final mud = widget.mudCenter;
+    final width = _bodyWidth;
+    final nextProp = CapyWander.hitsProp(
+      next,
+      mudCenter: mud,
+      meadowSize: meadow,
+      capyWidth: width,
+    );
+    final hereProp = CapyWander.hitsProp(
+      _displayPos,
+      mudCenter: mud,
+      meadowSize: meadow,
+      capyWidth: width,
+    );
+    if (nextProp && !hereProp) return true;
+    for (var i = 0; i < peers.positions.length; i++) {
+      final one = [peers.positions[i]];
+      final w = [peers.widths[i]];
+      final was = CapyWander.overlapsPeer(
+        _displayPos,
+        one,
+        meadowSize: meadow,
+        capyWidth: width,
+        peerWidths: w,
+      );
+      final will = CapyWander.overlapsPeer(
+        next,
+        one,
+        meadowSize: meadow,
+        capyWidth: width,
+        peerWidths: w,
+      );
+      if (will && !was) return true;
+    }
+    return false;
+  }
+
+  ({List<Offset> positions, List<double> widths}) _peers() {
+    final positions = <Offset>[];
+    final widths = <double>[];
+    for (final c in widget.herd) {
+      if (c.id == widget.capybara.id) continue;
+      positions.add(CapyWander.livePositions[c.id] ?? c.position);
+      widths.add(BalanceV0.capySizeForLevel(c.level));
+    }
+    return (positions: positions, widths: widths);
   }
 
   void _scheduleWander(Duration delay) {
@@ -228,19 +301,27 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
       return;
     }
     final from = _displayPos;
-    final others = <Offset>[
-      for (final c in widget.herd)
-        if (c.id != widget.capybara.id) c.position,
-    ];
-    final to = CapyWander.pickTarget(
+    final peers = _peers();
+    final picked = CapyWander.pickTarget(
       from: from,
       random01: _rng.nextDouble,
       herdCount: widget.herdCount,
-      others: others,
+      others: peers.positions,
       mudCenter: widget.mudCenter,
       meadowSize: widget.meadowSize,
       capyWidth: _bodyWidth,
       spreadSalt: CapyWander.phase01(widget.capybara.id),
+      peerWidths: peers.widths,
+    );
+    final to = CapyWander.clipTravel(
+      from: from,
+      to: picked,
+      others: peers.positions,
+      herdCount: widget.herdCount,
+      mudCenter: widget.mudCenter,
+      meadowSize: widget.meadowSize,
+      capyWidth: _bodyWidth,
+      peerWidths: peers.widths,
     );
     // Tiny hops look twitchy — skip and retry later.
     if ((to - from).distance < 0.03) {
@@ -266,6 +347,7 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
     _walkFrom = null;
     _walkTo = null;
     _displayPos = dest;
+    CapyWander.livePositions[widget.capybara.id] = dest;
     // Persist like drag-end (clamped inside controller).
     widget.onDropPosition(widget.capybara.id, dest);
     _scheduleWander(CapyWander.pauseBetweenWalks(_rng.nextDouble));
@@ -282,6 +364,7 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
         widget.onDropPosition(widget.capybara.id, _displayPos);
       } else {
         _displayPos = widget.capybara.position;
+        CapyWander.livePositions[widget.capybara.id] = _displayPos;
       }
       _walkFrom = null;
       _walkTo = null;
@@ -428,6 +511,7 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
       }
     }
     _displayPos = normalized;
+    CapyWander.livePositions[widget.capybara.id] = normalized;
     widget.onDropPosition(widget.capybara.id, normalized);
     _scheduleWander(CapyWander.pauseBetweenWalks(_rng.nextDouble));
   }

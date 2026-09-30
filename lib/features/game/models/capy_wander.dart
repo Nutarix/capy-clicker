@@ -39,6 +39,20 @@ abstract final class CapyWander {
   /// How far apart body centers should stay (normalized meadow space).
   static const double peerGap = 0.09;
 
+  /// Logical pixels of grass between opaque sprite edges.
+  ///
+  /// Half a sprite plus a few pixels still lets bodies touch: the drawn
+  /// sheet fills its width, so centers ~140px apart on a phone overlap.
+  static const double peerGrassPx = 22;
+
+  /// Walk-sheet pixel size. BoxFit.contain in the level box, width-limited.
+  static const double sheetPixelWidth = 256;
+  static const double sheetPixelHeight = 188;
+
+  /// Latest displayed anchor per capy so a walk does not cut through a peer
+  /// that has not persisted its destination yet.
+  static final Map<String, Offset> livePositions = {};
+
   /// Пень — center disc kept for callers; the body test uses the card rect.
   static const double stumpRadius = 0.078;
 
@@ -55,7 +69,7 @@ abstract final class CapyWander {
   static const Size fallbackMeadow = Size(411, 480);
 
   /// Gap so a sprite does not visually touch a prop (idle bob included).
-  static const double propPadPx = 8;
+  static const double propPadPx = 6;
 
   static Offset get stumpCenter =>
       Offset(CozyPlaceKind.pen.center.$1, CozyPlaceKind.pen.center.$2);
@@ -107,19 +121,28 @@ abstract final class CapyWander {
     return Size(w, h);
   }
 
-  /// Sprite box for a standing body. Anchor is the footprint center used by
+  /// Opaque sprite box. Anchor is the footprint center used by
   /// [MeadowDraggableCapybara] (badge hangs below the sprite).
+  ///
+  /// The sheet is wider than the widget box, so [BoxFit.contain] letterboxes
+  /// vertically. Peer and prop tests use the drawn pixels, not the empty
+  /// padding inside the box.
+  static double opaqueSpriteHeight(double capyWidth) =>
+      capyWidth * (sheetPixelHeight / sheetPixelWidth);
+
   static Rect bodyRect(Offset anchor, Size meadow, {double capyWidth = 70}) {
-    final fw = capyWidth + 8;
-    final fh = capyWidth * 0.95 + 26;
-    final spriteH = capyWidth * 0.95;
-    final left = anchor.dx * meadow.width - fw / 2;
-    final top = anchor.dy * meadow.height - fh / 2;
+    final boxH = capyWidth * 0.95;
+    final drawnH = opaqueSpriteHeight(capyWidth);
+    final footprintH = boxH + 26;
+    final footprintW = capyWidth + 8;
+    final boxTop = anchor.dy * meadow.height - footprintH / 2;
+    final spriteTop = boxTop + (boxH - drawnH) / 2;
+    final left = anchor.dx * meadow.width - footprintW / 2;
     return Rect.fromLTWH(
       left / meadow.width,
-      top / meadow.height,
+      spriteTop / meadow.height,
       capyWidth / meadow.width,
-      spriteH / meadow.height,
+      drawnH / meadow.height,
     );
   }
 
@@ -146,23 +169,24 @@ abstract final class CapyWander {
   static List<Rect> propRects({Offset? mudCenter, Size? meadowSize}) {
     final meadow = _meadow(meadowSize);
     final list = <Rect>[
-      // Cozy card is 56×44, centered in the 72×64 marker.
+      // Full 72×64 marker, not only the inner 56×44 card. The drawn
+      // stump/nest reads larger than the card, and bodies were standing on it.
       _rectPx(
         centerX: stumpCenter.dx,
         centerY: stumpCenter.dy,
-        widthPx: 56,
-        heightPx: 44,
-        dxPx: -28,
-        dyPx: -22,
+        widthPx: 64,
+        heightPx: 52,
+        dxPx: -32,
+        dyPx: -26,
         meadow: meadow,
       ),
       _rectPx(
         centerX: nestCenter.dx,
         centerY: nestCenter.dy,
-        widthPx: 56,
-        heightPx: 44,
-        dxPx: -28,
-        dyPx: -22,
+        widthPx: 64,
+        heightPx: 52,
+        dxPx: -32,
+        dyPx: -26,
         meadow: meadow,
       ),
       // Basket sprite centered in the 120×112 box (top inset 44).
@@ -177,15 +201,16 @@ abstract final class CapyWander {
       ),
     ];
     if (mudCenter != null) {
-      // Mud sprite 110×78 centered in the 168×124 box (top inset 48).
+      // Mud sheet is wide, so BoxFit.contain in the 110×78 box draws ~110×55.
+      // The rect is that drawn oval, centered in the 168×124 marker.
       list.add(
         _rectPx(
           centerX: mudCenter.dx,
           centerY: mudCenter.dy,
           widthPx: 110,
-          heightPx: 78,
+          heightPx: 56,
           dxPx: -55,
-          dyPx: -48 + (124 - 78) / 2,
+          dyPx: -48 + (124 - 56) / 2,
           meadow: meadow,
         ),
       );
@@ -217,10 +242,11 @@ abstract final class CapyWander {
     return false;
   }
 
-  /// Half-width / half-height of one standing sprite, plus a little air.
+  /// Half-width / half-height of one standing sprite, plus half the grass strip.
   ///
-  /// Centers closer than twice this sit on top of each other. The radius
-  /// follows the real sprite, not a fixed grass-point gap.
+  /// Two radii sum to a full sprite plus [peerGrassPx] of meadow between the
+  /// drawn edges. The old +5px air left centers close enough that the sheets
+  /// still touched.
   static ({double rx, double ry}) personalRadii(
     Size? meadowSize, {
     double capyWidth = 70,
@@ -228,8 +254,23 @@ abstract final class CapyWander {
     final meadow = _meadow(meadowSize);
     final body = bodyRect(const Offset(0.5, 0.5), meadow, capyWidth: capyWidth);
     return (
-      rx: body.width / 2 + 5 / meadow.width,
-      ry: body.height / 2 + 5 / meadow.height,
+      rx: body.width / 2 + (peerGrassPx / 2) / meadow.width,
+      ry: body.height / 2 + (peerGrassPx / 2) / meadow.height,
+    );
+  }
+
+  /// Center separation that keeps grass between two drawn bodies.
+  static ({double minX, double minY}) pairSeparation(
+    Size? meadowSize, {
+    double capyWidth = 70,
+    double otherWidth = 70,
+  }) {
+    final meadow = _meadow(meadowSize);
+    final a = personalRadii(meadow, capyWidth: capyWidth);
+    final b = personalRadii(meadow, capyWidth: otherWidth);
+    return (
+      minX: math.max(a.rx + b.rx, peerGap),
+      minY: math.max(a.ry + b.ry, peerGap * 0.85),
     );
   }
 
@@ -245,15 +286,27 @@ abstract final class CapyWander {
     double gap = peerGap,
     Size? meadowSize,
     double capyWidth = 70,
+    List<double>? peerWidths,
   }) {
-    final radii = personalRadii(meadowSize, capyWidth: capyWidth);
-    // Ellipse of two personal radii. Never weaker than the legacy center gap.
-    final minX = math.max(radii.rx * 2, gap);
-    final minY = math.max(radii.ry * 2, gap * 0.85);
-    for (final o in others) {
-      final nx = (p.dx - o.dx) / minX;
-      final ny = (p.dy - o.dy) / minY;
-      if (nx * nx + ny * ny < 1) return true;
+    final meadow = _meadow(meadowSize);
+    for (var i = 0; i < others.length; i++) {
+      final otherW = (peerWidths != null && i < peerWidths.length)
+          ? peerWidths[i]
+          : capyWidth;
+      final sep = pairSeparation(
+        meadow,
+        capyWidth: capyWidth,
+        otherWidth: otherW,
+      );
+      // Floor with the caller's gap so a legacy center distance still counts.
+      final minX = math.max(sep.minX, gap);
+      final minY = math.max(sep.minY, gap * 0.85);
+      final o = others[i];
+      // Inflated body boxes, not a circle. A circle of the long axis pushed
+      // the herd into one row and the fallback then stacked the extras.
+      if ((p.dx - o.dx).abs() < minX && (p.dy - o.dy).abs() < minY) {
+        return true;
+      }
     }
     return false;
   }
@@ -266,37 +319,61 @@ abstract final class CapyWander {
     Size? meadowSize,
     double capyWidth = 70,
     double salt = 0,
+    List<double>? peerWidths,
   }) {
     if (others.isEmpty) return clampToGrass(p, herdCount);
     final meadow = _meadow(meadowSize);
-    final radii = personalRadii(meadow, capyWidth: capyWidth);
-    final minX = math.max(radii.rx * 2, peerGap);
-    final minY = math.max(radii.ry * 2, peerGap * 0.85);
     var o = clampToGrass(p, herdCount);
-    for (var k = 0; k < 16; k++) {
-      if (!overlapsPeer(o, others, meadowSize: meadow, capyWidth: capyWidth)) {
+    for (var k = 0; k < 24; k++) {
+      if (!overlapsPeer(
+        o,
+        others,
+        meadowSize: meadow,
+        capyWidth: capyWidth,
+        peerWidths: peerWidths,
+      )) {
         return o;
       }
       var push = Offset.zero;
-      for (final other in others) {
+      for (var i = 0; i < others.length; i++) {
+        final other = others[i];
+        final otherW = (peerWidths != null && i < peerWidths.length)
+            ? peerWidths[i]
+            : capyWidth;
+        final sep = pairSeparation(
+          meadow,
+          capyWidth: capyWidth,
+          otherWidth: otherW,
+        );
         final dx = o.dx - other.dx;
         final dy = o.dy - other.dy;
-        final nx = dx / minX;
-        final ny = dy / minY;
-        final d2 = nx * nx + ny * ny;
-        if (d2 >= 1) continue;
-        if (d2 < 1e-8) {
+        final adx = dx.abs();
+        final ady = dy.abs();
+        if (adx >= sep.minX || ady >= sep.minY) continue;
+        final penX = sep.minX - adx;
+        final penY = sep.minY - ady;
+        if (adx < 1e-6 && ady < 1e-6) {
           final ang = salt * math.pi * 2 + k * 0.85;
-          push += Offset(math.cos(ang) * minX, math.sin(ang) * minY);
+          push += Offset(math.cos(ang) * sep.minX, math.sin(ang) * sep.minY);
           continue;
         }
-        final dist = math.sqrt(d2);
-        final scale = (1.04 / dist) - 1;
-        push += Offset(dx * scale, dy * scale);
+        // Leave along the cheaper axis so a row can sit beside a column.
+        if (penX <= penY) {
+          final dir = adx < 1e-6
+              ? (math.cos(salt * math.pi * 2 + k) >= 0 ? 1.0 : -1.0)
+              : dx.sign;
+          push += Offset(dir * penX * 1.08, 0);
+        } else {
+          final dir = ady < 1e-6
+              ? (math.sin(salt * math.pi * 2 + k) >= 0 ? 1.0 : -1.0)
+              : dy.sign;
+          push += Offset(0, dir * penY * 1.08);
+        }
       }
       if (push.distance < 1e-5) {
         final ang = salt * math.pi * 2 + k;
-        push = Offset(math.cos(ang) * minX, math.sin(ang) * minY);
+        final sep = pairSeparation(meadow, capyWidth: capyWidth);
+        push = Offset(math.cos(ang) * sep.minX, math.sin(ang) * sep.minY);
       }
       final next = clampToGrass(o + push, herdCount);
       if ((next - o).distance < 1e-4) {
@@ -410,6 +487,7 @@ abstract final class CapyWander {
     Size? meadowSize,
     double capyWidth = 70,
     double spreadSalt = 0,
+    List<double>? peerWidths,
   }) {
     final meadow = _meadow(meadowSize);
     Offset? bestClear;
@@ -424,8 +502,13 @@ abstract final class CapyWander {
       capyWidth: capyWidth,
     );
 
-    bool peerHit(Offset t) =>
-        overlapsPeer(t, others, meadowSize: meadow, capyWidth: capyWidth);
+    bool peerHit(Offset t) => overlapsPeer(
+      t,
+      others,
+      meadowSize: meadow,
+      capyWidth: capyWidth,
+      peerWidths: peerWidths,
+    );
 
     /// Rescue a sample off props and off other bodies. May still fail.
     Offset rescue(Offset raw, double salt) {
@@ -448,6 +531,7 @@ abstract final class CapyWander {
           meadowSize: meadow,
           capyWidth: capyWidth,
           salt: salt,
+          peerWidths: peerWidths,
         );
       }
       if (propHit(t)) {
@@ -469,6 +553,7 @@ abstract final class CapyWander {
           meadowSize: meadow,
           capyWidth: capyWidth,
           salt: salt + 0.35,
+          peerWidths: peerWidths,
         );
       }
       return clampToGrass(t, herdCount);
@@ -480,7 +565,9 @@ abstract final class CapyWander {
       // Stable per-capy fan so two bodies do not pick the same grass point.
       final ang = math.atan2(t.dy - from.dy, t.dx - from.dx);
       final fan = math.cos(ang - spreadSalt * math.pi * 2) * 0.035;
-      final score = spread + fan;
+      final hop = (t - from).distance;
+      final hopBias = hop >= minDist * 0.5 ? 0.02 : 0.0;
+      final score = spread + fan + hopBias;
       if (!peerHit(t)) {
         if (score > bestClearScore) {
           bestClearScore = score;
@@ -512,14 +599,16 @@ abstract final class CapyWander {
     for (var i = 0; i < 24; i++) {
       final salt = (spreadSalt - 0.5) * 0.06 + (i - 12) * 0.008;
       final raw = _sampleGrass(random01, herdCount);
+      // Raw grass first. Rescue can shove a free pocket back onto a peer.
+      consider(clampToGrass(raw, herdCount));
       consider(rescue(raw, salt));
       considerSpread(raw);
     }
 
     // Grid the plate so a crowded meadow still gets a free personal radius.
     final plate = grassPlate(herdCount);
-    const cols = 7;
-    const rows = 5;
+    const cols = 11;
+    const rows = 8;
     for (var y = 0; y < rows; y++) {
       for (var x = 0; x < cols; x++) {
         final fx = cols == 1 ? 0.5 : x / (cols - 1);
@@ -529,85 +618,36 @@ abstract final class CapyWander {
           plate.left + (fx + jitter) * (plate.right - plate.left),
           plate.top + fy * (plate.bottom - plate.top),
         );
+        consider(clampToGrass(raw, herdCount));
         consider(rescue(raw, spreadSalt + x * 0.05 + y * 0.07));
         considerSpread(raw);
       }
     }
 
-    if (bestClear != null &&
-        (others.isEmpty || (bestClear! - from).distance >= minDist * 0.5)) {
-      return bestClear!;
-    }
+    // A clear pocket wins even when it is a short hop. Falling through to
+    // the loose point is what stacked bodies that already had room.
+    if (bestClear != null) return bestClear!;
 
-    Offset pushToGap(Offset start) {
-      var t = start;
-      for (var k = 0; k < 10; k++) {
-        Offset? nearestO;
-        var nearest = 1e9;
-        for (final o in others) {
-          final d = (t - o).distance;
-          if (d < nearest) {
-            nearest = d;
-            nearestO = o;
-          }
-        }
-        if (nearestO == null || nearest >= peerGap) break;
-        var away = t - nearestO;
-        if (away.distance < 1e-4) {
-          final ang = spreadSalt * math.pi * 2 + k;
-          away = Offset(math.cos(ang), math.sin(ang));
-        }
-        final need = (peerGap - nearest) + 0.006;
-        final stepped = clampToGrass(
-          t + away / away.distance * need,
-          herdCount,
-        );
-        t = propHit(stepped)
-            ? clearProps(
-                stepped,
-                herdCount: herdCount,
-                mudCenter: mudCenter,
-                meadowSize: meadow,
-                capyWidth: capyWidth,
-                salt: spreadSalt + k * 0.05,
-              )
-            : stepped;
-      }
-      return t;
-    }
-
-    // No free personal radius left: farthest off-prop grass, fanned by salt.
     final loose = bestLoose;
     if (loose != null && !propHit(loose) && onGrass(loose, herdCount)) {
-      final ang = spreadSalt * math.pi * 2 + others.length * 0.7;
-      final stepped = clampToGrass(
-        loose + Offset(math.cos(ang) * 0.02, math.sin(ang) * 0.016),
-        herdCount,
+      final nudged = nudgeOffPeers(
+        loose,
+        others: others,
+        herdCount: herdCount,
+        meadowSize: meadow,
+        capyWidth: capyWidth,
+        salt: spreadSalt,
+        peerWidths: peerWidths,
       );
-      if (!propHit(stepped) &&
-          onGrass(stepped, herdCount) &&
-          !peerHit(stepped)) {
-        return stepped;
+      if (!propHit(nudged) && onGrass(nudged, herdCount) && !peerHit(nudged)) {
+        return nudged;
       }
-      final gapped = pushToGap(loose);
-      if (!propHit(gapped) && onGrass(gapped, herdCount)) return gapped;
-      if (!propHit(stepped) && onGrass(stepped, herdCount)) {
-        var nearest = 1e9;
-        for (final o in others) {
-          final d = (stepped - o).distance;
-          if (d < nearest) nearest = d;
-        }
-        var looseNear = 1e9;
-        for (final o in others) {
-          final d = (loose - o).distance;
-          if (d < looseNear) looseNear = d;
-        }
-        if (nearest >= looseNear - 1e-4) return stepped;
-      }
+      // Farthest off-prop grass. Still not the same coordinate as a peer.
       return loose;
     }
 
     final fallback = rescue(from, (spreadSalt - 0.5) * 0.08);
+    if (!propHit(fallback) && !peerHit(fallback)) return fallback;
     if (!propHit(fallback)) return fallback;
     // Last push off the prop we started on — never stay on stump/nest/basket.
     final pushed = clearProps(
@@ -620,6 +660,59 @@ abstract final class CapyWander {
     );
     if (!propHit(pushed)) return pushed;
     return bestLoose ?? pushed;
+  }
+
+
+  /// Stop a straight walk before the body enters a prop or another capy.
+  ///
+  /// If [from] is already inside someone, keep going until the path is clear
+  /// so a stacked body can walk out instead of staying put.
+  static Offset clipTravel({
+    required Offset from,
+    required Offset to,
+    required List<Offset> others,
+    required int herdCount,
+    Offset? mudCenter,
+    Size? meadowSize,
+    double capyWidth = 70,
+    List<double>? peerWidths,
+  }) {
+    bool bad(Offset p) =>
+        !onGrass(p, herdCount) ||
+        hitsProp(
+          p,
+          mudCenter: mudCenter,
+          meadowSize: meadowSize,
+          capyWidth: capyWidth,
+        ) ||
+        overlapsPeer(
+          p,
+          others,
+          meadowSize: meadowSize,
+          capyWidth: capyWidth,
+          peerWidths: peerWidths,
+        );
+
+    var escaping = bad(from);
+    var safe = from;
+    const steps = 8;
+    for (var i = 1; i <= steps; i++) {
+      final t = i / steps;
+      final p = Offset(
+        from.dx + (to.dx - from.dx) * t,
+        from.dy + (to.dy - from.dy) * t,
+      );
+      if (!onGrass(p, herdCount)) return safe;
+      final blocked = bad(p);
+      if (escaping) {
+        safe = p;
+        if (!blocked) escaping = false;
+        continue;
+      }
+      if (blocked) return safe;
+      safe = p;
+    }
+    return to;
   }
 
   /// Walk duration scales gently with normalized distance.

@@ -733,7 +733,13 @@ class _GameScreenState extends State<GameScreen> {
                                       key: ValueKey(capy.id),
                                       capybara: capy,
                                       herd: state.herd,
-                                      herdCount: state.herdCount,
+                                      // Active glade rect, not body count. Count
+                                      // was read as family power and walked them
+                                      // off the meadow, then the drop clamp piled
+                                      // them back onto one edge.
+                                      herdCount: WorldZones.gladeById(
+                                        state.activeMeadowId,
+                                      ).minHerd,
                                       meadowSize: Size(w, h),
                                       meadowOriginGlobal: _meadowOriginGlobal(),
                                       onMerge: _onMerge,
