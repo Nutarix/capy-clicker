@@ -326,26 +326,16 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
       capyWidth: width,
     );
     if (nextProp && !hereProp) return true;
-    for (var i = 0; i < peers.positions.length; i++) {
-      final one = [peers.positions[i]];
-      final w = [peers.widths[i]];
-      final was = CapyWander.overlapsPeer(
-        _displayPos,
-        one,
-        meadowSize: meadow,
-        capyWidth: width,
-        peerWidths: w,
-      );
-      final will = CapyWander.overlapsPeer(
-        next,
-        one,
-        meadowSize: meadow,
-        capyWidth: width,
-        peerWidths: w,
-      );
-      if (will && !was) return true;
-    }
-    return false;
+    // A full strip may narrow down to peerGrassPx. Below that, only a step
+    // that opens grass is allowed, so a walk cannot pull two sprites together.
+    return CapyWander.peerGapShrinks(
+      _displayPos,
+      next,
+      peers.positions,
+      meadowSize: meadow,
+      capyWidth: width,
+      peerWidths: peers.widths,
+    );
   }
 
   ({List<Offset> positions, List<double> widths}) _peers() {

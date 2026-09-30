@@ -151,6 +151,111 @@ void main() {
       }
     });
 
+    test('a walk cannot close one pair just because another is worse', () {
+      const meadow = Size(411, 560);
+      const stacked = Offset(0.40, 0.72);
+      const other = Offset(0.62, 0.72);
+      const slide = Offset(0.48, 0.72);
+      expect(
+        CapyWander.peerGapShrinks(stacked, slide, const [
+          stacked,
+          other,
+        ], meadowSize: meadow),
+        isTrue,
+        reason: 'sliding toward the second body',
+      );
+      expect(
+        CapyWander.peerGapShrinks(stacked, const Offset(0.30, 0.72), const [
+          stacked,
+          other,
+        ], meadowSize: meadow),
+        isFalse,
+        reason: 'stepping away from both',
+      );
+    });
+
+    test('seven bodies keep a grass strip on the starter plate', () {
+      const meadow = Size(411, 560);
+      const mud = Offset(0.36, 0.74);
+      final rng = math.Random(4);
+      final parked = <Offset>[];
+      for (var n = 0; n < 7; n++) {
+        final from = parked.isEmpty ? const Offset(0.48, 0.72) : parked.last;
+        final t = CapyWander.pickTarget(
+          from: from,
+          random01: rng.nextDouble,
+          herdCount: 0,
+          others: List<Offset>.of(parked),
+          mudCenter: mud,
+          meadowSize: meadow,
+          spreadSalt: (n * 0.173) % 1,
+        );
+        expect(CapyWander.onGrass(t, 0), isTrue, reason: 'grass $n');
+        expect(
+          CapyWander.hitsProp(t, mudCenter: mud, meadowSize: meadow),
+          isFalse,
+          reason: 'prop $n',
+        );
+        parked.add(t);
+      }
+      double closest() {
+        var m = 999.0;
+        for (var i = 0; i < parked.length; i++) {
+          for (var j = i + 1; j < parked.length; j++) {
+            final g = CapyWander.minPeerGapPx(parked[i], [
+              parked[j],
+            ], meadowSize: meadow);
+            if (g < m) m = g;
+          }
+        }
+        return m;
+      }
+
+      expect(closest(), greaterThanOrEqualTo(10), reason: 'spawn strip');
+      for (var round = 0; round < 5; round++) {
+        for (var i = 0; i < parked.length; i++) {
+          final others = [
+            for (var j = 0; j < parked.length; j++)
+              if (j != i) parked[j],
+          ];
+          final next = CapyWander.pickTarget(
+            from: parked[i],
+            random01: rng.nextDouble,
+            herdCount: 0,
+            others: others,
+            mudCenter: mud,
+            meadowSize: meadow,
+            spreadSalt: ((i + round) * 0.173) % 1,
+          );
+          final stepped = CapyWander.clipTravel(
+            from: parked[i],
+            to: next,
+            others: others,
+            herdCount: 0,
+            mudCenter: mud,
+            meadowSize: meadow,
+          );
+          expect(
+            CapyWander.hitsProp(stepped, mudCenter: mud, meadowSize: meadow),
+            isFalse,
+            reason: 'walk prop r=$round i=$i',
+          );
+          expect(
+            CapyWander.peerGapShrinks(
+              parked[i],
+              stepped,
+              others,
+              meadowSize: meadow,
+            ),
+            isFalse,
+            reason: 'no shrink r=$round i=$i',
+          );
+          parked[i] = stepped;
+        }
+      }
+      expect(closest(), greaterThanOrEqualTo(10), reason: 'after walks');
+    });
+
     test('a body already on the stump is sent off it', () {
       final t = CapyWander.pickTarget(
         from: CapyWander.stumpCenter,

@@ -43,7 +43,14 @@ abstract final class CapyWander {
   ///
   /// Half a sprite plus a few pixels still lets bodies touch: the drawn
   /// sheet fills its width, so centers ~140px apart on a phone overlap.
-  static const double peerGrassPx = 22;
+  /// 30px still reads as a strip after idle bob. When seven bodies do not
+  /// fit, placement steps down through [peerGrassSteps] and then takes the
+  /// widest strip the plate still has, out to the glade edge.
+  static const double peerGrassPx = 30;
+
+  /// Widest strip first. The tail is the smallest gap we still prefer
+  /// over two sprites touching.
+  static const List<double> peerGrassSteps = [30, 20, 14, 10];
 
   /// Walk-sheet pixel size. BoxFit.contain in the level box, width-limited.
   static const double sheetPixelWidth = 256;
@@ -106,24 +113,13 @@ abstract final class CapyWander {
   static Offset get berryCenter =>
       const Offset(BalanceV0.berryPosX, BalanceV0.berryPosY);
 
-  /// Grass of the meadow plate: walkable glade, inset so a body stays on grass.
-  static Rect grassPlate(int herdCount) {
-    final r = WorldZones.meadowRectForHerd(herdCount);
-    const edge = 0.03;
-    var left = r.left + edge;
-    var top = r.top + edge;
-    var right = r.right - edge;
-    var bottom = r.bottom - edge;
-    if (right - left < 0.08) {
-      left = r.left;
-      right = r.right;
-    }
-    if (bottom - top < 0.08) {
-      top = r.top;
-      bottom = r.bottom;
-    }
-    return Rect.fromLTRB(left, top, right, bottom);
-  }
+  /// Grass of the meadow plate: the active glade, out to its edges.
+  ///
+  /// A fixed inset left the rim empty and stacked the seventh body on a
+  /// neighbor. Anchors may sit on the glade edge so sprites keep a grass
+  /// strip; stump, nest, basket, puddle, and hint chips stay forbidden.
+  static Rect grassPlate(int herdCount) =>
+      WorldZones.meadowRectForHerd(herdCount);
 
   static Offset clampToGrass(Offset p, int herdCount) {
     final r = grassPlate(herdCount);
@@ -289,13 +285,82 @@ abstract final class CapyWander {
   static ({double rx, double ry}) personalRadii(
     Size? meadowSize, {
     double capyWidth = 70,
+    double? grassPx,
   }) {
     final meadow = _meadow(meadowSize);
+    final grass = grassPx ?? peerGrassPx;
     final body = bodyRect(const Offset(0.5, 0.5), meadow, capyWidth: capyWidth);
     return (
-      rx: body.width / 2 + (peerGrassPx / 2) / meadow.width,
-      ry: body.height / 2 + (peerGrassPx / 2) / meadow.height,
+      rx: body.width / 2 + (grass / 2) / meadow.width,
+      ry: body.height / 2 + (grass / 2) / meadow.height,
     );
+  }
+
+  /// Signed grass between two body rects, in logical pixels.
+  ///
+  /// Positive on the axis that separates them. Negative when the rects
+  /// overlap on both axes (the less-overlapping axis, so zero is a touch).
+  static double axisGapPx(Rect a, Rect b, Size meadow) {
+    final gapX = math.max(a.left - b.right, b.left - a.right) * meadow.width;
+    final gapY = math.max(a.top - b.bottom, b.top - a.bottom) * meadow.height;
+    return math.max(gapX, gapY);
+  }
+
+  /// Smallest [axisGapPx] from [p] to [others]. Empty herd → a wide gap.
+  static double minPeerGapPx(
+    Offset p,
+    List<Offset> others, {
+    Size? meadowSize,
+    double capyWidth = 70,
+    List<double>? peerWidths,
+  }) {
+    if (others.isEmpty) return 100000;
+    final meadow = _meadow(meadowSize);
+    final me = bodyRect(p, meadow, capyWidth: capyWidth);
+    var best = 100000.0;
+    for (var i = 0; i < others.length; i++) {
+      final w = (peerWidths != null && i < peerWidths.length)
+          ? peerWidths[i]
+          : capyWidth;
+      final gap = axisGapPx(
+        me,
+        bodyRect(others[i], meadow, capyWidth: w),
+        meadow,
+      );
+      if (gap < best) best = gap;
+    }
+    return best;
+  }
+
+  /// True when stepping to [to] would close grass against any one peer.
+  ///
+  /// Checked per body, not on the herd minimum. A capy still stacked on
+  /// someone must not slide into a third body while that first gap stays
+  /// the worst. A full strip may narrow down to [peerGrassPx]. Below that,
+  /// a step is allowed only when it opens space with the peer it approaches.
+  static bool peerGapShrinks(
+    Offset from,
+    Offset to,
+    List<Offset> others, {
+    Size? meadowSize,
+    double capyWidth = 70,
+    List<double>? peerWidths,
+  }) {
+    if (others.isEmpty) return false;
+    final meadow = _meadow(meadowSize);
+    final fromRect = bodyRect(from, meadow, capyWidth: capyWidth);
+    final toRect = bodyRect(to, meadow, capyWidth: capyWidth);
+    for (var i = 0; i < others.length; i++) {
+      final w = (peerWidths != null && i < peerWidths.length)
+          ? peerWidths[i]
+          : capyWidth;
+      final peer = bodyRect(others[i], meadow, capyWidth: w);
+      final next = axisGapPx(toRect, peer, meadow);
+      if (next >= peerGrassPx - 0.5) continue;
+      final now = axisGapPx(fromRect, peer, meadow);
+      if (next < now - 0.5) return true;
+    }
+    return false;
   }
 
   /// Center separation that keeps grass between two drawn bodies.
@@ -303,10 +368,11 @@ abstract final class CapyWander {
     Size? meadowSize, {
     double capyWidth = 70,
     double otherWidth = 70,
+    double? grassPx,
   }) {
     final meadow = _meadow(meadowSize);
-    final a = personalRadii(meadow, capyWidth: capyWidth);
-    final b = personalRadii(meadow, capyWidth: otherWidth);
+    final a = personalRadii(meadow, capyWidth: capyWidth, grassPx: grassPx);
+    final b = personalRadii(meadow, capyWidth: otherWidth, grassPx: grassPx);
     return (
       minX: math.max(a.rx + b.rx, peerGap),
       minY: math.max(a.ry + b.ry, peerGap * 0.85),
@@ -326,6 +392,7 @@ abstract final class CapyWander {
     Size? meadowSize,
     double capyWidth = 70,
     List<double>? peerWidths,
+    double? grassPx,
   }) {
     final meadow = _meadow(meadowSize);
     for (var i = 0; i < others.length; i++) {
@@ -336,6 +403,7 @@ abstract final class CapyWander {
         meadow,
         capyWidth: capyWidth,
         otherWidth: otherW,
+        grassPx: grassPx,
       );
       // Floor with the caller's gap so a legacy center distance still counts.
       final minX = math.max(sep.minX, gap);
@@ -359,6 +427,7 @@ abstract final class CapyWander {
     double capyWidth = 70,
     double salt = 0,
     List<double>? peerWidths,
+    double? grassPx,
   }) {
     if (others.isEmpty) return clampToGrass(p, herdCount);
     final meadow = _meadow(meadowSize);
@@ -370,6 +439,7 @@ abstract final class CapyWander {
         meadowSize: meadow,
         capyWidth: capyWidth,
         peerWidths: peerWidths,
+        grassPx: grassPx,
       )) {
         return o;
       }
@@ -383,6 +453,7 @@ abstract final class CapyWander {
           meadow,
           capyWidth: capyWidth,
           otherWidth: otherW,
+          grassPx: grassPx,
         );
         final dx = o.dx - other.dx;
         final dy = o.dy - other.dy;
@@ -411,7 +482,11 @@ abstract final class CapyWander {
       }
       if (push.distance < 1e-5) {
         final ang = salt * math.pi * 2 + k;
-        final sep = pairSeparation(meadow, capyWidth: capyWidth);
+        final sep = pairSeparation(
+          meadow,
+          capyWidth: capyWidth,
+          grassPx: grassPx,
+        );
         push = Offset(math.cos(ang) * sep.minX, math.sin(ang) * sep.minY);
       }
       final next = clampToGrass(o + push, herdCount);
@@ -516,6 +591,11 @@ abstract final class CapyWander {
   /// Each capy keeps a [personalRadius]. A sample that would cover a prop or
   /// another body is nudged, then repicked. [spreadSalt] (0..1, stable per
   /// capy) fans bodies so they do not share one escape point.
+  ///
+  /// The full [peerGrassPx] strip wins when the plate has room. Otherwise
+  /// the same search repeats down [peerGrassSteps]. If even the smallest
+  /// strip does not fit, the widest remaining gap is used and a tie prefers
+  /// the glade edge over stacking in the middle.
   static Offset pickTarget({
     required Offset from,
     required double Function() random01,
@@ -529,10 +609,6 @@ abstract final class CapyWander {
     List<double>? peerWidths,
   }) {
     final meadow = _meadow(meadowSize);
-    Offset? bestClear;
-    var bestClearScore = -1e9;
-    Offset? bestLoose;
-    var bestLooseDist = -1.0;
 
     bool propHit(Offset t) => hitsProp(
       t,
@@ -541,154 +617,196 @@ abstract final class CapyWander {
       capyWidth: capyWidth,
     );
 
-    bool peerHit(Offset t) => overlapsPeer(
-      t,
-      others,
-      meadowSize: meadow,
-      capyWidth: capyWidth,
-      peerWidths: peerWidths,
-    );
+    final fromOnPlate = onGrass(from, herdCount) && !propHit(from);
+    final fromGap = fromOnPlate
+        ? minPeerGapPx(
+            from,
+            others,
+            meadowSize: meadow,
+            capyWidth: capyWidth,
+            peerWidths: peerWidths,
+          )
+        : -100000.0;
 
-    /// Rescue a sample off props and off other bodies. May still fail.
-    Offset rescue(Offset raw, double salt) {
-      var t = clampToGrass(raw, herdCount);
-      if (propHit(t)) {
-        t = clearProps(
-          t,
-          herdCount: herdCount,
-          mudCenter: mudCenter,
-          meadowSize: meadow,
-          capyWidth: capyWidth,
-          salt: salt,
-        );
-      }
-      if (peerHit(t)) {
-        t = nudgeOffPeers(
-          t,
-          others: others,
-          herdCount: herdCount,
-          meadowSize: meadow,
-          capyWidth: capyWidth,
-          salt: salt,
-          peerWidths: peerWidths,
-        );
-      }
-      if (propHit(t)) {
-        t = clearProps(
-          t,
-          herdCount: herdCount,
-          mudCenter: mudCenter,
-          meadowSize: meadow,
-          capyWidth: capyWidth,
-          salt: salt + 0.2,
-        );
-      }
-      // Prop push can land back on a peer — one more nudge, then stop.
-      if (peerHit(t) && !propHit(t)) {
-        t = nudgeOffPeers(
-          t,
-          others: others,
-          herdCount: herdCount,
-          meadowSize: meadow,
-          capyWidth: capyWidth,
-          salt: salt + 0.35,
-          peerWidths: peerWidths,
-        );
-      }
-      return clampToGrass(t, herdCount);
-    }
+    /// Highest-spread point whose grass strip is at least [grass] and, when
+    /// we already stand tighter than a full strip, not worse than [from].
+    Offset? hunt(double grass) {
+      Offset? bestClear;
+      var bestClearScore = -1e9;
+      final keep = (!fromOnPlate || fromGap >= peerGrassPx)
+          ? grass
+          : math.max(grass, fromGap);
 
-    void consider(Offset t) {
-      if (!onGrass(t, herdCount) || propHit(t)) return;
-      final spread = _spreadScore(t, from, others, mudCenter: mudCenter);
-      // Stable per-capy fan so two bodies do not pick the same grass point.
-      final ang = math.atan2(t.dy - from.dy, t.dx - from.dx);
-      final fan = math.cos(ang - spreadSalt * math.pi * 2) * 0.035;
-      final hop = (t - from).distance;
-      final hopBias = hop >= minDist * 0.5 ? 0.02 : 0.0;
-      final score = spread + fan + hopBias;
-      if (!peerHit(t)) {
+      bool peerHit(Offset t) => overlapsPeer(
+        t,
+        others,
+        meadowSize: meadow,
+        capyWidth: capyWidth,
+        peerWidths: peerWidths,
+        grassPx: grass,
+      );
+
+      Offset rescue(Offset raw, double salt) {
+        var t = clampToGrass(raw, herdCount);
+        if (propHit(t)) {
+          t = clearProps(
+            t,
+            herdCount: herdCount,
+            mudCenter: mudCenter,
+            meadowSize: meadow,
+            capyWidth: capyWidth,
+            salt: salt,
+          );
+        }
+        if (peerHit(t)) {
+          t = nudgeOffPeers(
+            t,
+            others: others,
+            herdCount: herdCount,
+            meadowSize: meadow,
+            capyWidth: capyWidth,
+            salt: salt,
+            peerWidths: peerWidths,
+            grassPx: grass,
+          );
+        }
+        if (propHit(t)) {
+          t = clearProps(
+            t,
+            herdCount: herdCount,
+            mudCenter: mudCenter,
+            meadowSize: meadow,
+            capyWidth: capyWidth,
+            salt: salt + 0.2,
+          );
+        }
+        if (peerHit(t) && !propHit(t)) {
+          t = nudgeOffPeers(
+            t,
+            others: others,
+            herdCount: herdCount,
+            meadowSize: meadow,
+            capyWidth: capyWidth,
+            salt: salt + 0.35,
+            peerWidths: peerWidths,
+            grassPx: grass,
+          );
+        }
+        return clampToGrass(t, herdCount);
+      }
+
+      void consider(Offset t) {
+        if (!onGrass(t, herdCount) || propHit(t) || peerHit(t)) return;
+        if (minPeerGapPx(
+                  t,
+                  others,
+                  meadowSize: meadow,
+                  capyWidth: capyWidth,
+                  peerWidths: peerWidths,
+                ) +
+                0.4 <
+            keep) {
+          return;
+        }
+        final spread = _spreadScore(t, from, others, mudCenter: mudCenter);
+        final ang = math.atan2(t.dy - from.dy, t.dx - from.dx);
+        final fan = math.cos(ang - spreadSalt * math.pi * 2) * 0.035;
+        final hop = (t - from).distance;
+        final hopBias = hop >= minDist * 0.5 ? 0.02 : 0.0;
+        final score = spread + fan + hopBias;
         if (score > bestClearScore) {
           bestClearScore = score;
           bestClear = t;
         }
       }
+
+      for (var i = 0; i < 24; i++) {
+        final salt = (spreadSalt - 0.5) * 0.06 + (i - 12) * 0.008;
+        final raw = _sampleGrass(random01, herdCount);
+        consider(clampToGrass(raw, herdCount));
+        consider(rescue(raw, salt));
+      }
+
+      final plate = grassPlate(herdCount);
+      const cols = 13;
+      const rows = 9;
+      for (var y = 0; y < rows; y++) {
+        for (var x = 0; x < cols; x++) {
+          final fx = cols == 1 ? 0.5 : x / (cols - 1);
+          final fy = rows == 1 ? 0.5 : y / (rows - 1);
+          final jitter = (spreadSalt - 0.5) * 0.02;
+          final raw = Offset(
+            plate.left + (fx + jitter) * (plate.right - plate.left),
+            plate.top + fy * (plate.bottom - plate.top),
+          );
+          consider(clampToGrass(raw, herdCount));
+          consider(rescue(raw, spreadSalt + x * 0.04 + y * 0.05));
+        }
+      }
+      return bestClear;
     }
 
-    /// Off-prop grass, even if a body ellipse overlaps. Used when the plate
-    /// cannot give everyone a full personal radius — still pick the farthest
-    /// point so bodies do not restack on one coordinate.
-    void considerSpread(Offset raw) {
+    for (final grass in peerGrassSteps) {
+      final found = hunt(grass);
+      if (found != null) return found;
+    }
+
+    // No full strip. Take the widest gap and, on a tie, the plate edge.
+    final plate = grassPlate(herdCount);
+    Offset? widest;
+    var widestScore = -1e12;
+
+    void considerWide(Offset raw) {
       final t = clampToGrass(raw, herdCount);
       if (!onGrass(t, herdCount) || propHit(t)) return;
-      var nearest = (t - from).distance;
-      for (final o in others) {
-        final d = (t - o).distance;
-        if (d < nearest) nearest = d;
+      final gap = others.isEmpty
+          ? peerGrassPx
+          : minPeerGapPx(
+              t,
+              others,
+              meadowSize: meadow,
+              capyWidth: capyWidth,
+              peerWidths: peerWidths,
+            );
+      if (fromOnPlate && fromGap < peerGrassPx && gap < fromGap - 0.5) {
+        return;
       }
+      final cx = (plate.left + plate.right) / 2;
+      final cy = (plate.top + plate.bottom) / 2;
+      final ex = plate.width <= 1e-6
+          ? 0.0
+          : ((t.dx - cx).abs() / (plate.width / 2)).clamp(0.0, 1.0);
+      final ey = plate.height <= 1e-6
+          ? 0.0
+          : ((t.dy - cy).abs() / (plate.height / 2)).clamp(0.0, 1.0);
+      final edge = math.max(ex, ey) * 4.0;
       final ang = math.atan2(t.dy - from.dy, t.dx - from.dx);
-      final fan = math.cos(ang - spreadSalt * math.pi * 2) * 0.008;
-      final score = nearest + fan;
-      if (score > bestLooseDist) {
-        bestLooseDist = score;
-        bestLoose = t;
+      final fan = math.cos(ang - spreadSalt * math.pi * 2) * 0.35;
+      final score = gap + edge + fan;
+      if (score > widestScore) {
+        widestScore = score;
+        widest = t;
       }
     }
 
-    for (var i = 0; i < 24; i++) {
-      final salt = (spreadSalt - 0.5) * 0.06 + (i - 12) * 0.008;
-      final raw = _sampleGrass(random01, herdCount);
-      // Raw grass first. Rescue can shove a free pocket back onto a peer.
-      consider(clampToGrass(raw, herdCount));
-      consider(rescue(raw, salt));
-      considerSpread(raw);
+    for (var i = 0; i < 16; i++) {
+      considerWide(_sampleGrass(random01, herdCount));
     }
-
-    // Grid the plate so a crowded meadow still gets a free personal radius.
-    final plate = grassPlate(herdCount);
-    const cols = 11;
-    const rows = 8;
+    const cols = 17;
+    const rows = 12;
     for (var y = 0; y < rows; y++) {
       for (var x = 0; x < cols; x++) {
         final fx = cols == 1 ? 0.5 : x / (cols - 1);
         final fy = rows == 1 ? 0.5 : y / (rows - 1);
-        final jitter = (spreadSalt - 0.5) * 0.02;
-        final raw = Offset(
-          plate.left + (fx + jitter) * (plate.right - plate.left),
-          plate.top + fy * (plate.bottom - plate.top),
+        considerWide(
+          Offset(plate.left + fx * plate.width, plate.top + fy * plate.height),
         );
-        consider(clampToGrass(raw, herdCount));
-        consider(rescue(raw, spreadSalt + x * 0.05 + y * 0.07));
-        considerSpread(raw);
       }
     }
+    final wide = widest;
+    if (wide != null) return wide;
+    if (fromOnPlate) return from;
 
-    // A clear pocket wins even when it is a short hop. Falling through to
-    // the loose point is what stacked bodies that already had room.
-    if (bestClear != null) return bestClear!;
-
-    final loose = bestLoose;
-    if (loose != null && !propHit(loose) && onGrass(loose, herdCount)) {
-      final nudged = nudgeOffPeers(
-        loose,
-        others: others,
-        herdCount: herdCount,
-        meadowSize: meadow,
-        capyWidth: capyWidth,
-        salt: spreadSalt,
-        peerWidths: peerWidths,
-      );
-      if (!propHit(nudged) && onGrass(nudged, herdCount) && !peerHit(nudged)) {
-        return nudged;
-      }
-      // Farthest off-prop grass. Still not the same coordinate as a peer.
-      return loose;
-    }
-
-    final fallback = rescue(from, (spreadSalt - 0.5) * 0.08);
-    if (!propHit(fallback) && !peerHit(fallback)) return fallback;
-    if (!propHit(fallback)) return fallback;
-    // Last push off the prop we started on — never stay on stump/nest/basket.
     final pushed = clearProps(
       from,
       herdCount: herdCount,
@@ -698,13 +816,13 @@ abstract final class CapyWander {
       salt: spreadSalt,
     );
     if (!propHit(pushed)) return pushed;
-    return bestLoose ?? pushed;
+    return pushed;
   }
 
   /// Stop a straight walk before the body enters a prop or another capy.
   ///
-  /// If [from] is already inside someone, keep going until the path is clear
-  /// so a stacked body can walk out instead of staying put.
+  /// A step that would shrink the grass strip is cut. A body that is already
+  /// tighter than [peerGrassPx] may keep walking while the strip opens.
   static Offset clipTravel({
     required Offset from,
     required Offset to,
@@ -723,7 +841,8 @@ abstract final class CapyWander {
           meadowSize: meadowSize,
           capyWidth: capyWidth,
         ) ||
-        overlapsPeer(
+        peerGapShrinks(
+          from,
           p,
           others,
           meadowSize: meadowSize,
