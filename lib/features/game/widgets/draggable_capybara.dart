@@ -100,6 +100,9 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
   /// Extra offset applied to feedback when soft-pulling toward a magnet.
   Offset _pullOffset = Offset.zero;
 
+  /// Last finger point in meadow space (hit mud even if the sprite center misses).
+  Offset? _lastPointerNorm;
+
   late final AnimationController _idleBob;
   late final AnimationController _walk;
 
@@ -173,6 +176,7 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
     super.didUpdateWidget(oldWidget);
     if (widget.isWallowing && !oldWidget.isWallowing) {
       _cancelWalk(commit: false);
+      _displayPos = widget.capybara.position;
     }
     if (widget.mergeFlash && !oldWidget.mergeFlash) {
       _cancelWalk(commit: false);
@@ -337,6 +341,7 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
 
   void _onDragStarted() {
     _dragging = true;
+    _lastPointerNorm = null;
     _cancelWalk(commit: false);
     _mergedDuringDrag = false;
     _pullOffset = Offset.zero;
@@ -344,9 +349,16 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
     widget.onDragBadge?.call();
   }
 
+  bool _droppedOnMud(Offset spriteCenter) {
+    if (widget.isOverMud(spriteCenter)) return true;
+    final finger = _lastPointerNorm;
+    return finger != null && widget.isOverMud(finger);
+  }
+
   void _onDragUpdate(DragUpdateDetails details) {
     if (_mergedDuringDrag) return;
     final normalized = _normalizedFromPointer(details.globalPosition);
+    _lastPointerNorm = normalized;
     final hit = _hitAt(normalized);
     _updateMagnetVisual(hit, normalized);
 
@@ -385,7 +397,7 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
       return;
     }
 
-    if (widget.isOverMud(normalized)) {
+    if (_droppedOnMud(normalized)) {
       final ok = widget.onMudDrop(widget.capybara.id);
       if (ok) {
         HapticFeedback.mediumImpact();

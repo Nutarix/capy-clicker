@@ -4,9 +4,10 @@ import '../models/world_zones.dart';
 
 /// Full-bleed forest meadow background with gameplay layered on top.
 ///
-/// The **plate** ([_MeadowPlate]) is isolated: it only rebuilds / crossfades
-/// when [meadowId] changes. Flower taps and other [setState]s on the parent
-/// must not rebuild or crossfade the image (playtest: gray flash after tap).
+/// The plate widget instance is cached until [meadowId] changes. Flower taps
+/// rebuild this parent, but returning the same child instance means the
+/// [Image] element is not updated and cannot flash a decode/placeholder frame.
+/// A [RepaintBoundary] keeps that layer off the tap invalidation.
 class MeadowBackground extends StatelessWidget {
   const MeadowBackground({
     super.key,
@@ -29,20 +30,19 @@ class MeadowBackground extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // Plate lives in its own Element — parent setState does not rebuild it
-          // unless [meadowId] changes (ValueKey).
           _MeadowPlate(key: ValueKey<String>(meadowId), meadowId: meadowId),
-          // Soft bottom vignette so entities stay readable on bright meadow.
-          const DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Color(0x00000000),
-                  Color(0x14000000),
-                ],
-                stops: [0.55, 1.0],
+          const RepaintBoundary(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Color(0x00000000),
+                    Color(0x14000000),
+                  ],
+                  stops: [0.55, 1.0],
+                ),
               ),
             ),
           ),
@@ -63,41 +63,25 @@ class _MeadowPlate extends StatefulWidget {
 }
 
 class _MeadowPlateState extends State<_MeadowPlate> {
-  static const _crossfade = Duration(milliseconds: 400);
-  late String _asset;
-  String? _prevAsset;
+  Widget? _cached;
+  String? _cachedId;
 
-  @override
-  void initState() {
-    super.initState();
-    _asset = WorldZones.backgroundAssetForMeadow(widget.meadowId);
-  }
-
-  @override
-  void didUpdateWidget(covariant _MeadowPlate oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.meadowId != widget.meadowId) {
-      _prevAsset = _asset;
-      _asset = WorldZones.backgroundAssetForMeadow(widget.meadowId);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    // Only swap when meadowId (hence asset) actually changes.
-    return ColoredBox(
-      color: MeadowBackground.fallbackSky,
-      child: AnimatedSwitcher(
-        duration: _prevAsset == null ? Duration.zero : _crossfade,
-        switchInCurve: Curves.easeInOut,
-        switchOutCurve: Curves.easeInOut,
+  Widget _buildPlate(String meadowId) {
+    final asset = WorldZones.backgroundAssetForMeadow(meadowId);
+    return RepaintBoundary(
+      child: ColoredBox(
+        color: MeadowBackground.cream,
         child: Image.asset(
-          _asset,
-          key: ValueKey<String>(_asset),
+          asset,
           fit: BoxFit.cover,
           alignment: Alignment.center,
           filterQuality: FilterQuality.medium,
           gaplessPlayback: true,
+          frameBuilder: (context, child, frame, wasSync) {
+            if (wasSync || frame != null) return child;
+            // Cream, never a gray/empty engine clear, while the first decode lands.
+            return const ColoredBox(color: MeadowBackground.cream);
+          },
           errorBuilder: (_, _, _) => Image.asset(
             WorldZones.fallbackBackgroundAsset,
             fit: BoxFit.cover,
@@ -110,12 +94,13 @@ class _MeadowPlateState extends State<_MeadowPlate> {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
+                    Color(0xFFFFF8EC),
                     Color(0xFFC8E8F0),
                     Color(0xFFB5E0A8),
                     Color(0xFF8FCB6E),
                     Color(0xFF5FA848),
                   ],
-                  stops: [0.0, 0.28, 0.62, 1.0],
+                  stops: [0.0, 0.18, 0.40, 0.70, 1.0],
                 ),
               ),
             ),
@@ -123,5 +108,15 @@ class _MeadowPlateState extends State<_MeadowPlate> {
         ),
       ),
     );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_cached == null || _cachedId != widget.meadowId) {
+      _cachedId = widget.meadowId;
+      _cached = _buildPlate(widget.meadowId);
+    }
+    // Same instance → Element.updateChild skips the image. Taps do not rebuild it.
+    return _cached!;
   }
 }

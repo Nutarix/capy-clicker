@@ -103,7 +103,26 @@ void main() {
   });
 
   group('meadow occupancy', () {
-    test('mud puddle center is on every glade', () {
+    test('random mud spawns stay inside each glade', () {
+      var seed = 7;
+      double next() {
+        seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+        return seed / 0x7fffffff;
+      }
+
+      for (final g in WorldZones.glades) {
+        for (var i = 0; i < 24; i++) {
+          final p = BalanceV0.randomMudCenter(next, herdCount: g.minHerd);
+          expect(
+            WorldZones.isInMeadow(p, herdCount: g.minHerd),
+            isTrue,
+            reason: g.nameRu,
+          );
+        }
+      }
+    });
+
+    test('mud puddle anchor is on every glade', () {
       final mud = const Offset(BalanceV0.mudCenterX, BalanceV0.mudCenterY);
       expect(WorldZones.isInMeadow(mud), isTrue);
       for (final g in WorldZones.glades) {

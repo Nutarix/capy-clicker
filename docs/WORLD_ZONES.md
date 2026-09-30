@@ -66,7 +66,7 @@ glade (fixes playtest “Berry 4/12 → Warm after merge” regression feel).
 | Capybaras | Spawn, drag-end, merge, mud snap, load-time + glade-change reclamp |
 | Flowers | Fixed `flowerPositions` inside **Тёплая опушка** (valid in every glade) |
 | Berry basket | `BalanceV0.berryPosX/Y` inside starter glade |
-| Mud puddle | `BalanceV0.mudCenterX/Y` inside starter glade |
+| Mud puddle | temporary spawn inside the active glade (anchor `mudCenterX/Y` is fallback only) |
 
 Idle wander (`CapyWander` / `MeadowDraggableCapybara`) uses `clampToMeadow` /
 `randomInMeadow` with the current herd count; commits via `updatePosition`.

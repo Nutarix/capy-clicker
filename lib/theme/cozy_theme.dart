@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 /// Cozy Stardew-adjacent typography.
@@ -19,6 +20,20 @@ class CozyTheme {
   static const softSage = Color(0xFF7AAD68);
   static const softSageEdge = Color(0xFF4F7A42);
 
+  /// Stable overlay. Contrast enforcement OFF — Samsung One UI paints a gray
+  /// scrim over a transparent nav bar when it is left on, and reapplies it
+  /// when the Flutter view submits a frame after a tap.
+  static const systemOverlay = SystemUiOverlayStyle(
+    statusBarColor: Colors.transparent,
+    statusBarIconBrightness: Brightness.dark,
+    statusBarBrightness: Brightness.light,
+    systemNavigationBarColor: Colors.transparent,
+    systemNavigationBarDividerColor: Colors.transparent,
+    systemNavigationBarIconBrightness: Brightness.dark,
+    systemStatusBarContrastEnforced: false,
+    systemNavigationBarContrastEnforced: false,
+  );
+
   static ThemeData build() {
     final colorScheme = ColorScheme.fromSeed(
       seedColor: meadowGreen,
@@ -33,9 +48,24 @@ class CozyTheme {
       displayColor: warmBrown,
     );
     return base.copyWith(
+      scaffoldBackgroundColor: cream,
+      canvasColor: cream,
+      splashFactory: NoSplash.splashFactory,
+      splashColor: Colors.transparent,
+      highlightColor: Colors.transparent,
+      hoverColor: Colors.transparent,
       textTheme: nunitoText,
       primaryTextTheme: nunitoText,
+      iconButtonTheme: IconButtonThemeData(
+        style: IconButton.styleFrom(
+          splashFactory: NoSplash.splashFactory,
+          highlightColor: Colors.transparent,
+          hoverColor: Colors.transparent,
+        ),
+      ),
       appBarTheme: AppBarTheme(
+        backgroundColor: cream,
+        systemOverlayStyle: systemOverlay,
         titleTextStyle: GoogleFonts.nunito(
           fontSize: 18,
           fontWeight: FontWeight.w800,

@@ -131,6 +131,7 @@ class _GameScreenState extends State<GameScreen> {
     _maybeShowOfflineWelcome();
     _maybeShowDailyBonus();
     _maybeShowGladeUnlock();
+    _maybeShowPuddle();
     _maybeShowGoalComplete();
   }
 
@@ -168,6 +169,29 @@ class _GameScreenState extends State<GameScreen> {
     });
   }
 
+  void _maybeShowPuddle() {
+    final msg = _controller.puddleToast;
+    if (msg == null || msg.isEmpty) return;
+    _controller.acknowledgePuddleToast();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+          backgroundColor: const Color(0xFF8B5A2B).withValues(alpha: 0.94),
+          content: const Text(
+            'Лужа!',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      );
+    });
+  }
 
   void _maybeShowGoalComplete() {
     final msg = _controller.goalCompleteToast;
@@ -389,9 +413,11 @@ class _GameScreenState extends State<GameScreen> {
       // Float near puddle center in meadow space.
       final box = _meadowKey.currentContext?.findRenderObject() as RenderBox?;
       if (box != null && box.hasSize) {
+        final center = _controller.mudCenter ??
+            const Offset(BalanceV0.mudCenterX, BalanceV0.mudCenterY);
         final local = Offset(
-          BalanceV0.mudCenterX * box.size.width,
-          BalanceV0.mudCenterY * box.size.height,
+          center.dx * box.size.width,
+          center.dy * box.size.height,
         );
         _spawnFloat(
           '×2',
@@ -442,8 +468,10 @@ class _GameScreenState extends State<GameScreen> {
           : 'Цель: ${goal.titleRu} · $detail';
     }();
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFFFF8EC),
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: CozyTheme.systemOverlay,
+      child: Scaffold(
+      backgroundColor: CozyTheme.cream,
       body: MeadowBackground(
         meadowId: state.activeMeadowId,
         child: Stack(
@@ -651,16 +679,22 @@ class _GameScreenState extends State<GameScreen> {
                                     placedIds: state.placedDecor,
                                     meadowSize: Size(w, h),
                                   ),
-                                  // Mud puddle (behind capys)
-                                  Positioned(
-                                    left: BalanceV0.mudCenterX * w - 55,
-                                    top: BalanceV0.mudCenterY * h - 43,
-                                    child: MudPuddle(
-                                      isWallowing:
-                                          _controller.wallowingCapyId != null,
-                                      boostActive: boost,
+                                  // Temporary mud puddle (behind capys). Absent during cooldown.
+                                  if (_controller.mudVisible &&
+                                      _controller.mudCenter != null)
+                                    Positioned(
+                                      left: _controller.mudCenter!.dx * w - 55,
+                                      top: _controller.mudCenter!.dy * h - 43,
+                                      child: MudPuddle(
+                                        key: ValueKey(
+                                          '${_controller.mudCenter!.dx.toStringAsFixed(3)}:'
+                                          '${_controller.mudCenter!.dy.toStringAsFixed(3)}',
+                                        ),
+                                        isWallowing:
+                                            _controller.wallowingCapyId != null,
+                                        boostActive: boost,
+                                      ),
                                     ),
-                                  ),
                                   // Cozy places (пень / камень / тент)
                                   ..._buildCozyPlaces(w, h),
                                   ...List.generate(
@@ -847,6 +881,7 @@ class _GameScreenState extends State<GameScreen> {
                 ),
             ],
           ),
+      ),
       ),
     );
   }

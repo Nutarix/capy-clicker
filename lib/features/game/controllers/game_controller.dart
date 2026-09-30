@@ -44,6 +44,13 @@ class GameController extends ChangeNotifier {
   String? _wallowingCapyId;
   Timer? _wallowTimer;
 
+  /// Temporary puddle. Position is session-only — never written to the save.
+  bool _mudPresent = false;
+  bool _mudCooling = false;
+  Offset _mudCenter = const Offset(BalanceV0.mudCenterX, BalanceV0.mudCenterY);
+  double _mudSecondsLeft = 0;
+  String? _puddleToast;
+
   /// Berry basket visibility + next spawn clock.
   bool _berryVisible = false;
   Timer? _berryTimer;
@@ -403,6 +410,72 @@ class GameController extends ChangeNotifier {
     _lastGladeGrassReward = 0;
   }
 
+  /// Live puddle, or null while it is despawned. Not part of [GameState].
+  bool get mudVisible => _mudPresent;
+  Offset? get mudCenter => _mudPresent ? _mudCenter : null;
+
+  /// One-shot «Лужа!» when a puddle appears. UI must acknowledge.
+  String? get puddleToast => _puddleToast;
+
+  void acknowledgePuddleToast() {
+    _puddleToast = null;
+  }
+
+  void _beginMudPresence() {
+    _mudPresent = true;
+    _mudCooling = false;
+    _mudCenter = BalanceV0.randomMudCenter(
+      _random.nextDouble,
+      herdCount: _meadowKeyForCount(_state.herdCount),
+    );
+    var extra = 0.0;
+    if (_state.hasResearch('longer_mud')) {
+      extra = BalanceV0.researchMudExtra.inSeconds.toDouble();
+    }
+    final span =
+        BalanceV0.mudVisibleMaxSeconds - BalanceV0.mudVisibleMinSeconds;
+    _mudSecondsLeft =
+        BalanceV0.mudVisibleMinSeconds + _random.nextDouble() * span + extra;
+    _puddleToast = 'Лужа!';
+  }
+
+  void _beginMudCooldown() {
+    _mudPresent = false;
+    _mudCooling = true;
+    // Drop the point so nothing about the last spot is kept.
+    _mudCenter = Offset.zero;
+    final span =
+        BalanceV0.mudCooldownMaxSeconds - BalanceV0.mudCooldownMinSeconds;
+    _mudSecondsLeft =
+        BalanceV0.mudCooldownMinSeconds + _random.nextDouble() * span;
+  }
+
+  /// Advance the spawn / despawn clock by [dt] seconds. Caller notifies.
+  void _advanceMud(double dt) {
+    if (!_mudPresent && !_mudCooling) {
+      _beginMudPresence();
+      return;
+    }
+    _mudSecondsLeft -= dt;
+    if (_mudSecondsLeft > 0) return;
+    if (_mudPresent) {
+      _beginMudCooldown();
+    } else {
+      _beginMudPresence();
+    }
+  }
+
+  /// Tests: plant a puddle with a known center and lifetime.
+  @visibleForTesting
+  void debugPlaceMud(Offset center, {double seconds = 3}) {
+    _mudPresent = true;
+    _mudCooling = false;
+    _mudCenter = center;
+    _mudSecondsLeft = seconds;
+    _puddleToast = null;
+    notifyListeners();
+  }
+
   void acknowledgeGoalComplete() {
     _goalCompleteToast = null;
   }
@@ -473,6 +546,7 @@ class GameController extends ChangeNotifier {
     _tickTimer?.cancel();
     _tickTimer = Timer.periodic(const Duration(milliseconds: 50), _onTick);
     _scheduleFirstBerry();
+    _beginMudPresence();
     notifyListeners();
   }
 
@@ -518,6 +592,15 @@ class GameController extends ChangeNotifier {
     if (dt <= 0 || dt > 1.0) return;
 
     var dirty = false;
+    final mudBefore = _mudPresent;
+    final mudCenterBefore = _mudCenter;
+    final toastBefore = _puddleToast;
+    _advanceMud(dt);
+    if (_mudPresent != mudBefore ||
+        _mudCenter != mudCenterBefore ||
+        _puddleToast != toastBefore) {
+      dirty = true;
+    }
 
     // Clear expired boosts.
     if (_mudBoostUntil != null && now.isAfter(_mudBoostUntil!)) {
@@ -704,14 +787,15 @@ class GameController extends ChangeNotifier {
 
   /// Drop a capybara onto the mud puddle → wallow anim + temporary boost.
   bool tryMudWallow(String capyId) {
+    if (!_mudPresent) return false;
     final capy = _find(capyId);
     if (capy == null) return false;
 
-    // Snap capy onto puddle center while animating.
+    // Snap capy onto the live puddle (it may not be the old fixed corner).
     updatePosition(
       capyId,
       WorldZones.clampToMeadow(
-        const Offset(BalanceV0.mudCenterX, BalanceV0.mudCenterY),
+        _mudCenter,
         herdCount: _meadowKeyForCount(_state.herdCount),
       ),
     );
@@ -730,8 +814,9 @@ class GameController extends ChangeNotifier {
 
   /// True if [normalized] is inside the mud puddle hit circle.
   bool isOverMud(Offset normalized) {
-    final dx = normalized.dx - BalanceV0.mudCenterX;
-    final dy = normalized.dy - BalanceV0.mudCenterY;
+    if (!_mudPresent) return false;
+    final dx = normalized.dx - _mudCenter.dx;
+    final dy = normalized.dy - _mudCenter.dy;
     return sqrt(dx * dx + dy * dy) <= BalanceV0.mudHitRadius;
   }
 
@@ -868,11 +953,14 @@ class GameController extends ChangeNotifier {
         WorldZones.randomInMeadow(_random.nextDouble, herdCount: herdCount),
         herdCount: herdCount,
       );
-      // Keep away from mud puddle and berry spot.
-      final mudDx = candidate.dx - BalanceV0.mudCenterX;
-      final mudDy = candidate.dy - BalanceV0.mudCenterY;
-      if (sqrt(mudDx * mudDx + mudDy * mudDy) < BalanceV0.mudHitRadius + 0.08) {
-        continue;
+      // Keep away from the live puddle (if any) and the berry spot.
+      if (_mudPresent) {
+        final mudDx = candidate.dx - _mudCenter.dx;
+        final mudDy = candidate.dy - _mudCenter.dy;
+        if (sqrt(mudDx * mudDx + mudDy * mudDy) <
+            BalanceV0.mudHitRadius + 0.04) {
+          continue;
+        }
       }
       final berryDx = candidate.dx - BalanceV0.berryPosX;
       final berryDy = candidate.dy - BalanceV0.berryPosY;
@@ -1015,6 +1103,12 @@ class GameController extends ChangeNotifier {
 
     _wallowTimer?.cancel();
     _wallowingCapyId = null;
+    if (_mudPresent) {
+      _mudCenter = BalanceV0.randomMudCenter(
+        _random.nextDouble,
+        herdCount: _meadowKeyForCount(target.herdCount),
+      );
+    }
 
     final clearTwin = target.twinIdA == null || target.twinIdB == null;
     _setState(
@@ -1424,6 +1518,12 @@ class GameController extends ChangeNotifier {
     }
     final now = _now();
     var dirty = false;
+    final mudBefore = _mudPresent;
+    final mudCenterBefore = _mudCenter;
+    _advanceMud(dt);
+    if (_mudPresent != mudBefore || _mudCenter != mudCenterBefore) {
+      dirty = true;
+    }
     if (_mudBoostUntil != null && now.isAfter(_mudBoostUntil!)) {
       _mudBoostUntil = null;
       dirty = true;

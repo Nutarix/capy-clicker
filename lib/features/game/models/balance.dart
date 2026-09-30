@@ -123,11 +123,25 @@ abstract final class BalanceV0 {
 
   // --- Mud wallow / puddle (must stay inside WorldZones meadow) ---
 
-  /// Normalized meadow position for the mud puddle (center + radius for hit).
-  /// Must remain inside [WorldZones] walkable grass clearing (not on trees).
+  /// Fallback anchor only — the live puddle is a temporary spawn
+  /// ([randomMudCenter]), never a saved fixture. Kept inside every glade.
   static const double mudCenterX = 0.22;
   static const double mudCenterY = 0.78;
-  static const double mudHitRadius = 0.11;
+
+  /// Hit ellipse radius in normalized meadow space.
+  ///
+  /// Was 0.11, which is smaller than the mud sprite (~110×86 px) on a phone
+  /// meadow, so a drop on the visible puddle often missed and wallow never
+  /// started. 0.16 covers the sprite plus a small finger slop.
+  static const double mudHitRadius = 0.16;
+
+  /// How long a spawned puddle stays (then it despawns).
+  static const int mudVisibleMinSeconds = 12;
+  static const int mudVisibleMaxSeconds = 20;
+
+  /// Quiet gap before the next puddle appears somewhere else.
+  static const int mudCooldownMinSeconds = 6;
+  static const int mudCooldownMaxSeconds = 10;
 
   /// Auto-progress multiplier while wallow boost is active.
   static const double mudBoostMultiplier = 2.0;
@@ -135,8 +149,40 @@ abstract final class BalanceV0 {
   /// Duration of the mud boost after a successful wallow.
   static const Duration mudBoostDuration = Duration(seconds: 10);
 
-  /// How long the cute wallow animation plays on the puddle.
-  static const Duration mudWallowAnimDuration = Duration(milliseconds: 1400);
+  /// Obvious wallow (hop, spin, sink, splash) — about one second.
+  static const Duration mudWallowAnimDuration = Duration(milliseconds: 1000);
+
+  /// Random grass point for a temporary puddle. Not persisted.
+  static Offset randomMudCenter(
+    double Function() random01, {
+    int herdCount = 0,
+  }) {
+    final r = WorldZones.meadowRectForHerd(herdCount);
+    const inset = 0.05;
+    final left = r.left + inset;
+    final right = r.right - inset;
+    final top = r.top + inset;
+    final bottom = r.bottom - inset;
+    if (right <= left || bottom <= top) {
+      return WorldZones.clampToMeadow(
+        const Offset(mudCenterX, mudCenterY),
+        herdCount: herdCount,
+      );
+    }
+    const berry = Offset(berryPosX, berryPosY);
+    for (var i = 0; i < 16; i++) {
+      final p = Offset(
+        left + random01() * (right - left),
+        top + random01() * (bottom - top),
+      );
+      if ((p - berry).distance < 0.15) continue;
+      if (WorldZones.isInMeadow(p, herdCount: herdCount)) return p;
+    }
+    return WorldZones.clampToMeadow(
+      const Offset(mudCenterX, mudCenterY),
+      herdCount: herdCount,
+    );
+  }
 
   // --- Berry basket ---
 

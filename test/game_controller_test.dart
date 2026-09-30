@@ -104,14 +104,46 @@ void main() {
     c.dispose();
   });
 
-  test('isOverMud detects puddle zone', () async {
+  test('isOverMud detects the live puddle, not a fixed corner', () async {
     final c = GameController(persistence: GamePersistence());
     await c.init();
+    expect(c.mudVisible, isTrue);
+    final center = c.mudCenter!;
+    expect(c.isOverMud(center), isTrue);
+    expect(c.isOverMud(const Offset(0.02, 0.02)), isFalse);
+    c.dispose();
+  });
+
+  test('mud puddle despawns, cooldown, respawns elsewhere, not saved', () async {
+    final c = GameController(persistence: GamePersistence());
+    await c.init();
+    c.debugPlaceMud(const Offset(0.30, 0.70), seconds: 0.4);
+    final id = c.state.herd.first.id;
+    expect(c.tryMudWallow(id), isTrue);
+    c.debugAdvance(0.5);
+    expect(c.mudVisible, isFalse);
+    expect(c.mudCenter, isNull);
+    expect(c.isOverMud(const Offset(0.30, 0.70)), isFalse);
+    expect(c.tryMudWallow(id), isFalse);
+    expect(c.state.toJson().keys.any((k) => k.contains('mud')), isFalse);
+
+    c.debugAdvance(BalanceV0.mudCooldownMaxSeconds + 0.2);
+    expect(c.mudVisible, isTrue);
+    expect(c.puddleToast, 'Лужа!');
+    final next = c.mudCenter!;
     expect(
-      c.isOverMud(const Offset(BalanceV0.mudCenterX, BalanceV0.mudCenterY)),
+      (next - const Offset(0.30, 0.70)).distance,
+      greaterThan(0.02),
+    );
+    expect(
+      WorldZones.isInMeadow(
+        next,
+        herdCount: c.state.herdCount,
+      ),
       isTrue,
     );
-    expect(c.isOverMud(const Offset(0.9, 0.2)), isFalse);
+    c.acknowledgePuddleToast();
+    expect(c.puddleToast, isNull);
     c.dispose();
   });
 

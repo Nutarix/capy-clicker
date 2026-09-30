@@ -60,50 +60,47 @@ class _MudPuddleState extends State<MudPuddle>
         final t = _ctrl.value;
         final splash = widget.isWallowing ? Curves.easeOut.transform(t) : 0.0;
         final bounce = widget.isWallowing
-            ? math.sin(t * math.pi * 3) * (1 - t) * 10
+            ? math.sin(t * math.pi * 2) * (1 - t) * 16
             : 0.0;
         final idle = widget.boostActive
-            ? 0.45
-            : (0.16 + _idleGlow.value * 0.22);
+            ? 0.55
+            : (0.22 + _idleGlow.value * 0.28);
         return SizedBox(
-          width: 110,
-          height: 86,
+          width: 130,
+          height: 110,
           child: Stack(
             alignment: Alignment.center,
             clipBehavior: Clip.none,
             children: [
-              // Soft affordance glow (idle bob of light)
               Container(
-                width: 96,
-                height: 56,
+                width: 118,
+                height: 72,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(40),
                   boxShadow: [
                     BoxShadow(
                       color: const Color(0xFF8B5A2B).withValues(alpha: idle),
-                      blurRadius: 16,
-                      spreadRadius: 1,
+                      blurRadius: widget.isWallowing ? 28 : 16,
+                      spreadRadius: widget.isWallowing ? 4 : 1,
                     ),
                   ],
                 ),
               ),
-              // Soft ground shadow
               Positioned(
-                bottom: 10,
+                bottom: 18,
                 child: Container(
-                  width: 92,
+                  width: 100,
                   height: 18,
                   decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.12),
+                    color: Colors.black.withValues(alpha: 0.14),
                     borderRadius: BorderRadius.circular(40),
                   ),
                 ),
               ),
-              // Mud sprite (scales slightly during wallow splash)
               Transform.translate(
-                offset: Offset(0, bounce * 0.15),
+                offset: Offset(0, bounce * 0.2),
                 child: Transform.scale(
-                  scale: 1.0 + splash * 0.08,
+                  scale: 1.0 + splash * 0.22,
                   child: ColorFiltered(
                     colorFilter: widget.boostActive
                         ? const ColorFilter.mode(
@@ -116,20 +113,27 @@ class _MudPuddleState extends State<MudPuddle>
                           ),
                     child: Image.asset(
                       'assets/images/mud.png',
-                      width: 100,
-                      height: 70,
+                      width: 110,
+                      height: 78,
                       fit: BoxFit.contain,
                       filterQuality: FilterQuality.none,
+                      gaplessPlayback: true,
                     ),
                   ),
                 ),
               ),
-              // Splash particles during wallow
               if (widget.isWallowing) ...[
-                for (var i = 0; i < 8; i++)
-                  _MudParticle(angle: i * math.pi / 4, progress: splash),
+                for (var i = 0; i < 12; i++)
+                  _MudParticle(
+                    angle: i * math.pi / 6,
+                    progress: splash,
+                    big: i.isEven,
+                  ),
+                Opacity(
+                  opacity: (1 - splash).clamp(0.0, 1.0),
+                  child: const Text('💦', style: TextStyle(fontSize: 28)),
+                ),
               ],
-              // Label chip
               Positioned(
                 bottom: 0,
                 child: Container(
@@ -138,17 +142,17 @@ class _MudPuddleState extends State<MudPuddle>
                     vertical: 2,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.75),
+                    color: Colors.white.withValues(alpha: 0.88),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
                     widget.boostActive
                         ? 'грязь ×2!'
-                        : (widget.isWallowing ? 'лужа' : 'сюда!'),
+                        : (widget.isWallowing ? 'плеск!' : 'сюда!'),
                     style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.brown.shade900.withValues(alpha: 0.78),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.brown.shade900.withValues(alpha: 0.86),
                     ),
                   ),
                 ),
@@ -159,21 +163,25 @@ class _MudPuddleState extends State<MudPuddle>
       },
     );
   }
-
 }
 
 class _MudParticle extends StatelessWidget {
-  const _MudParticle({required this.angle, required this.progress});
+  const _MudParticle({
+    required this.angle,
+    required this.progress,
+    required this.big,
+  });
 
   final double angle;
   final double progress;
+  final bool big;
 
   @override
   Widget build(BuildContext context) {
-    final dist = 20 + progress * 32;
+    final dist = 18 + progress * (big ? 64 : 48);
     final dx = math.cos(angle) * dist;
-    final dy = math.sin(angle) * dist - progress * 14;
-    final size = 7.0 + (1 - progress) * 5;
+    final dy = math.sin(angle) * dist * 0.72 - progress * 22;
+    final size = (big ? 11.0 : 7.0) + (1 - progress) * 6;
 
     return Transform.translate(
       offset: Offset(dx, dy),
@@ -183,7 +191,7 @@ class _MudParticle extends StatelessWidget {
           width: size,
           height: size,
           decoration: BoxDecoration(
-            color: const Color(0xFF8B5A2B),
+            color: big ? const Color(0xFF8B5A2B) : const Color(0xFFD7A15A),
             shape: BoxShape.circle,
             border: Border.all(color: const Color(0xFF5C3A1A), width: 1),
           ),
@@ -193,7 +201,8 @@ class _MudParticle extends StatelessWidget {
   }
 }
 
-/// Overlay bounce/rotate for a capybara sitting on the puddle.
+/// Obvious ~1s mud bath: hop, spin, sink, then pop back. Splash sits outside
+/// the transform so it reads even when the capy is small.
 class WallowOverlay extends StatefulWidget {
   const WallowOverlay({super.key, required this.child});
 
@@ -206,8 +215,6 @@ class WallowOverlay extends StatefulWidget {
 class _WallowOverlayState extends State<WallowOverlay>
     with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl;
-  late final Animation<double> _rotate;
-  late final Animation<double> _bounce;
 
   @override
   void initState() {
@@ -216,16 +223,6 @@ class _WallowOverlayState extends State<WallowOverlay>
       vsync: this,
       duration: BalanceV0.mudWallowAnimDuration,
     )..forward();
-    _rotate = TweenSequence<double>([
-      TweenSequenceItem(tween: Tween(begin: 0, end: 0.18), weight: 25),
-      TweenSequenceItem(tween: Tween(begin: 0.18, end: -0.18), weight: 50),
-      TweenSequenceItem(tween: Tween(begin: -0.18, end: 0), weight: 25),
-    ]).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
-    _bounce = TweenSequence<double>([
-      TweenSequenceItem(tween: Tween(begin: 0, end: -14), weight: 30),
-      TweenSequenceItem(tween: Tween(begin: -14, end: 4), weight: 40),
-      TweenSequenceItem(tween: Tween(begin: 4, end: 0), weight: 30),
-    ]).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOut));
   }
 
   @override
@@ -239,9 +236,36 @@ class _WallowOverlayState extends State<WallowOverlay>
     return AnimatedBuilder(
       animation: _ctrl,
       builder: (context, child) {
-        return Transform.translate(
-          offset: Offset(0, _bounce.value),
-          child: Transform.rotate(angle: _rotate.value, child: child),
+        final t = _ctrl.value;
+        // 0–0.35 hop up, 0.35–0.7 spin+sink, 0.7–1 pop back.
+        final hop = t < 0.35
+            ? -40 * math.sin(t / 0.35 * math.pi)
+            : (t < 0.75 ? 26 * math.sin((t - 0.35) / 0.4 * math.pi) : 0.0);
+        final rot = math.sin(t * math.pi * 3) * 0.7;
+        final squash = t < 0.35
+            ? 1.0 + 0.18 * math.sin(t / 0.35 * math.pi)
+            : (t < 0.75 ? 0.78 : 0.78 + 0.22 * ((t - 0.75) / 0.25));
+        return Stack(
+          alignment: Alignment.center,
+          clipBehavior: Clip.none,
+          children: [
+            for (var i = 0; i < 8; i++)
+              _MudParticle(
+                angle: i * math.pi / 4 + 0.2,
+                progress: Curves.easeOut.transform(t),
+                big: i.isEven,
+              ),
+            Transform.translate(
+              offset: Offset(math.sin(t * math.pi * 4) * 10, hop),
+              child: Transform.rotate(
+                angle: rot,
+                child: Transform.scale(
+                  scale: squash.clamp(0.7, 1.3),
+                  child: child,
+                ),
+              ),
+            ),
+          ],
         );
       },
       child: widget.child,
