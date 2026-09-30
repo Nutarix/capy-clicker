@@ -66,16 +66,12 @@ class CozyPixelButton extends StatelessWidget {
     final fs = fontSize ?? (compact ? 12.0 : (isPrimary ? 16.0 : 13.0));
 
     final labelStyle = isPrimary && !compact
-        ? CozyTheme.menuPrimaryCtaStyle(fontSize: fs).copyWith(
-            color: textColor,
-          )
+        ? CozyTheme.menuPrimaryCtaStyle(fontSize: fs).copyWith(color: textColor)
         : (isPrimary
-            ? CozyTheme.primaryButtonStyle(fontSize: fs).copyWith(
-                color: textColor,
-              )
-            : CozyTheme.secondaryButtonStyle(fontSize: fs).copyWith(
-                color: textColor,
-              ));
+              ? CozyTheme.primaryButtonStyle(fontSize: fs)
+                    .copyWith(color: textColor)
+              : CozyTheme.secondaryButtonStyle(fontSize: fs)
+                    .copyWith(color: textColor));
 
     final child = Material(
       color: Colors.transparent,
@@ -124,14 +120,23 @@ class CozyPixelButton extends StatelessWidget {
                   leading!,
                   SizedBox(width: compact ? 6 : 8),
                 ],
-                Flexible(
-                  child: Text(
+                if (expand)
+                  Flexible(
+                    child: Text(
+                      label,
+                      textAlign: TextAlign.center,
+                      overflow: TextOverflow.ellipsis,
+                      style: labelStyle,
+                    ),
+                  )
+                else
+                  Text(
                     label,
                     textAlign: TextAlign.center,
-                    overflow: TextOverflow.ellipsis,
+                    softWrap: false,
+                    overflow: TextOverflow.visible,
                     style: labelStyle,
                   ),
-                ),
               ],
             ),
           ),
@@ -215,9 +220,7 @@ class CozyPixelIconButton extends StatelessWidget {
             child: Icon(
               icon,
               size: iconSize,
-              color: enabled
-                  ? CozyTheme.warmBrown
-                  : const Color(0xFF8A7A65),
+              color: enabled ? CozyTheme.warmBrown : const Color(0xFF8A7A65),
             ),
           ),
         ),

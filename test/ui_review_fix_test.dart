@@ -16,6 +16,7 @@ import 'package:capy_clicker/features/game/widgets/berry_basket.dart';
 import 'package:capy_clicker/features/game/widgets/grass_spend_panel.dart';
 import 'package:capy_clicker/features/game/widgets/meadow_hint_chip.dart';
 import 'package:capy_clicker/features/game/widgets/mud_puddle.dart';
+import 'package:capy_clicker/features/game/widgets/uyut/uyut_hub_sheet.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -58,9 +59,55 @@ void main() {
             greaterThanOrEqualTo(CapyWander.nestRadius),
           );
           for (final o in parked) {
+            // Packed plates cannot always honor a full sprite radius.
+            // Never restack on the same grass point; keep the old gap
+            // while there is still room (first four bodies).
             expect(
               (t - o).distance,
-              greaterThanOrEqualTo(CapyWander.peerGap - 0.001),
+              greaterThan(0.04),
+              reason: 'not stacked herd=$herd n=$n',
+            );
+            if (n < 4) {
+              expect(
+                (t - o).distance,
+                greaterThanOrEqualTo(CapyWander.peerGap - 0.001),
+                reason: 'gap herd=$herd n=$n',
+              );
+            }
+          }
+          parked.add(t);
+        }
+      }
+    });
+
+    test('four bodies keep a personal radius on a phone meadow', () {
+      const meadow = Size(1080, 1800);
+      const mud = Offset(0.22, 0.78);
+      final rng = math.Random(4);
+      for (final herd in [4, 8, 12]) {
+        final parked = <Offset>[];
+        for (var n = 0; n < 4; n++) {
+          final from = parked.isEmpty ? const Offset(0.30, 0.78) : parked.last;
+          final t = CapyWander.pickTarget(
+            from: from,
+            random01: rng.nextDouble,
+            herdCount: herd,
+            others: parked,
+            mudCenter: mud,
+            meadowSize: meadow,
+            spreadSalt: n / 4,
+          );
+          expect(CapyWander.onGrass(t, herd), isTrue, reason: 'h=$herd n=$n');
+          expect(
+            CapyWander.hitsProp(t, mudCenter: mud, meadowSize: meadow),
+            isFalse,
+            reason: 'prop h=$herd n=$n',
+          );
+          for (final o in parked) {
+            expect(
+              CapyWander.overlapsPeer(t, [o], meadowSize: meadow),
+              isFalse,
+              reason: 'radius h=$herd n=$n t=$t o=$o',
             );
           }
           parked.add(t);
@@ -110,6 +157,11 @@ void main() {
         expect(CapyWander.onGrass(t, 2), isTrue);
         for (final o in parked) {
           expect((t - o).distance, greaterThan(0.02), reason: 'not stacked');
+          expect(
+            CapyWander.overlapsPeer(t, [o], meadowSize: meadow),
+            isFalse,
+            reason: 'bodies $n',
+          );
         }
         parked.add(t);
       }
@@ -146,6 +198,26 @@ void main() {
       expect(lamp, contains('Вторая роль'));
       expect(lamp, isNot(contains('more_')));
       expect(lamp, isNot(contains('_')));
+      expect(UyutResearch.softCapPlus.effectRu, '+1 к лимиту семьи');
+      expect(
+        UyutResearch.softCapPlus.effectRu.toLowerCase(),
+        isNot(contains('soft')),
+      );
+      expect(UyutResearch.softCapPlus.effectRu, isNot(contains('cap')));
+      expect(UyutResearch.softCapPlus.effectRu, contains('семь'));
+    });
+
+    test('empty role line goes away once a role is assigned', () async {
+      SharedPreferences.setMockInitialValues({});
+      final c = GameController(persistence: GamePersistence());
+      await c.init();
+      expect(c.activeRoleBonusesRu, 'Роли пока не назначены');
+      final id = c.state.herd.first.id;
+      expect(c.assignRole(id, CapyRole.storozh), isTrue);
+      expect(c.state.herd.first.role, CapyRole.storozh);
+      expect(c.activeRoleBonusesRu, isNot(contains('не назначены')));
+      expect(c.activeRoleBonusesRu, contains('лимит семьи'));
+      c.dispose();
     });
   });
 
@@ -273,6 +345,84 @@ void main() {
       await pump(canCall: false, reason: 'Семья полная', grass: 126);
       expect(find.text('Семья полная'), findsOneWidget);
       expect(find.textContaining('Позвать капи'), findsNothing);
+    });
+
+    testWidgets('Ускорение keeps the whole word and the grass cost', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: SizedBox(
+                width: 360,
+                child: GrassSpendPanel(
+                  grass: 20,
+                  canCallCapy: true,
+                  canBoost: true,
+                  boostActive: false,
+                  onCallCapy: () {},
+                  onBoost: () {},
+                  onUyutHub: () {},
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      final finder = find.textContaining('Ускорение');
+      expect(finder, findsOneWidget);
+      final para = tester.renderObject<RenderParagraph>(finder);
+      final shown = para.text.toPlainText();
+      expect(shown, contains('Ускорение'));
+      expect(shown, contains('🌿'));
+      expect(shown, isNot(contains('...')));
+      expect(shown, isNot(contains('…')));
+      expect(para.didExceedMaxLines, isFalse);
+      final intrinsic = para.getMaxIntrinsicWidth(double.infinity);
+      expect(para.size.width, greaterThanOrEqualTo(intrinsic - 0.5));
+    });
+  });
+
+  group('hub sheet', () {
+    testWidgets('Наука tab is fully readable and role line hides', (
+      tester,
+    ) async {
+      SharedPreferences.setMockInitialValues({});
+      final c = GameController(persistence: GamePersistence());
+      await c.init();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: UyutHubSheet(controller: c, initialTab: 1)),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+
+      expect(find.text('Наука'), findsOneWidget);
+      expect(find.textContaining('Наука · ск'), findsNothing);
+      final nauka = tester.renderObject<RenderParagraph>(find.text('Наука'));
+      expect(nauka.didExceedMaxLines, isFalse);
+      expect(
+        nauka.size.width,
+        greaterThanOrEqualTo(nauka.getMaxIntrinsicWidth(double.infinity) - 0.5),
+      );
+      expect(find.text('Роли'), findsOneWidget);
+      expect(find.text('Еда'), findsOneWidget);
+      expect(find.text('Дом'), findsOneWidget);
+
+      expect(find.text('Роли пока не назначены'), findsOneWidget);
+      final id = c.state.herd.first.id;
+      c.assignRole(id, CapyRole.nanya);
+      await tester.pump();
+      expect(find.text('Роли пока не назначены'), findsNothing);
+      expect(find.textContaining('Капи $id'), findsWidgets);
+      expect(find.textContaining('Няня'), findsWidgets);
+
+      c.dispose();
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
     });
   });
 }

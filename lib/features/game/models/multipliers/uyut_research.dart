@@ -92,7 +92,7 @@ abstract final class UyutResearch {
   static const softCapPlus = ResearchNode(
     id: 'soft_cap_plus',
     labelRu: 'Просторнее семье',
-    effectRu: 'soft-cap +1',
+    effectRu: '+1 к лимиту семьи',
     grassCost: 60,
     uyutCost: 1,
     requires: ['role_slot_2'],

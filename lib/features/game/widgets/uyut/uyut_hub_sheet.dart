@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../../../theme/cozy_theme.dart';
 import '../../../../widgets/cozy_pixel_button.dart';
 import '../../controllers/game_controller.dart';
+import '../../models/capybara.dart';
 import '../../models/balance.dart';
 import '../../models/multipliers/multipliers.dart';
 import 'multiplier_icon.dart';
@@ -102,9 +103,8 @@ class _UyutHubSheetState extends State<UyutHubSheet>
                 const SizedBox(height: 12),
                 Text(
                   'Уют семьи',
-                  style: CozyTheme.hudChipStyle(fontSize: 18).copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
+                  style: CozyTheme.hudChipStyle(fontSize: 18)
+                      .copyWith(fontWeight: FontWeight.w800),
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -116,15 +116,25 @@ class _UyutHubSheetState extends State<UyutHubSheet>
                   labelColor: const Color(0xFF5C3D1E),
                   unselectedLabelColor: Colors.brown.withValues(alpha: 0.45),
                   indicatorColor: const Color(0xFFC47820),
-                  labelStyle: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  ),
+                  labelPadding: const EdgeInsets.symmetric(horizontal: 2),
+                  indicatorSize: TabBarIndicatorSize.label,
                   tabs: [
-                    const Tab(text: 'Еда'),
-                    const Tab(text: 'Роли'),
-                    Tab(text: permanentUnlocked ? 'Дом' : 'Дом · скоро'),
-                    Tab(text: permanentUnlocked ? 'Наука' : 'Наука · скоро'),
+                    const Tab(height: 48, child: _HubTabLabel('Еда')),
+                    const Tab(height: 48, child: _HubTabLabel('Роли')),
+                    Tab(
+                      height: 48,
+                      child: _HubTabLabel(
+                        'Дом',
+                        hint: permanentUnlocked ? null : 'скоро',
+                      ),
+                    ),
+                    Tab(
+                      height: 48,
+                      child: _HubTabLabel(
+                        'Наука',
+                        hint: permanentUnlocked ? null : 'скоро',
+                      ),
+                    ),
                   ],
                 ),
                 Expanded(
@@ -132,14 +142,8 @@ class _UyutHubSheetState extends State<UyutHubSheet>
                     controller: _tabs,
                     children: [
                       _FoodTab(controller: c),
-                      _RolesTab(
-                        controller: c,
-                        focusCapyId: widget.focusCapyId,
-                      ),
-                      _DecorTab(
-                        controller: c,
-                        softLocked: !permanentUnlocked,
-                      ),
+                      _RolesTab(controller: c, focusCapyId: widget.focusCapyId),
+                      _DecorTab(controller: c, softLocked: !permanentUnlocked),
                       _ResearchTab(
                         controller: c,
                         softLocked: !permanentUnlocked,
@@ -152,6 +156,39 @@ class _UyutHubSheetState extends State<UyutHubSheet>
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Tab title that always paints the full word (no «Наука · ско» clip).
+class _HubTabLabel extends StatelessWidget {
+  const _HubTabLabel(this.title, {this.hint});
+
+  final String title;
+  final String? hint;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            title,
+            maxLines: 1,
+            softWrap: false,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+          ),
+        ),
+        if (hint != null)
+          Text(
+            hint!,
+            maxLines: 1,
+            softWrap: false,
+            style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w600),
+          ),
+      ],
     );
   }
 }
@@ -265,7 +302,10 @@ class _FoodChip extends StatelessWidget {
                   Text('${food.labelRu} ×$count'),
                 ],
               ),
-              Text(food.effectRu, style: CozyTheme.hudChipMutedStyle(fontSize: 10)),
+              Text(
+                food.effectRu,
+                style: CozyTheme.hudChipMutedStyle(fontSize: 10),
+              ),
               CozyPixelButton(
                 label: 'Купить',
                 variant: CozyPixelButtonVariant.secondary,
@@ -286,6 +326,21 @@ class _RolesTab extends StatelessWidget {
   final GameController controller;
   final String? focusCapyId;
 
+  /// Empty line only when nobody here has a role. An assigned capy
+  /// (even «Капи c1») must not sit under «Роли пока не назначены».
+  String _rolesSummary(List<Capybara> herd) {
+    final bonuses = controller.activeRoleBonusesRu;
+    final anyHere = herd.any((c) => c.role != null);
+    if (!anyHere) return bonuses;
+    if (bonuses == 'Роли пока не назначены') {
+      return herd
+          .where((c) => c.role != null)
+          .map((c) => c.role!.labelRu)
+          .join(' · ');
+    }
+    return bonuses;
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = controller.state;
@@ -303,10 +358,7 @@ class _RolesTab extends StatelessWidget {
           style: CozyTheme.hudChipStyle(fontSize: 14),
         ),
         const SizedBox(height: 6),
-        Text(
-          controller.activeRoleBonusesRu,
-          style: CozyTheme.hudChipStyle(fontSize: 12),
-        ),
+        Text(_rolesSummary(herd), style: CozyTheme.hudChipStyle(fontSize: 12)),
         const SizedBox(height: 6),
         Text(
           'Подсказка: долгое нажатие на капи на лугу сразу открывает роли.',
@@ -364,8 +416,10 @@ class _RolesTab extends StatelessWidget {
                             assetPath: role.assetPath,
                             size: 18,
                           ),
-                          label: Text(role.labelRu,
-                              style: const TextStyle(fontSize: 11)),
+                          label: Text(
+                            role.labelRu,
+                            style: const TextStyle(fontSize: 11),
+                          ),
                           onPressed: () {
                             HapticFeedback.lightImpact();
                             final ok = controller.assignRole(capy.id, role);
@@ -384,9 +438,11 @@ class _RolesTab extends StatelessWidget {
                                   SnackBar(
                                     content: Text(toast),
                                     behavior: SnackBarBehavior.floating,
-                                    backgroundColor:
-                                        const Color(0xFF5A9A48).withValues(alpha: 0.94),
-                                    duration: const Duration(milliseconds: 1600),
+                                    backgroundColor: const Color(0xFF5A9A48)
+                                        .withValues(alpha: 0.94),
+                                    duration: const Duration(
+                                      milliseconds: 1600,
+                                    ),
                                   ),
                                 );
                                 controller.acknowledgeRoleToast();
@@ -395,7 +451,10 @@ class _RolesTab extends StatelessWidget {
                           },
                         ),
                       ActionChip(
-                        label: const Text('Снять', style: TextStyle(fontSize: 11)),
+                        label: const Text(
+                          'Снять',
+                          style: TextStyle(fontSize: 11),
+                        ),
                         onPressed: () => controller.assignRole(capy.id, null),
                       ),
                     ],
@@ -445,11 +504,7 @@ class _DecorTab extends StatelessWidget {
         ],
         const SizedBox(height: 10),
         for (final d in HomeDecor.values) ...[
-          _DecorRow(
-            controller: controller,
-            decor: d,
-            softLocked: softLocked,
-          ),
+          _DecorRow(controller: controller, decor: d, softLocked: softLocked),
           const SizedBox(height: 8),
         ],
         if (state.ownedDecor.isEmpty && !softLocked)
@@ -493,8 +548,8 @@ class _DecorRow extends StatelessWidget {
           softLocked
               ? 'Скоро'
               : locked
-                  ? 'Нужно исследование'
-                  : '${decor.effectRu}${owned ? '' : ' · $cost'}',
+              ? 'Нужно исследование'
+              : '${decor.effectRu}${owned ? '' : ' · $cost'}',
           style: CozyTheme.hudChipMutedStyle(fontSize: 11),
         ),
         trailing: owned
@@ -536,10 +591,7 @@ class _ResearchTab extends StatelessWidget {
       children: [
         Row(
           children: [
-            const MultiplierIcon(
-              assetPath: UyutResearch.assetPath,
-              size: 32,
-            ),
+            const MultiplierIcon(assetPath: UyutResearch.assetPath, size: 32),
             const SizedBox(width: 8),
             Text(
               'Исследования уюта',
@@ -595,7 +647,8 @@ class _ResearchRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final done = unlocked.contains(node.id);
-    final can = !softLocked &&
+    final can =
+        !softLocked &&
         UyutResearch.canUnlock(
           node: node,
           unlocked: unlocked,
@@ -610,8 +663,8 @@ class _ResearchRow extends StatelessWidget {
         color: done
             ? const Color(0xFFE8F5D8)
             : prereqOk && !softLocked
-                ? const Color(0xFFFFF3D6)
-                : const Color(0xFFF0E6D4).withValues(alpha: 0.7),
+            ? const Color(0xFFFFF3D6)
+            : const Color(0xFFF0E6D4).withValues(alpha: 0.7),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: done ? const Color(0xFF6B9B4A) : const Color(0xFFE2CFA8),
@@ -627,9 +680,9 @@ class _ResearchRow extends StatelessWidget {
           softLocked
               ? 'Скоро · ${node.effectRu} · $cost'
               : done
-                  ? 'Открыто · ${node.effectRu}'
-                  : '${node.effectRu} · $cost'
-                      '${UyutResearch.requiresLine(node).isEmpty ? '' : '\n${UyutResearch.requiresLine(node)}'}',
+              ? 'Открыто · ${node.effectRu}'
+              : '${node.effectRu} · $cost'
+                    '${UyutResearch.requiresLine(node).isEmpty ? '' : '\n${UyutResearch.requiresLine(node)}'}',
           style: CozyTheme.hudChipMutedStyle(fontSize: 11),
         ),
         trailing: done

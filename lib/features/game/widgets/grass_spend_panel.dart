@@ -62,10 +62,11 @@ class GrassSpendPanel extends StatelessWidget {
                     hideCost: callBlockedReason != null,
                   ),
                   _SpendPill(
-                    label: boostActive ? 'Ускорение…' : 'Ускорение',
+                    label: boostActive ? 'Ускорение' : 'Ускорение',
                     cost: BalanceV0.grassBoostCost,
                     enabled: canBoost,
                     onTap: onBoost,
+                    fontSize: 10,
                   ),
                   if (onUyutHub != null)
                     _SpendPill(
@@ -107,9 +108,8 @@ class _GrassChip extends StatelessWidget {
             const SizedBox(width: 4),
             Text(
               '$grass',
-              style: CozyTheme.hudChipStyle(fontSize: 13).copyWith(
-                fontWeight: FontWeight.w800,
-              ),
+              style: CozyTheme.hudChipStyle(fontSize: 13)
+                  .copyWith(fontWeight: FontWeight.w800),
             ),
           ],
         ),
@@ -125,6 +125,7 @@ class _SpendPill extends StatelessWidget {
     required this.enabled,
     required this.onTap,
     this.hideCost = false,
+    this.fontSize = 11,
   });
 
   final String label;
@@ -132,6 +133,7 @@ class _SpendPill extends StatelessWidget {
   final bool enabled;
   final VoidCallback onTap;
   final bool hideCost;
+  final double fontSize;
 
   @override
   Widget build(BuildContext context) {
@@ -139,7 +141,7 @@ class _SpendPill extends StatelessWidget {
       label: hideCost ? label : '$label · $cost🌿',
       variant: CozyPixelButtonVariant.secondary,
       compact: true,
-      fontSize: 11,
+      fontSize: fontSize,
       onPressed: enabled ? onTap : null,
     );
   }

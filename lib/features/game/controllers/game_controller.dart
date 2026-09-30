@@ -250,10 +250,11 @@ class GameController extends ChangeNotifier {
     _selectedFood = food;
     notifyListeners();
   }
+
   double get cameraZoom => BalanceV0.cameraZoomForHerd(
-        _meadowKeyForCount(_state.herdCount),
-        _state.herd.map((c) => c.position),
-      );
+    _meadowKeyForCount(_state.herdCount),
+    _state.herd.map((c) => c.position),
+  );
 
   bool get isMudBoostActive =>
       _mudBoostUntil != null && _now().isBefore(_mudBoostUntil!);
@@ -364,7 +365,6 @@ class GameController extends ChangeNotifier {
     return parts.join(' · ');
   }
 
-
   /// Grass granted with the last glade unlock (0 if none).
   int get lastGladeGrassReward => _lastGladeGrassReward;
 
@@ -395,8 +395,7 @@ class GameController extends ChangeNotifier {
   String get dailyGoalHintRu => SessionGoals.dailyHintRu(currentSessionGoal);
 
   /// Active named meadow (fixed Sunny Glade identity — Phase 2 forest map).
-  SunnyGlade get currentGlade =>
-      WorldZones.gladeById(_state.activeMeadowId);
+  SunnyGlade get currentGlade => WorldZones.gladeById(_state.activeMeadowId);
 
   /// Meadow ids unlocked so far (forest map chips).
   List<String> get unlockedMeadowIds => _state.unlockedMeadowIds;
@@ -512,12 +511,7 @@ class GameController extends ChangeNotifier {
   bool claimDailyBonus() {
     if (!isDailyBonusAvailable) return false;
     final day = _todayKey;
-    _setState(
-      _state.copyWith(
-        lastDailyClaimYmd: day,
-        grass: _state.grass + 3,
-      ),
-    );
+    _setState(_state.copyWith(lastDailyClaimYmd: day, grass: _state.grass + 3));
     addProgress(BalanceV0.dailyBonusProgress, fromTap: false);
     return true;
   }
@@ -562,13 +556,13 @@ class GameController extends ChangeNotifier {
     if (seconds > BalanceV0.offlineCapSeconds) {
       seconds = BalanceV0.offlineCapSeconds;
     }
-    var offlineMult = _uyutMultiplier * _decorAutoMultiplier * _roleAutoMultiplier;
+    var offlineMult =
+        _uyutMultiplier * _decorAutoMultiplier * _roleAutoMultiplier;
     // Tent is session-only; offline leans on research tent unlock + decor.
     if (_state.tentUnlocked) {
       offlineMult *= BalanceV0.tentOfflineMult;
     }
-    final amount =
-        BalanceV0.autoProgressPerSecond * offlineMult * seconds;
+    final amount = BalanceV0.autoProgressPerSecond * offlineMult * seconds;
     _offlineProgressGranted = amount;
     _offlineSecondsApplied = seconds;
     // Apply without live-tick dt guards; may spawn under herd cap.
@@ -744,9 +738,7 @@ class GameController extends ChangeNotifier {
             (BalanceV0.berryTapGainMax - BalanceV0.berryTapGainMin);
     final grass =
         BalanceV0.berryGrassMin +
-        _random.nextInt(
-          BalanceV0.berryGrassMax - BalanceV0.berryGrassMin + 1,
-        );
+        _random.nextInt(BalanceV0.berryGrassMax - BalanceV0.berryGrassMin + 1);
     lastTapGrass = grass;
     _state = _state.copyWith(grass: _state.grass + grass);
     addProgress(gain, fromTap: true);
@@ -755,7 +747,6 @@ class GameController extends ChangeNotifier {
     notifyListeners();
     return gain;
   }
-
 
   /// Spend grass to spawn a Lv.1 capy if under soft herd cap.
   bool spendCallCapy() {
@@ -772,9 +763,7 @@ class GameController extends ChangeNotifier {
   /// Spend grass for a short auto-progress boost (weaker than mud).
   bool spendGrassBoost() {
     if (_state.grass < BalanceV0.grassBoostCost) return false;
-    _setState(
-      _state.copyWith(grass: _state.grass - BalanceV0.grassBoostCost),
-    );
+    _setState(_state.copyWith(grass: _state.grass - BalanceV0.grassBoostCost));
     _grassBoostUntil = _now().add(BalanceV0.grassBoostDuration);
     notifyListeners();
     return true;
@@ -956,51 +945,25 @@ class GameController extends ChangeNotifier {
   Offset _pickSpawnPosition(List<Capybara> existing) {
     // Meadow expands with herd after spawn; never below unlocked glade.
     final herdCount = _meadowKeyForCount(existing.length + 1);
-    const attempts = 24;
-    for (var i = 0; i < attempts; i++) {
-      final candidate = WorldZones.clampToMeadow(
-        WorldZones.randomInMeadow(_random.nextDouble, herdCount: herdCount),
-        herdCount: herdCount,
-      );
-      // Keep away from the live puddle (if any) and the berry spot.
-      if (_mudPresent) {
-        final mudDx = candidate.dx - _mudCenter.dx;
-        final mudDy = candidate.dy - _mudCenter.dy;
-        if (sqrt(mudDx * mudDx + mudDy * mudDy) <
-            BalanceV0.mudHitRadius + 0.04) {
-          continue;
-        }
-      }
-      final berryDx = candidate.dx - BalanceV0.berryPosX;
-      final berryDy = candidate.dy - BalanceV0.berryPosY;
-      if (sqrt(berryDx * berryDx + berryDy * berryDy) < 0.10) {
-        continue;
-      }
-      if (CapyWander.hitsProp(
-        candidate,
-        mudCenter: _mudPresent ? _mudCenter : null,
-      )) {
-        continue;
-      }
-      if (!CapyWander.onGrass(candidate, herdCount)) continue;
-      final ok = existing.every(
-        (c) =>
-            (c.position - candidate).distance >= BalanceV0.minSpawnSeparation,
-      );
-      if (ok) return candidate;
-    }
-    final n = existing.length;
-    final angle = n * 2.4;
+    final others = [for (final c in existing) c.position];
     final rect = WorldZones.meadowRectForHerd(herdCount);
-    final cx = (rect.left + rect.right) / 2;
-    final cy = (rect.top + rect.bottom) / 2;
-    return CapyWander.clearProps(
-      Offset(cx + 0.18 * cos(angle), cy + 0.12 * sin(angle)),
+    final from = others.isEmpty
+        ? Offset((rect.left + rect.right) / 2, (rect.top + rect.bottom) / 2)
+        : others.last;
+    // Placement uses its own stream so a longer search does not reshuffle
+    // taps, twins, and the cozy-session balance sims.
+    final placeRng = Random(0x51EED + existing.length * 97 + herdCount);
+    return CapyWander.pickTarget(
+      from: from,
+      random01: placeRng.nextDouble,
       herdCount: herdCount,
+      others: others,
       mudCenter: _mudPresent ? _mudCenter : null,
+      meadowSize: CapyWander.fallbackMeadow,
+      minDist: BalanceV0.minSpawnSeparation * 0.5,
+      spreadSalt: (existing.length * 0.173) % 1.0,
     );
   }
-
 
   /// Re-seat positions onto the active named meadow rect (trees stay blocked).
   GameState _clampHerdToMeadow(GameState state) {
@@ -1020,7 +983,9 @@ class GameController extends ChangeNotifier {
     if (reached.index <= state.sunnyGladeAnnounced) return state;
 
     var nextId = state.nextId;
-    final meadows = Map<String, MeadowSnapshot>.from(state.withActiveSynced().meadows);
+    final meadows = Map<String, MeadowSnapshot>.from(
+      state.withActiveSynced().meadows,
+    );
 
     for (var i = state.sunnyGladeAnnounced + 1; i <= reached.index; i++) {
       final g = WorldZones.glades[i];
@@ -1056,8 +1021,9 @@ class GameController extends ChangeNotifier {
   /// After legacy migrate: empty unlocked meadows get a small starter herd.
   GameState _fillEmptyUnlockedMeadows(GameState state) {
     var nextId = state.nextId;
-    final meadows =
-        Map<String, MeadowSnapshot>.from(state.withActiveSynced().meadows);
+    final meadows = Map<String, MeadowSnapshot>.from(
+      state.withActiveSynced().meadows,
+    );
     var dirty = false;
     final toFill = <SunnyGlade>[
       for (final g in WorldZones.glades)
@@ -1090,13 +1056,24 @@ class GameController extends ChangeNotifier {
     final key = WorldZones.gladeById(meadowId).minHerd;
     var nextId = startNextId;
     final herd = <Capybara>[];
+    final rect = WorldZones.meadowRectForHerd(key);
     for (var i = 0; i < count; i++) {
-      final raw = WorldZones.randomInMeadow(
-        _random.nextDouble,
+      final from = herd.isEmpty
+          ? Offset((rect.left + rect.right) / 2, (rect.top + rect.bottom) / 2)
+          : herd.last.position;
+      final placeRng = Random(0x57A27 + nextId * 13 + i);
+      final pos = CapyWander.pickTarget(
+        from: from,
+        random01: placeRng.nextDouble,
         herdCount: key,
+        others: [for (final c in herd) c.position],
+        meadowSize: CapyWander.fallbackMeadow,
+        minDist: BalanceV0.minSpawnSeparation * 0.5,
+        spreadSalt: (i * 0.173) % 1.0,
       );
-      final pos = WorldZones.clampToMeadow(raw, herdCount: key);
-      herd.add(Capybara(id: 'c$nextId', level: BalanceV0.startingLevel, position: pos));
+      herd.add(
+        Capybara(id: 'c$nextId', level: BalanceV0.startingLevel, position: pos),
+      );
       nextId++;
     }
     return (herd: herd, nextId: nextId);
@@ -1156,8 +1133,9 @@ class GameController extends ChangeNotifier {
     if (maxLv < 4) return state;
 
     var nextId = state.nextId;
-    final meadows =
-        Map<String, MeadowSnapshot>.from(state.withActiveSynced().meadows);
+    final meadows = Map<String, MeadowSnapshot>.from(
+      state.withActiveSynced().meadows,
+    );
     final existing = meadows[WorldZones.mistEdgeMeadowId];
     if (existing == null || existing.herd.isEmpty) {
       final built = _buildStarterHerd(
@@ -1177,7 +1155,8 @@ class GameController extends ChangeNotifier {
     return state.copyWith(
       mistyBiomeUnlocked: true,
       uyut: state.uyut + BalanceV0.firstMistyUyutGrant,
-      grass: state.grass + (announce && _ready ? BalanceV0.gladeUnlockGrass : 0),
+      grass:
+          state.grass + (announce && _ready ? BalanceV0.gladeUnlockGrass : 0),
       meadows: meadows,
       nextId: nextId,
     );
@@ -1215,7 +1194,6 @@ class GameController extends ChangeNotifier {
       () => _persistence.save(_withSavedAt(_state)),
     );
   }
-
 
   bool _isTwinPair(String a, String b) {
     final tA = _state.twinIdA;
@@ -1297,8 +1275,7 @@ class GameController extends ChangeNotifier {
     for (final c in state.herd) {
       byLevel.putIfAbsent(c.level, () => []).add(c);
     }
-    final eligible =
-        byLevel.entries.where((e) => e.value.length >= 2).toList();
+    final eligible = byLevel.entries.where((e) => e.value.length >= 2).toList();
     if (eligible.isEmpty) {
       return state.copyWith(clearTwin: true);
     }
@@ -1314,19 +1291,17 @@ class GameController extends ChangeNotifier {
       }
     }
     // Quiet gaps so sparkle stays a skill window, not a permanent glow.
-    final markChance =
-        (BalanceV0.twinMarkChance + _twinMarkChanceBonus).clamp(0.0, 0.95);
+    final markChance = (BalanceV0.twinMarkChance + _twinMarkChanceBonus).clamp(
+      0.0,
+      0.95,
+    );
     if (_random.nextDouble() > markChance) {
       return state.copyWith(clearTwin: true);
     }
     final pick = eligible[_random.nextInt(eligible.length)].value;
     final shuffled = List<Capybara>.from(pick)..shuffle(_random);
-    return state.copyWith(
-      twinIdA: shuffled[0].id,
-      twinIdB: shuffled[1].id,
-    );
+    return state.copyWith(twinIdA: shuffled[0].id, twinIdB: shuffled[1].id);
   }
-
 
   // --- Multipliers v0: food / places / roles / decor / research ---
 
@@ -1339,10 +1314,7 @@ class GameController extends ChangeNotifier {
     };
     if (_state.grass < cost) return false;
     _setState(
-      _state.copyWith(
-        grass: _state.grass - cost,
-        food: _state.food.add(food),
-      ),
+      _state.copyWith(grass: _state.grass - cost, food: _state.food.add(food)),
     );
     lastDroppedFood = food;
     return true;
