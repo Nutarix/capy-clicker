@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui';
 
+import 'balance.dart';
 import 'multipliers/cozy_place.dart';
 import 'world_zones.dart';
 
@@ -38,14 +39,23 @@ abstract final class CapyWander {
   /// How far apart body centers should stay (normalized meadow space).
   static const double peerGap = 0.09;
 
-  /// Пень — bodies must not stand on the stump.
+  /// Пень — center disc kept for callers; the body test uses the card rect.
   static const double stumpRadius = 0.078;
 
   /// Тёплый камень reads as a grassy nest — keep bodies off it.
   static const double nestRadius = 0.072;
 
-  /// Temporary puddle sprite (stump-top). Only when a center is passed in.
+  /// Temporary puddle sprite. Only when a center is passed in.
   static const double mudBodyRadius = 0.10;
+
+  /// Berry sprite disc around [berryCenter] (body rect is the real test).
+  static const double berryRadius = 0.09;
+
+  /// Phone-like meadow used when a live size is not passed in.
+  static const Size fallbackMeadow = Size(411, 480);
+
+  /// Gap so a sprite does not visually touch a prop (idle bob included).
+  static const double propPadPx = 8;
 
   static Offset get stumpCenter =>
       Offset(CozyPlaceKind.pen.center.$1, CozyPlaceKind.pen.center.$2);
@@ -54,6 +64,9 @@ abstract final class CapyWander {
     CozyPlaceKind.warmStone.center.$1,
     CozyPlaceKind.warmStone.center.$2,
   );
+
+  static Offset get berryCenter =>
+      const Offset(BalanceV0.berryPosX, BalanceV0.berryPosY);
 
   /// Grass of the meadow plate: walkable glade, inset so a body stays on grass.
   static Rect grassPlate(int herdCount) {
@@ -87,21 +100,119 @@ abstract final class CapyWander {
         p.dy <= r.bottom;
   }
 
-  /// Stump, nest, and (optional) live puddle discs.
-  static List<(Offset center, double radius)> props({Offset? mudCenter}) {
-    final list = <(Offset, double)>[
-      (stumpCenter, stumpRadius),
-      (nestCenter, nestRadius),
+  static Size _meadow(Size? meadowSize) {
+    final w = meadowSize?.width ?? fallbackMeadow.width;
+    final h = meadowSize?.height ?? fallbackMeadow.height;
+    if (w < 1 || h < 1) return fallbackMeadow;
+    return Size(w, h);
+  }
+
+  /// Sprite box for a standing body. Anchor is the footprint center used by
+  /// [MeadowDraggableCapybara] (badge hangs below the sprite).
+  static Rect bodyRect(Offset anchor, Size meadow, {double capyWidth = 70}) {
+    final fw = capyWidth + 8;
+    final fh = capyWidth * 0.95 + 26;
+    final spriteH = capyWidth * 0.95;
+    final left = anchor.dx * meadow.width - fw / 2;
+    final top = anchor.dy * meadow.height - fh / 2;
+    return Rect.fromLTWH(
+      left / meadow.width,
+      top / meadow.height,
+      capyWidth / meadow.width,
+      spriteH / meadow.height,
+    );
+  }
+
+  static Rect _rectPx({
+    required double centerX,
+    required double centerY,
+    required double widthPx,
+    required double heightPx,
+    required double dxPx,
+    required double dyPx,
+    required Size meadow,
+  }) {
+    final left = centerX * meadow.width + dxPx;
+    final top = centerY * meadow.height + dyPx;
+    return Rect.fromLTWH(
+      left / meadow.width,
+      top / meadow.height,
+      widthPx / meadow.width,
+      heightPx / meadow.height,
+    );
+  }
+
+  /// Visible props: stump card, nest card, berry sprite, optional puddle.
+  static List<Rect> propRects({Offset? mudCenter, Size? meadowSize}) {
+    final meadow = _meadow(meadowSize);
+    final list = <Rect>[
+      // Cozy card is 56×44, centered in the 72×64 marker.
+      _rectPx(
+        centerX: stumpCenter.dx,
+        centerY: stumpCenter.dy,
+        widthPx: 56,
+        heightPx: 44,
+        dxPx: -28,
+        dyPx: -22,
+        meadow: meadow,
+      ),
+      _rectPx(
+        centerX: nestCenter.dx,
+        centerY: nestCenter.dy,
+        widthPx: 56,
+        heightPx: 44,
+        dxPx: -28,
+        dyPx: -22,
+        meadow: meadow,
+      ),
+      // Basket sprite centered in the 120×112 box (top inset 44).
+      _rectPx(
+        centerX: berryCenter.dx,
+        centerY: berryCenter.dy,
+        widthPx: 64,
+        heightPx: 68,
+        dxPx: -32,
+        dyPx: -44 + (112 - 68) / 2,
+        meadow: meadow,
+      ),
     ];
     if (mudCenter != null) {
-      list.add((mudCenter, mudBodyRadius));
+      // Mud sprite 110×78 centered in the 168×124 box (top inset 48).
+      list.add(
+        _rectPx(
+          centerX: mudCenter.dx,
+          centerY: mudCenter.dy,
+          widthPx: 110,
+          heightPx: 78,
+          dxPx: -55,
+          dyPx: -48 + (124 - 78) / 2,
+          meadow: meadow,
+        ),
+      );
     }
     return list;
   }
 
-  static bool hitsProp(Offset p, {Offset? mudCenter}) {
-    for (final obs in props(mudCenter: mudCenter)) {
-      if ((p - obs.$1).distance < obs.$2) return true;
+  static Rect _pad(Rect prop, Size meadow) {
+    return Rect.fromLTRB(
+      prop.left - propPadPx / meadow.width,
+      prop.top - propPadPx / meadow.height,
+      prop.right + propPadPx / meadow.width,
+      prop.bottom + propPadPx / meadow.height,
+    );
+  }
+
+  /// True when the standing sprite would cover a prop (not merely the anchor).
+  static bool hitsProp(
+    Offset p, {
+    Offset? mudCenter,
+    Size? meadowSize,
+    double capyWidth = 70,
+  }) {
+    final meadow = _meadow(meadowSize);
+    final body = bodyRect(p, meadow, capyWidth: capyWidth);
+    for (final prop in propRects(mudCenter: mudCenter, meadowSize: meadow)) {
+      if (body.overlaps(_pad(prop, meadow))) return true;
     }
     return false;
   }
@@ -117,27 +228,52 @@ abstract final class CapyWander {
     return false;
   }
 
-  /// Push [p] off stump / nest / puddle, then seat it on the grass plate.
+  /// Push [p] until the body misses every prop, fanning with [salt] so two
+  /// bodies leaving the same prop do not land on one point.
   static Offset clearProps(
     Offset p, {
     required int herdCount,
     Offset? mudCenter,
+    Size? meadowSize,
+    double capyWidth = 70,
+    double salt = 0,
   }) {
+    final meadow = _meadow(meadowSize);
     var o = clampToGrass(p, herdCount);
-    for (var k = 0; k < 6; k++) {
-      var moved = false;
-      for (final obs in props(mudCenter: mudCenter)) {
-        final delta = o - obs.$1;
-        final d = delta.distance;
-        if (d < obs.$2) {
-          final away = d < 1e-4
-              ? const Offset(0.09, 0.04)
-              : delta / d * (obs.$2 - d + 0.012);
-          o = clampToGrass(o + away, herdCount);
-          moved = true;
+    for (var k = 0; k < 10; k++) {
+      final body = bodyRect(o, meadow, capyWidth: capyWidth);
+      Rect? hit;
+      for (final prop in propRects(mudCenter: mudCenter, meadowSize: meadow)) {
+        final padded = _pad(prop, meadow);
+        if (body.overlaps(padded)) {
+          hit = padded;
+          break;
         }
       }
-      if (!moved) break;
+      if (hit == null) break;
+      final overlapX =
+          math.min(body.right, hit.right) - math.max(body.left, hit.left);
+      final overlapY =
+          math.min(body.bottom, hit.bottom) - math.max(body.top, hit.top);
+      final fan = salt + (k.isEven ? 1 : -1) * (0.012 + k * 0.004);
+      final Offset delta;
+      if (overlapX <= overlapY) {
+        final dir = body.center.dx >= hit.center.dx ? 1.0 : -1.0;
+        delta = Offset(dir * (overlapX + 0.004), fan);
+      } else {
+        final dir = body.center.dy >= hit.center.dy ? 1.0 : -1.0;
+        delta = Offset(fan, dir * (overlapY + 0.004));
+      }
+      final nudged = clampToGrass(o + delta, herdCount);
+      if ((nudged - o).distance < 1e-4) {
+        // Grass edge blocked the push — step the long way around the prop.
+        final around = Offset(-delta.dy, delta.dx);
+        final len = around.distance;
+        if (len < 1e-6) break;
+        o = clampToGrass(o + around / len * 0.04, herdCount);
+      } else {
+        o = nudged;
+      }
     }
     return clampToGrass(o, herdCount);
   }
@@ -162,14 +298,44 @@ abstract final class CapyWander {
       final d = (t - o).distance;
       if (d < nearest) nearest = d;
     }
-    for (final obs in props(mudCenter: mudCenter)) {
-      final d = (t - obs.$1).distance - obs.$2;
+    final discs = <(Offset, double)>[
+      (stumpCenter, stumpRadius),
+      (nestCenter, nestRadius),
+      (berryCenter, berryRadius),
+    ];
+    if (mudCenter != null) discs.add((mudCenter, mudBodyRadius));
+    for (final disc in discs) {
+      final d = (t - disc.$1).distance - disc.$2;
       if (d < nearest) nearest = d;
     }
     return nearest;
   }
 
-  /// Pick a grass target that does not sit on the stump, nest, puddle, or peers.
+  static bool _targetClear(
+    Offset t, {
+    required Offset from,
+    required int herdCount,
+    required List<Offset> others,
+    required Offset? mudCenter,
+    required Size meadow,
+    required double capyWidth,
+    required double minDist,
+  }) {
+    return onGrass(t, herdCount) &&
+        !hitsProp(
+          t,
+          mudCenter: mudCenter,
+          meadowSize: meadow,
+          capyWidth: capyWidth,
+        ) &&
+        !overlapsPeer(t, others) &&
+        (t - from).distance >= minDist;
+  }
+
+  /// Pick a grass target whose body misses stump, nest, basket, puddle, peers.
+  ///
+  /// A sample that would cover a prop is nudged, then repicked. [spreadSalt]
+  /// (0..1, stable per capy) fans bodies so they do not share one escape point.
   static Offset pickTarget({
     required Offset from,
     required double Function() random01,
@@ -177,55 +343,126 @@ abstract final class CapyWander {
     List<Offset> others = const [],
     Offset? mudCenter,
     double minDist = 0.055,
+    Size? meadowSize,
+    double capyWidth = 70,
+    double spreadSalt = 0,
   }) {
+    final meadow = _meadow(meadowSize);
     Offset? best;
     var bestScore = -1e9;
-    for (var i = 0; i < 18; i++) {
-      final t = _sampleGrass(random01, herdCount);
+
+    void consider(Offset t) {
+      if (hitsProp(
+        t,
+        mudCenter: mudCenter,
+        meadowSize: meadow,
+        capyWidth: capyWidth,
+      )) {
+        return;
+      }
       final score = _spreadScore(t, from, others, mudCenter: mudCenter);
-      final clear =
-          !hitsProp(t, mudCenter: mudCenter) &&
-          !overlapsPeer(t, others) &&
-          (t - from).distance >= minDist &&
-          onGrass(t, herdCount);
-      if (clear) return t;
       if (score > bestScore) {
         bestScore = score;
         best = t;
       }
     }
-    final seeded = clearProps(
-      best ?? from,
-      herdCount: herdCount,
-      mudCenter: mudCenter,
-    );
-    if (!hitsProp(seeded, mudCenter: mudCenter) &&
-        !overlapsPeer(seeded, others)) {
-      return seeded;
-    }
-    // Packed plate: still refuse the stump / nest / puddle, then the least-crowded grass.
-    var fallback = seeded;
-    var fallbackScore = _spreadScore(
-      fallback,
-      from,
-      others,
-      mudCenter: mudCenter,
-    );
-    for (var i = 0; i < 12; i++) {
-      final t = clearProps(
-        _sampleGrass(random01, herdCount),
-        herdCount: herdCount,
+
+    for (var i = 0; i < 22; i++) {
+      final raw = _sampleGrass(random01, herdCount);
+      final salt = (spreadSalt - 0.5) * 0.06 + (i - 11) * 0.008;
+      var t = raw;
+      if (hitsProp(
+        t,
         mudCenter: mudCenter,
-      );
-      if (hitsProp(t, mudCenter: mudCenter)) continue;
-      final score = _spreadScore(t, from, others, mudCenter: mudCenter);
-      if (!overlapsPeer(t, others)) return t;
-      if (score > fallbackScore) {
-        fallbackScore = score;
-        fallback = t;
+        meadowSize: meadow,
+        capyWidth: capyWidth,
+      )) {
+        t = clearProps(
+          t,
+          herdCount: herdCount,
+          mudCenter: mudCenter,
+          meadowSize: meadow,
+          capyWidth: capyWidth,
+          salt: salt,
+        );
+      }
+      // Still covering a prop after the nudge — repick.
+      if (hitsProp(
+        t,
+        mudCenter: mudCenter,
+        meadowSize: meadow,
+        capyWidth: capyWidth,
+      )) {
+        continue;
+      }
+      consider(t);
+      if (_targetClear(
+        t,
+        from: from,
+        herdCount: herdCount,
+        others: others,
+        mudCenter: mudCenter,
+        meadow: meadow,
+        capyWidth: capyWidth,
+        minDist: minDist,
+      )) {
+        return t;
       }
     }
-    return fallback;
+
+    var fallback =
+        best ??
+        clearProps(
+          from,
+          herdCount: herdCount,
+          mudCenter: mudCenter,
+          meadowSize: meadow,
+          capyWidth: capyWidth,
+          salt: (spreadSalt - 0.5) * 0.08,
+        );
+    consider(fallback);
+    if (_targetClear(
+      fallback,
+      from: from,
+      herdCount: herdCount,
+      others: others,
+      mudCenter: mudCenter,
+      meadow: meadow,
+      capyWidth: capyWidth,
+      minDist: 0,
+    )) {
+      return fallback;
+    }
+
+    // Packed plate: orbit so bodies do not restack on one rim point.
+    for (var i = 0; i < 16; i++) {
+      final ang = spreadSalt * 6.28 + i * 0.85;
+      final radius = 0.045 + (i % 5) * 0.02;
+      final raw = clampToGrass(
+        fallback +
+            Offset(math.cos(ang) * radius, math.sin(ang) * radius * 0.75),
+        herdCount,
+      );
+      final t = clearProps(
+        raw,
+        herdCount: herdCount,
+        mudCenter: mudCenter,
+        meadowSize: meadow,
+        capyWidth: capyWidth,
+        salt: (spreadSalt - 0.5) * 0.05 + (i - 8) * 0.01,
+      );
+      if (hitsProp(
+        t,
+        mudCenter: mudCenter,
+        meadowSize: meadow,
+        capyWidth: capyWidth,
+      )) {
+        continue;
+      }
+      consider(t);
+      if (!overlapsPeer(t, others) && onGrass(t, herdCount)) return t;
+    }
+    return best ?? fallback;
   }
 
   /// Walk duration scales gently with normalized distance.

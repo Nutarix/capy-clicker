@@ -135,9 +135,9 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
       _dragging || widget.isWallowing || widget.mergeFlash;
 
   CapyWalkSheet get _sheet => CapyWalk.sheetFor(
-        level: widget.capybara.level,
-        role: widget.capybara.role,
-      );
+    level: widget.capybara.level,
+    role: widget.capybara.role,
+  );
 
   int get _currentWalkFrame {
     if (!_walking) return 0;
@@ -238,6 +238,9 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
       herdCount: widget.herdCount,
       others: others,
       mudCenter: widget.mudCenter,
+      meadowSize: widget.meadowSize,
+      capyWidth: _bodyWidth,
+      spreadSalt: CapyWander.phase01(widget.capybara.id),
     );
     // Tiny hops look twitchy — skip and retry later.
     if ((to - from).distance < 0.03) {
@@ -432,13 +435,11 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
   @override
   Widget build(BuildContext context) {
     final footprint = _footprint;
-    final left =
-        _displayPos.dx * widget.meadowSize.width - footprint.width / 2;
+    final left = _displayPos.dx * widget.meadowSize.width - footprint.width / 2;
     final top =
         _displayPos.dy * widget.meadowSize.height - footprint.height / 2;
 
-    final magnetHighlight =
-        widget.magnetAttractedId == widget.capybara.id;
+    final magnetHighlight = widget.magnetAttractedId == widget.capybara.id;
     final fullBadge = widget.promoteLevelBadge || magnetHighlight;
 
     // Idle bob (unique per sheet) + walk bounce; facing via faceRight.
@@ -471,14 +472,14 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
           );
         }
         final sheet = _sheet;
-        final idleY =
-            _walking ? 0.0 : CapyWalk.idleBobY(sheet, _idleBob.value);
-        final idleX =
-            _walking ? 0.0 : CapyWalk.idleSwayX(sheet, _idleBob.value);
-        final walkY =
-            _walking ? CapyWander.walkBounceY(_walk.value) : 0.0;
-        final squash =
-            _walking ? 1.0 : CapyWalk.idleSquashY(sheet, _idleBob.value);
+        final idleY = _walking ? 0.0 : CapyWalk.idleBobY(sheet, _idleBob.value);
+        final idleX = _walking
+            ? 0.0
+            : CapyWalk.idleSwayX(sheet, _idleBob.value);
+        final walkY = _walking ? CapyWander.walkBounceY(_walk.value) : 0.0;
+        final squash = _walking
+            ? 1.0
+            : CapyWalk.idleSquashY(sheet, _idleBob.value);
         return Transform.translate(
           offset: Offset(idleX, idleY + walkY),
           child: Transform(

@@ -73,7 +73,9 @@ void main() {
         from: CapyWander.stumpCenter,
         random01: math.Random(3).nextDouble,
         herdCount: 3,
+        meadowSize: const Size(411, 480),
       );
+      expect(CapyWander.hitsProp(t, meadowSize: const Size(411, 480)), isFalse);
       expect(
         (t - CapyWander.stumpCenter).distance,
         greaterThanOrEqualTo(CapyWander.stumpRadius),
@@ -82,6 +84,35 @@ void main() {
         (t - CapyWander.nestCenter).distance,
         greaterThanOrEqualTo(CapyWander.nestRadius),
       );
+    });
+
+    test('bodies stay off the berry basket and do not share a point', () {
+      const meadow = Size(411, 480);
+      const mud = Offset(0.22, 0.78);
+      final rng = math.Random(11);
+      final parked = <Offset>[];
+      for (var n = 0; n < 4; n++) {
+        final from = n == 0 ? CapyWander.berryCenter : parked.last;
+        final t = CapyWander.pickTarget(
+          from: from,
+          random01: rng.nextDouble,
+          herdCount: 2,
+          others: List<Offset>.from(parked),
+          mudCenter: mud,
+          meadowSize: meadow,
+          spreadSalt: n / 4,
+        );
+        expect(
+          CapyWander.hitsProp(t, mudCenter: mud, meadowSize: meadow),
+          isFalse,
+          reason: 'body $n',
+        );
+        expect(CapyWander.onGrass(t, 2), isTrue);
+        for (final o in parked) {
+          expect((t - o).distance, greaterThan(0.02), reason: 'not stacked');
+        }
+        parked.add(t);
+      }
     });
   });
 
