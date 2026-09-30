@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'meadow_hint_chip.dart';
+
 /// Berry basket sprite — tap for a large progress burst.
 class BerryBasket extends StatefulWidget {
   const BerryBasket({
@@ -82,8 +84,8 @@ class _BerryBasketState extends State<BerryBasket>
               scale: scale,
               child: SizedBox(
                 key: _key,
-                width: 76,
-                height: 92,
+                width: 120,
+                height: 112,
                 child: Stack(
                   alignment: Alignment.center,
                   clipBehavior: Clip.none,
@@ -122,23 +124,13 @@ class _BerryBasketState extends State<BerryBasket>
                       filterQuality: FilterQuality.none,
                     ),
                     Positioned(
+                      left: 0,
+                      right: 0,
                       bottom: 0,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 7,
-                          vertical: 1,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.82),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          widget.showHint ? 'нажми!' : 'ягоды!',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.brown.shade900.withValues(alpha: 0.72),
-                          ),
+                      child: Center(
+                        child: MeadowHintChip(
+                          text: widget.showHint ? 'нажми!' : 'ягоды!',
+                          fontSize: 12,
                         ),
                       ),
                     ),

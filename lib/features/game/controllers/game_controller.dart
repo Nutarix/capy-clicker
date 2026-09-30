@@ -5,6 +5,7 @@ import 'dart:ui';
 import 'package:flutter/foundation.dart';
 
 import '../models/balance.dart';
+import '../models/capy_wander.dart';
 import '../models/capybara.dart';
 import '../models/game_state.dart';
 import '../models/meadow_snapshot.dart';
@@ -357,7 +358,7 @@ class GameController extends ChangeNotifier {
     }
     if (stor > 0) {
       final extra = stor * BalanceV0.roleStorozhSoftCapBonus;
-      parts.add('Сторож +$extra лимит');
+      parts.add('Сторож +$extra лимит семьи');
     }
     if (parts.isEmpty) return 'Роли пока не назначены';
     return parts.join(' · ');
@@ -783,6 +784,14 @@ class GameController extends ChangeNotifier {
       _state.grass >= BalanceV0.callCapyGrassCost &&
       _state.herdCount < effectiveMaxHerdSize;
 
+  /// Why «Позвать капи» is gray. Null while the call is available.
+  /// A full семья wins over low grass — leftover grass must not look like a bug.
+  String? get callCapyBlockedReason {
+    if (_state.herdCount >= effectiveMaxHerdSize) return 'Семья полная';
+    if (_state.grass < BalanceV0.callCapyGrassCost) return 'Не хватает травы';
+    return null;
+  }
+
   bool get canGrassBoost => _state.grass >= BalanceV0.grassBoostCost;
 
   /// Drop a capybara onto the mud puddle → wallow anim + temporary boost.
@@ -967,6 +976,13 @@ class GameController extends ChangeNotifier {
       if (sqrt(berryDx * berryDx + berryDy * berryDy) < 0.10) {
         continue;
       }
+      if (CapyWander.hitsProp(
+        candidate,
+        mudCenter: _mudPresent ? _mudCenter : null,
+      )) {
+        continue;
+      }
+      if (!CapyWander.onGrass(candidate, herdCount)) continue;
       final ok = existing.every(
         (c) =>
             (c.position - candidate).distance >= BalanceV0.minSpawnSeparation,
@@ -978,9 +994,10 @@ class GameController extends ChangeNotifier {
     final rect = WorldZones.meadowRectForHerd(herdCount);
     final cx = (rect.left + rect.right) / 2;
     final cy = (rect.top + rect.bottom) / 2;
-    return WorldZones.clampToMeadow(
+    return CapyWander.clearProps(
       Offset(cx + 0.18 * cos(angle), cy + 0.12 * sin(angle)),
       herdCount: herdCount,
+      mudCenter: _mudPresent ? _mudCenter : null,
     );
   }
 

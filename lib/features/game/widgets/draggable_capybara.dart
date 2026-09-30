@@ -40,6 +40,7 @@ class MeadowDraggableCapybara extends StatefulWidget {
     this.onPlaceDrop,
     this.placeAt,
     this.onLongPress,
+    this.mudCenter,
   });
 
   final Capybara capybara;
@@ -83,6 +84,9 @@ class MeadowDraggableCapybara extends StatefulWidget {
 
   /// Long-press → role menu.
   final VoidCallback? onLongPress;
+
+  /// Live puddle center, so wander does not park a body on the stump-top.
+  final Offset? mudCenter;
 
   @override
   State<MeadowDraggableCapybara> createState() =>
@@ -224,10 +228,16 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
       return;
     }
     final from = _displayPos;
+    final others = <Offset>[
+      for (final c in widget.herd)
+        if (c.id != widget.capybara.id) c.position,
+    ];
     final to = CapyWander.pickTarget(
       from: from,
       random01: _rng.nextDouble,
       herdCount: widget.herdCount,
+      others: others,
+      mudCenter: widget.mudCenter,
     );
     // Tiny hops look twitchy — skip and retry later.
     if ((to - from).distance < 0.03) {

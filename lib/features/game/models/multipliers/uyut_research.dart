@@ -117,6 +117,16 @@ abstract final class UyutResearch {
     return null;
   }
 
+  /// Cozy Russian name for a node id (never the raw id when we know it).
+  static String labelForId(String id) => byId(id)?.labelRu ?? id;
+
+  /// Prerequisite line for Наука («нужно: Больше цветов»). Empty if none.
+  static String requiresLine(ResearchNode node) {
+    if (node.requires.isEmpty) return '';
+    final names = node.requires.map(labelForId).join(', ');
+    return 'нужно: $names';
+  }
+
   static bool canUnlock({
     required ResearchNode node,
     required Set<String> unlocked,

@@ -10,6 +10,7 @@ class GrassSpendPanel extends StatelessWidget {
     super.key,
     required this.grass,
     required this.canCallCapy,
+    this.callBlockedReason,
     required this.canBoost,
     required this.onCallCapy,
     required this.onBoost,
@@ -20,6 +21,11 @@ class GrassSpendPanel extends StatelessWidget {
 
   final int grass;
   final bool canCallCapy;
+
+  /// Shown instead of «Позвать капи» while the call is gray.
+  /// «Не хватает травы» or «Семья полная».
+  final String? callBlockedReason;
+
   final bool canBoost;
   final VoidCallback onCallCapy;
   final VoidCallback onBoost;
@@ -49,10 +55,11 @@ class GrassSpendPanel extends StatelessWidget {
                 runSpacing: 6,
                 children: [
                   _SpendPill(
-                    label: 'Позвать капи',
+                    label: callBlockedReason ?? 'Позвать капи',
                     cost: BalanceV0.callCapyGrassCost,
                     enabled: canCallCapy,
                     onTap: onCallCapy,
+                    hideCost: callBlockedReason != null,
                   ),
                   _SpendPill(
                     label: boostActive ? 'Ускорение…' : 'Ускорение',

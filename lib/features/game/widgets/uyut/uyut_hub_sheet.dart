@@ -629,7 +629,7 @@ class _ResearchRow extends StatelessWidget {
               : done
                   ? 'Открыто · ${node.effectRu}'
                   : '${node.effectRu} · $cost'
-                      '${node.requires.isEmpty ? '' : '\nнужно: ${node.requires.join(", ")}'}',
+                      '${UyutResearch.requiresLine(node).isEmpty ? '' : '\n${UyutResearch.requiresLine(node)}'}',
           style: CozyTheme.hudChipMutedStyle(fontSize: 11),
         ),
         trailing: done

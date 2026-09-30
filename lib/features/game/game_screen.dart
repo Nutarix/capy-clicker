@@ -625,6 +625,7 @@ class _GameScreenState extends State<GameScreen> {
                     child: GrassSpendPanel(
                       grass: state.grass,
                       canCallCapy: _controller.canCallCapy,
+                      callBlockedReason: _controller.callCapyBlockedReason,
                       canBoost: _controller.canGrassBoost,
                       boostActive: _controller.isGrassBoostActive,
                       foodHint: 'Еда · ${state.food.total}🍽',
@@ -683,8 +684,8 @@ class _GameScreenState extends State<GameScreen> {
                                   if (_controller.mudVisible &&
                                       _controller.mudCenter != null)
                                     Positioned(
-                                      left: _controller.mudCenter!.dx * w - 55,
-                                      top: _controller.mudCenter!.dy * h - 43,
+                                      left: _controller.mudCenter!.dx * w - 84,
+                                      top: _controller.mudCenter!.dy * h - 48,
                                       child: MudPuddle(
                                         key: ValueKey(
                                           '${_controller.mudCenter!.dx.toStringAsFixed(3)}:'
@@ -716,8 +717,8 @@ class _GameScreenState extends State<GameScreen> {
                                   ),
                                   if (_controller.isBerryVisible)
                                     Positioned(
-                                      left: BalanceV0.berryPosX * w - 32,
-                                      top: BalanceV0.berryPosY * h - 37,
+                                      left: BalanceV0.berryPosX * w - 60,
+                                      top: BalanceV0.berryPosY * h - 44,
                                       child: BerryBasket(
                                         onTap: _onBerryTap,
                                         showHint: !_berryHintSeen,
@@ -751,6 +752,7 @@ class _GameScreenState extends State<GameScreen> {
                                       magnetRadius:
                                           _controller.effectiveMagnetRadius,
                                       placeAt: _controller.placeAt,
+                                      mudCenter: _controller.mudCenter,
                                       onPlaceDrop: (id, kind) {
                                         unawaited(_audio.noteUserGesture());
                                         final ok = _controller.tryActivatePlace(

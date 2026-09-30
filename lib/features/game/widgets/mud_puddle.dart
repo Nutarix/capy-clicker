@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../models/balance.dart';
+import 'meadow_hint_chip.dart';
 
 /// Soft mud puddle zone. Accepts dragged capybaras and plays a cute wallow.
 class MudPuddle extends StatefulWidget {
@@ -66,8 +67,8 @@ class _MudPuddleState extends State<MudPuddle>
             ? 0.55
             : (0.22 + _idleGlow.value * 0.28);
         return SizedBox(
-          width: 130,
-          height: 110,
+          width: 168,
+          height: 124,
           child: Stack(
             alignment: Alignment.center,
             clipBehavior: Clip.none,
@@ -135,25 +136,14 @@ class _MudPuddleState extends State<MudPuddle>
                 ),
               ],
               Positioned(
+                left: 0,
+                right: 0,
                 bottom: 0,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.88),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    widget.boostActive
+                child: Center(
+                  child: MeadowHintChip(
+                    text: widget.boostActive
                         ? 'грязь ×2!'
                         : (widget.isWallowing ? 'плеск!' : 'сюда!'),
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.brown.shade900.withValues(alpha: 0.86),
-                    ),
                   ),
                 ),
               ),
