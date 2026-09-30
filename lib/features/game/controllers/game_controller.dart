@@ -421,13 +421,42 @@ class GameController extends ChangeNotifier {
     _puddleToast = null;
   }
 
+  /// Puddle anchor whose painted disc does not cover a resting body.
+  ///
+  /// The widget still steps anyone off if the live meadow size differs from
+  /// the fallback used here. Gameplay hit circle stays [BalanceV0.mudHitRadius].
+  Offset _pickMudCenter(int herdCount, {List<Capybara>? herd}) {
+    final family = herd ?? _state.herd;
+    final bodies = [for (final c in family) c.position];
+    final widths = [
+      for (final c in family) BalanceV0.capySizeForLevel(c.level),
+    ];
+    Offset? fallback;
+    for (var i = 0; i < 18; i++) {
+      final p = BalanceV0.randomMudCenter(
+        _random.nextDouble,
+        herdCount: herdCount,
+      );
+      fallback ??= p;
+      final covers = [
+        for (var n = 0; n < bodies.length; n++)
+          CapyWander.hitsProp(
+            bodies[n],
+            mudCenter: p,
+            meadowSize: CapyWander.fallbackMeadow,
+            capyWidth: widths[n],
+          ),
+      ].any((hit) => hit);
+      if (!covers) return p;
+    }
+    return fallback ??
+        BalanceV0.randomMudCenter(_random.nextDouble, herdCount: herdCount);
+  }
+
   void _beginMudPresence() {
     _mudPresent = true;
     _mudCooling = false;
-    _mudCenter = BalanceV0.randomMudCenter(
-      _random.nextDouble,
-      herdCount: _meadowKeyForCount(_state.herdCount),
-    );
+    _mudCenter = _pickMudCenter(_meadowKeyForCount(_state.herdCount));
     var extra = 0.0;
     if (_state.hasResearch('longer_mud')) {
       extra = BalanceV0.researchMudExtra.inSeconds.toDouble();
@@ -1098,9 +1127,9 @@ class GameController extends ChangeNotifier {
     _wallowTimer?.cancel();
     _wallowingCapyId = null;
     if (_mudPresent) {
-      _mudCenter = BalanceV0.randomMudCenter(
-        _random.nextDouble,
-        herdCount: _meadowKeyForCount(target.herdCount),
+      _mudCenter = _pickMudCenter(
+        _meadowKeyForCount(target.herdCount),
+        herd: target.herd,
       );
     }
 

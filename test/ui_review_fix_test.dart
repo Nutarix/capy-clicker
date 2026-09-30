@@ -202,6 +202,58 @@ void main() {
         parked.add(t);
       }
     });
+
+    test('wood ring and сюда chip are forbidden, bodies do not stack', () {
+      const meadow = Size(411, 560);
+      const mud = Offset(0.40, 0.58);
+      final props = CapyWander.propRects(mudCenter: mud, meadowSize: meadow);
+      expect(props.length, 5);
+      final disc = props[props.length - 2];
+      final chip = props.last;
+      // Chip hangs under the painted disc, not on the wood.
+      expect(chip.top, greaterThanOrEqualTo(disc.bottom - 0.001));
+      expect(
+        CapyWander.hitsProp(mud, mudCenter: mud, meadowSize: meadow),
+        isTrue,
+        reason: 'disc center',
+      );
+      expect(
+        CapyWander.hitsProp(chip.center, mudCenter: mud, meadowSize: meadow),
+        isTrue,
+        reason: 'chip',
+      );
+      // Gameplay hit circle is not the forbidden shape: a point just outside
+      // the painted disc but inside a loose circle still fails the body test
+      // only when the sprite overlaps. The disc itself must reject a body.
+      final parked = <Offset>[];
+      final rng = math.Random(9);
+      for (var n = 0; n < 4; n++) {
+        final t = CapyWander.pickTarget(
+          from: mud,
+          random01: rng.nextDouble,
+          herdCount: 4,
+          others: parked,
+          mudCenter: mud,
+          meadowSize: meadow,
+          spreadSalt: n / 4,
+        );
+        expect(CapyWander.onGrass(t, 4), isTrue, reason: 'grass $n');
+        expect(
+          CapyWander.hitsProp(t, mudCenter: mud, meadowSize: meadow),
+          isFalse,
+          reason: 'off ring+chip $n $t',
+        );
+        expect(
+          CapyWander.overlapsPeer(t, parked, meadowSize: meadow),
+          isFalse,
+          reason: 'gap $n',
+        );
+        for (final o in parked) {
+          expect((t - o).distance, greaterThan(0.04), reason: 'not stacked');
+        }
+        parked.add(t);
+      }
+    });
   });
 
   group('Семья copy', () {

@@ -59,8 +59,32 @@ abstract final class CapyWander {
   /// Тёплый камень reads as a grassy nest — keep bodies off it.
   static const double nestRadius = 0.072;
 
-  /// Temporary puddle sprite. Only when a center is passed in.
-  static const double mudBodyRadius = 0.10;
+  /// Painted wood-ring disc (mud.png), not the small gameplay hit circle.
+  ///
+  /// Half-extent used only by the spread score. The hard test is the sprite
+  /// rect in [propRects] — the log slice is much wider than [BalanceV0.mudHitRadius]
+  /// on a phone, and a circle of 0.10 let bodies stand on the rings.
+  static const double mudBodyRadius = 0.16;
+
+  /// Mud marker in [game_screen]: placed at anchor − (dx, dy), size 168×124.
+  static const double mudMarkerW = 168;
+  static const double mudMarkerH = 124;
+  static const double mudAnchorX = 84;
+  static const double mudAnchorY = 48;
+
+  /// `Image.asset` box. The 642×319 sheet is wider, so BoxFit.contain draws
+  /// [mudDrawnW]×[mudDrawnH] centered in that box (the brown log disc).
+  static const double mudSheetBoxW = 110;
+  static const double mudSheetBoxH = 78;
+  static const double mudPngW = 642;
+  static const double mudPngH = 319;
+  static const double mudDrawnW = mudSheetBoxW;
+  static const double mudDrawnH = mudSheetBoxW * mudPngH / mudPngW;
+
+  /// «сюда!» sits this far below the marker, clear of the painted disc.
+  static const double mudChipGapBelow = 10;
+  static const double mudChipW = 112;
+  static const double mudChipH = 28;
 
   /// Berry sprite disc around [berryCenter] (body rect is the real test).
   static const double berryRadius = 0.09;
@@ -201,16 +225,31 @@ abstract final class CapyWander {
       ),
     ];
     if (mudCenter != null) {
-      // Mud sheet is wide, so BoxFit.contain in the 110×78 box draws ~110×55.
-      // The rect is that drawn oval, centered in the 168×124 marker.
+      // Painted log disc, not the gameplay hit circle. The sheet is centered
+      // in the marker, whose anchor sits [mudAnchorY] below the marker top.
+      final discTop = (mudMarkerH - mudDrawnH) / 2 - mudAnchorY;
       list.add(
         _rectPx(
           centerX: mudCenter.dx,
           centerY: mudCenter.dy,
-          widthPx: 110,
-          heightPx: 56,
-          dxPx: -55,
-          dyPx: -48 + (124 - 56) / 2,
+          widthPx: mudDrawnW,
+          heightPx: mudDrawnH,
+          dxPx: -mudDrawnW / 2,
+          dyPx: discTop,
+          meadow: meadow,
+        ),
+      );
+      // Hint chip hangs under the disc. It must not sit on the wood, and a
+      // body must not cover «сюда!».
+      final chipTop = mudMarkerH + mudChipGapBelow - mudChipH - mudAnchorY;
+      list.add(
+        _rectPx(
+          centerX: mudCenter.dx,
+          centerY: mudCenter.dy,
+          widthPx: mudChipW,
+          heightPx: mudChipH,
+          dxPx: -mudChipW / 2,
+          dyPx: chipTop,
           meadow: meadow,
         ),
       );
@@ -661,7 +700,6 @@ abstract final class CapyWander {
     if (!propHit(pushed)) return pushed;
     return bestLoose ?? pushed;
   }
-
 
   /// Stop a straight walk before the body enters a prop or another capy.
   ///

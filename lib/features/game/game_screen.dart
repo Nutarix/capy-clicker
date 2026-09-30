@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'audio/game_audio.dart';
 import 'controllers/game_controller.dart';
 import 'models/balance.dart';
+import 'models/capy_wander.dart';
 import 'models/session_goals.dart';
 import 'models/world_zones.dart';
 import 'widgets/berry_basket.dart';
@@ -684,8 +685,10 @@ class _GameScreenState extends State<GameScreen> {
                                   if (_controller.mudVisible &&
                                       _controller.mudCenter != null)
                                     Positioned(
-                                      left: _controller.mudCenter!.dx * w - 84,
-                                      top: _controller.mudCenter!.dy * h - 48,
+                                      left: _controller.mudCenter!.dx * w -
+                                          CapyWander.mudAnchorX,
+                                      top: _controller.mudCenter!.dy * h -
+                                          CapyWander.mudAnchorY,
                                       child: MudPuddle(
                                         key: ValueKey(
                                           '${_controller.mudCenter!.dx.toStringAsFixed(3)}:'

@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../models/balance.dart';
+import '../models/capy_wander.dart';
 import 'meadow_hint_chip.dart';
 
 /// Soft mud puddle zone. Accepts dragged capybaras and plays a cute wallow.
@@ -20,8 +21,7 @@ class MudPuddle extends StatefulWidget {
   State<MudPuddle> createState() => _MudPuddleState();
 }
 
-class _MudPuddleState extends State<MudPuddle>
-    with TickerProviderStateMixin {
+class _MudPuddleState extends State<MudPuddle> with TickerProviderStateMixin {
   late final AnimationController _ctrl;
   late final AnimationController _idleGlow;
 
@@ -67,8 +67,8 @@ class _MudPuddleState extends State<MudPuddle>
             ? 0.55
             : (0.22 + _idleGlow.value * 0.28);
         return SizedBox(
-          width: 168,
-          height: 124,
+          width: CapyWander.mudMarkerW,
+          height: CapyWander.mudMarkerH,
           child: Stack(
             alignment: Alignment.center,
             clipBehavior: Clip.none,
@@ -114,8 +114,8 @@ class _MudPuddleState extends State<MudPuddle>
                           ),
                     child: Image.asset(
                       'assets/images/mud.png',
-                      width: 110,
-                      height: 78,
+                      width: CapyWander.mudSheetBoxW,
+                      height: CapyWander.mudSheetBoxH,
                       fit: BoxFit.contain,
                       filterQuality: FilterQuality.none,
                       gaplessPlayback: true,
@@ -138,7 +138,8 @@ class _MudPuddleState extends State<MudPuddle>
               Positioned(
                 left: 0,
                 right: 0,
-                bottom: 0,
+                // Below the painted disc — the chip must not sit on the wood.
+                bottom: -CapyWander.mudChipGapBelow,
                 child: Center(
                   child: MeadowHintChip(
                     text: widget.boostActive

@@ -123,6 +123,7 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
   bool _dragging = false;
   bool _faceRight = true;
   Timer? _wanderTimer;
+  bool _escapeScheduled = false;
 
   double get _bodyWidth => BalanceV0.capySizeForLevel(widget.capybara.level);
 
@@ -190,6 +191,7 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
     _scheduleWander(
       CapyWander.initialDelay(widget.capybara.id, _rng.nextDouble),
     );
+    _scheduleEscape();
   }
 
   @override
@@ -218,12 +220,80 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
       }
     }
     // External position change (merge spawn, mud snap, load) — sync when idle.
-    if (!_walking &&
-        !_dragging &&
-        widget.capybara.position != oldWidget.capybara.position) {
+    final posMoved = widget.capybara.position != oldWidget.capybara.position;
+    if (!_walking && !_dragging && posMoved) {
       _displayPos = widget.capybara.position;
       CapyWander.livePositions[widget.capybara.id] = _displayPos;
     }
+    final wallowEnded = oldWidget.isWallowing && !widget.isWallowing;
+    final mudMoved = widget.mudCenter != oldWidget.mudCenter;
+    final meadowMoved = widget.meadowSize != oldWidget.meadowSize;
+    // Wallow parks the body on the disc for the splash. As soon as that
+    // ends — or the puddle appears under someone — step off the wood ring
+    // and off the «сюда!» chip. Do not wait for the next wander hop.
+    if (!widget.isWallowing &&
+        (wallowEnded || mudMoved || meadowMoved || posMoved)) {
+      _scheduleEscape();
+    }
+  }
+
+  void _scheduleEscape() {
+    if (_escapeScheduled) return;
+    _escapeScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _escapeScheduled = false;
+      if (mounted) _escapeForbiddenGround();
+    });
+  }
+
+  /// Snap off the painted wood ring and the hint chip. Peers already in
+  /// [CapyWander.livePositions] keep the grass gap, so a herd leaving the
+  /// same disc does not restack.
+  void _escapeForbiddenGround() {
+    if (!mounted || _dragging || widget.isWallowing || widget.mergeFlash) {
+      return;
+    }
+    final meadow = widget.meadowSize;
+    if (meadow.width < 8 || meadow.height < 8) return;
+    final mud = widget.mudCenter;
+    final width = _bodyWidth;
+    bool blocked(Offset p) => CapyWander.hitsProp(
+      p,
+      mudCenter: mud,
+      meadowSize: meadow,
+      capyWidth: width,
+    );
+    if (!blocked(_displayPos)) return;
+
+    _cancelWalk(commit: false);
+    final peers = _peers();
+    var dest = CapyWander.pickTarget(
+      from: _displayPos,
+      random01: _rng.nextDouble,
+      herdCount: widget.herdCount,
+      others: peers.positions,
+      mudCenter: mud,
+      meadowSize: meadow,
+      capyWidth: width,
+      spreadSalt: CapyWander.phase01(widget.capybara.id),
+      peerWidths: peers.widths,
+      minDist: 0.02,
+    );
+    if (blocked(dest)) {
+      dest = CapyWander.clearProps(
+        _displayPos,
+        herdCount: widget.herdCount,
+        mudCenter: mud,
+        meadowSize: meadow,
+        capyWidth: width,
+        salt: CapyWander.phase01(widget.capybara.id),
+      );
+    }
+    if (blocked(dest) || (dest - _displayPos).distance < 0.008) return;
+    _displayPos = dest;
+    CapyWander.livePositions[widget.capybara.id] = dest;
+    widget.onDropPosition(widget.capybara.id, dest);
+    if (mounted) setState(() {});
   }
 
   @override
