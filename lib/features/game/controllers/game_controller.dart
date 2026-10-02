@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 
 import '../models/balance.dart';
 import '../models/capy_wander.dart';
+import '../models/meadow_occupancy.dart';
 import '../models/capybara.dart';
 import '../models/family_land.dart';
 import '../models/game_state.dart';
@@ -433,22 +434,23 @@ class GameController extends ChangeNotifier {
       for (final c in family) BalanceV0.capySizeForLevel(c.level),
     ];
     Offset? fallback;
-    for (var i = 0; i < 18; i++) {
+    final meadow = CapyWander.fallbackMeadow;
+    for (var i = 0; i < 24; i++) {
       final p = BalanceV0.randomMudCenter(
         _random.nextDouble,
         herdCount: herdCount,
       );
       fallback ??= p;
-      final covers = [
-        for (var n = 0; n < bodies.length; n++)
-          CapyWander.hitsProp(
-            bodies[n],
-            mudCenter: p,
-            meadowSize: CapyWander.fallbackMeadow,
-            capyWidth: widths[n],
-          ),
-      ].any((hit) => hit);
-      if (!covers) return p;
+      if (MeadowOccupancy.puddleClears(
+        p,
+        meadow,
+        herdCount: herdCount,
+        capyAnchors: bodies,
+        capyWidths: widths,
+        tentUnlocked: _state.tentUnlocked,
+      )) {
+        return p;
+      }
     }
     return fallback ??
         BalanceV0.randomMudCenter(_random.nextDouble, herdCount: herdCount);
@@ -1393,16 +1395,16 @@ class GameController extends ChangeNotifier {
   bool isOverPlace(Offset normalized) => placeAt(normalized) != null;
 
   /// Drag capy onto place OR tap place → activate (with cooldown).
-  bool tryActivatePlace(CozyPlaceKind kind, {String? capyId}) {
+  bool tryActivatePlace(CozyPlaceKind kind, {String? capyId, Offset? standAt}) {
     if (kind == CozyPlaceKind.tent && !_state.tentUnlocked) return false;
     if (isPlaceOnCooldown(kind)) return false;
 
     if (capyId != null) {
-      final (cx, cy) = kind.center;
+      final at = standAt ?? Offset(kind.center.$1, kind.center.$2);
       updatePosition(
         capyId,
         WorldZones.clampToMeadow(
-          Offset(cx, cy),
+          at,
           herdCount: _meadowKeyForCount(_state.herdCount),
         ),
       );

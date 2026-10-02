@@ -10,6 +10,7 @@ import 'audio/game_audio.dart';
 import 'controllers/game_controller.dart';
 import 'models/balance.dart';
 import 'models/capy_wander.dart';
+import 'models/meadow_occupancy.dart';
 import 'models/session_goals.dart';
 import 'models/world_zones.dart';
 import 'widgets/berry_basket.dart';
@@ -523,6 +524,20 @@ class _GameScreenState extends State<GameScreen> {
                       builder: (context, constraints) {
                         final w = constraints.maxWidth;
                         final h = constraints.maxHeight;
+                        final props = MeadowOccupancy.layout(
+                          meadow: Size(w, h),
+                          herdCount: WorldZones.gladeById(state.activeMeadowId)
+                              .minHerd,
+                          mud: _controller.mudVisible
+                              ? _controller.mudCenter
+                              : null,
+                          capyAnchors: [for (final c in state.herd) c.position],
+                          capyWidths: [
+                            for (final c in state.herd)
+                              BalanceV0.capySizeForLevel(c.level),
+                          ],
+                          tentUnlocked: state.tentUnlocked,
+                        );
 
                         return ClipRect(
                           child: AnimatedScale(
@@ -566,27 +581,23 @@ class _GameScreenState extends State<GameScreen> {
                                       ),
                                     ),
                                   // Cozy places (пень / камень / тент)
-                                  ..._buildCozyPlaces(w, h),
-                                  ...List.generate(
-                                    WorldZones.flowerPositions.length,
-                                    (i) {
-                                      final (fx, fy) =
-                                          WorldZones.flowerPositions[i];
-                                      return Positioned(
-                                        left: fx * w - FlowerDot.hitSize / 2,
-                                        top: fy * h - FlowerDot.hitSize / 2,
-                                        child: FlowerDot(
-                                          color:
-                                              _flowerColors[i %
-                                                  _flowerColors.length],
-                                          swayPhase:
-                                              i /
-                                              WorldZones.flowerPositions.length,
-                                          onTap: _onFlowerTap,
-                                        ),
-                                      );
-                                    },
-                                  ),
+                                  ..._buildCozyPlaces(w, h, props),
+                                  ...List.generate(props.flowers.length, (i) {
+                                    final flower = props.flowers[i];
+                                    final fx = flower.dx;
+                                    final fy = flower.dy;
+                                    return Positioned(
+                                      left: fx * w - FlowerDot.hitSize / 2,
+                                      top: fy * h - FlowerDot.hitSize / 2,
+                                      child: FlowerDot(
+                                        color:
+                                            _flowerColors[i %
+                                                _flowerColors.length],
+                                        swayPhase: i / props.flowers.length,
+                                        onTap: _onFlowerTap,
+                                      ),
+                                    );
+                                  }),
                                   if (_controller.isBerryVisible)
                                     Positioned(
                                       left: BalanceV0.berryPosX * w - 60,
@@ -632,13 +643,22 @@ class _GameScreenState extends State<GameScreen> {
                                       promoteLevelBadge: promote,
                                       magnetRadius:
                                           _controller.effectiveMagnetRadius,
-                                      placeAt: _controller.placeAt,
+                                      placeAt: (o) {
+                                        for (final e in props.places.entries) {
+                                          if ((o - e.value).distance <=
+                                              BalanceV0.placeHitRadius) {
+                                            return e.key;
+                                          }
+                                        }
+                                        return null;
+                                      },
                                       mudCenter: _controller.mudCenter,
                                       onPlaceDrop: (id, kind) {
                                         unawaited(_audio.noteUserGesture());
                                         final ok = _controller.tryActivatePlace(
                                           kind,
                                           capyId: id,
+                                          standAt: props.places[kind],
                                         );
                                         if (ok) {
                                           _spawnFloat(kind.emoji, Offset.zero);
@@ -835,17 +855,12 @@ class _GameScreenState extends State<GameScreen> {
     );
   }
 
-  List<Widget> _buildCozyPlaces(double w, double h) {
-    final kinds = <CozyPlaceKind>[
-      CozyPlaceKind.pen,
-      CozyPlaceKind.warmStone,
-      if (_controller.state.tentUnlocked) CozyPlaceKind.tent,
-    ];
+  List<Widget> _buildCozyPlaces(double w, double h, MeadowProps props) {
     return [
-      for (final kind in kinds)
+      for (final kind in props.places.keys)
         Positioned(
-          left: kind.center.$1 * w - 36,
-          top: kind.center.$2 * h - 32,
+          left: props.places[kind]!.dx * w - 36,
+          top: props.places[kind]!.dy * h - 32,
           child: CozyPlaceMarker(
             kind: kind,
             active: _controller.activePlaceBoost == kind,

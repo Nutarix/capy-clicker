@@ -1,7 +1,6 @@
 import 'dart:math' as math;
 import 'dart:ui';
 
-import 'multipliers/cozy_place.dart';
 import 'world_zones.dart';
 
 /// Tunable balance constants for Phase 1–2 (v0).
@@ -177,11 +176,6 @@ abstract final class BalanceV0 {
         top + random01() * (bottom - top),
       );
       if ((p - berry).distance < 0.15) continue;
-      final onPlace = CozyPlaceKind.values.any((kind) {
-        final c = kind.center;
-        return (p - Offset(c.$1, c.$2)).distance < 0.18;
-      });
-      if (onPlace) continue;
       if (WorldZones.isInMeadow(p, herdCount: herdCount)) return p;
     }
     return WorldZones.clampToMeadow(

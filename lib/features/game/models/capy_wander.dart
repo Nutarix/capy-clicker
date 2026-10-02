@@ -253,6 +253,42 @@ abstract final class CapyWander {
     return list;
   }
 
+  /// Painted wood ring (disc plus the thin oval), centered like [MudPuddle].
+  static Rect mudRingRect(Offset center, Size meadow) {
+    final discTop = (mudMarkerH - mudDrawnH) / 2 - mudAnchorY;
+    final discCenterDy = discTop + mudDrawnH / 2;
+    final ringW = mudDrawnW + 18;
+    final ringH = mudDrawnH + 14;
+    return _rectPx(
+      centerX: center.dx,
+      centerY: center.dy,
+      widthPx: ringW,
+      heightPx: ringH,
+      dxPx: -ringW / 2,
+      dyPx: discCenterDy - ringH / 2,
+      meadow: meadow,
+    );
+  }
+
+  /// Sprite box centered on [center], with an optional pixel shift of that center.
+  static Rect spriteRect(
+    Offset center,
+    Size meadow, {
+    required double widthPx,
+    required double heightPx,
+    double centerDyPx = 0,
+  }) {
+    return _rectPx(
+      centerX: center.dx,
+      centerY: center.dy,
+      widthPx: widthPx,
+      heightPx: heightPx,
+      dxPx: -widthPx / 2,
+      dyPx: centerDyPx - heightPx / 2,
+      meadow: meadow,
+    );
+  }
+
   static Rect _pad(Rect prop, Size meadow) {
     return Rect.fromLTRB(
       prop.left - propPadPx / meadow.width,
