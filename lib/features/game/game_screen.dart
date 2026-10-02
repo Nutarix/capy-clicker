@@ -409,8 +409,14 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   Offset _meadowOriginGlobal() {
-    final box = _meadowKey.currentContext?.findRenderObject() as RenderBox?;
-    if (box == null || !box.hasSize) return Offset.zero;
+    final ctx = _meadowKey.currentContext;
+    // Rocket chrome toggles the column; the previous meadow element can be
+    // inactive for the frame that rebuilds it. Do not touch a defunct render
+    // object (that throws during layout).
+    // Inactive elements still report mounted until the frame finishes.
+    if (ctx is! Element || !ctx.debugIsActive) return Offset.zero;
+    final box = ctx.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize || !box.attached) return Offset.zero;
     return box.localToGlobal(Offset.zero);
   }
 
@@ -442,55 +448,59 @@ class _GameScreenState extends State<GameScreen> {
             children: [
               Column(
                 children: [
-                  Padding(
-                    padding: EdgeInsets.fromLTRB(12, topInset + 6, 12, 4),
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFF8EC).withValues(alpha: 0.92),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: const Color(0xFFE2CFA8)),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
+                  if (_rocketPhase != _RocketPhase.none)
+                    const SizedBox.shrink()
+                  else
+                    Padding(
+                      padding: EdgeInsets.fromLTRB(12, topInset + 6, 12, 4),
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFF8EC)
+                              .withValues(alpha: 0.92),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: const Color(0xFFE2CFA8)),
                         ),
-                        child: Row(
-                          children: [
-                            if (widget.onBackToMenu != null)
-                              IconButton(
-                                visualDensity: VisualDensity.compact,
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(
-                                  minWidth: 28,
-                                  minHeight: 28,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          child: Row(
+                            children: [
+                              if (widget.onBackToMenu != null)
+                                IconButton(
+                                  visualDensity: VisualDensity.compact,
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(
+                                    minWidth: 28,
+                                    minHeight: 28,
+                                  ),
+                                  tooltip: 'Меню',
+                                  onPressed: () {
+                                    unawaited(_audio.noteUserGesture());
+                                    widget.onBackToMenu!();
+                                  },
+                                  icon: const Icon(
+                                    Icons.pause_rounded,
+                                    size: 16,
+                                  ),
                                 ),
-                                tooltip: 'Меню',
-                                onPressed: () {
-                                  unawaited(_audio.noteUserGesture());
-                                  widget.onBackToMenu!();
-                                },
-                                icon: const Icon(
-                                  Icons.pause_rounded,
-                                  size: 16,
+                              MeadowGrassReadout(grass: state.grass),
+                              const Spacer(),
+                              Flexible(
+                                child: Text(
+                                  _placeLine(state),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.right,
+                                  style: CozyTheme.hudChipStyle(fontSize: 12),
                                 ),
                               ),
-                            MeadowGrassReadout(grass: state.grass),
-                            const Spacer(),
-                            Flexible(
-                              child: Text(
-                                _placeLine(state),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                textAlign: TextAlign.right,
-                                style: CozyTheme.hudChipStyle(fontSize: 12),
-                              ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ),
-                  ),
                   Expanded(
                     child: LayoutBuilder(
                       builder: (context, constraints) {
@@ -642,44 +652,47 @@ class _GameScreenState extends State<GameScreen> {
                       },
                     ),
                   ),
-                  Padding(
-                    padding: EdgeInsets.fromLTRB(
-                      10,
-                      4,
-                      10,
-                      8 + MediaQuery.paddingOf(context).bottom,
-                    ),
-                    child: GrassSpendPanel(
-                      grass: state.grass,
-                      canCallCapy: _controller.canCallCapy,
-                      callBlockedReason: _controller.callCapyBlockedReason,
-                      canBoost: _controller.canGrassBoost,
-                      boostActive: _controller.isGrassBoostActive,
-                      onUyutHub: () {
-                        unawaited(_audio.noteUserGesture());
-                        HapticFeedback.lightImpact();
-                        UyutHubSheet.show(context, controller: _controller);
-                      },
-                      onForest: () {
-                        unawaited(_audio.noteUserGesture());
-                        HapticFeedback.lightImpact();
-                        setState(() => _forestMapOpen = true);
-                      },
-                      onCallCapy: () {
-                        unawaited(_audio.noteUserGesture());
-                        if (_controller.spendCallCapy()) {
+                  if (_rocketPhase != _RocketPhase.none)
+                    const SizedBox.shrink()
+                  else
+                    Padding(
+                      padding: EdgeInsets.fromLTRB(
+                        10,
+                        4,
+                        10,
+                        8 + MediaQuery.paddingOf(context).bottom,
+                      ),
+                      child: GrassSpendPanel(
+                        grass: state.grass,
+                        canCallCapy: _controller.canCallCapy,
+                        callBlockedReason: _controller.callCapyBlockedReason,
+                        canBoost: _controller.canGrassBoost,
+                        boostActive: _controller.isGrassBoostActive,
+                        onUyutHub: () {
+                          unawaited(_audio.noteUserGesture());
                           HapticFeedback.lightImpact();
-                          _spawnFloat('+капи', Offset.zero);
-                        }
-                      },
-                      onBoost: () {
-                        unawaited(_audio.noteUserGesture());
-                        if (_controller.spendGrassBoost()) {
+                          UyutHubSheet.show(context, controller: _controller);
+                        },
+                        onForest: () {
+                          unawaited(_audio.noteUserGesture());
                           HapticFeedback.lightImpact();
-                        }
-                      },
+                          setState(() => _forestMapOpen = true);
+                        },
+                        onCallCapy: () {
+                          unawaited(_audio.noteUserGesture());
+                          if (_controller.spendCallCapy()) {
+                            HapticFeedback.lightImpact();
+                            _spawnFloat('+капи', Offset.zero);
+                          }
+                        },
+                        onBoost: () {
+                          unawaited(_audio.noteUserGesture());
+                          if (_controller.spendGrassBoost()) {
+                            HapticFeedback.lightImpact();
+                          }
+                        },
+                      ),
                     ),
-                  ),
                 ],
               ),
               Positioned.fill(

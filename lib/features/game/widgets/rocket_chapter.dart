@@ -21,11 +21,16 @@ class RocketFarewell extends StatelessWidget {
       body: 'Один улетает. Остальные остаются дома.\nМожно будет вернуться.',
       rocketAlign: Alignment.centerRight,
       actions: [
-        CozyPixelButton(label: 'Отправить одного', onPressed: onSend),
+        CozyPixelButton(
+          label: 'Отправить одного',
+          expand: true,
+          onPressed: onSend,
+        ),
         const SizedBox(width: 8),
         CozyPixelButton(
           label: 'Ещё побыть',
           variant: CozyPixelButtonVariant.secondary,
+          expand: true,
           onPressed: onStay,
         ),
       ],
