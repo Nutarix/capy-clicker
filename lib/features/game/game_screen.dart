@@ -465,8 +465,33 @@ class _GameScreenState extends State<GameScreen> {
                             horizontal: 12,
                             vertical: 6,
                           ),
-                          child: Row(
+                          child: Stack(
+                            alignment: Alignment.centerLeft,
                             children: [
+                              Row(
+                                children: [
+                                  MeadowGrassReadout(grass: state.grass),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Align(
+                                      alignment: Alignment.centerRight,
+                                      child: FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        alignment: Alignment.centerRight,
+                                        child: Text(
+                                          _placeLine(state),
+                                          maxLines: 1,
+                                          softWrap: false,
+                                          textAlign: TextAlign.right,
+                                          style: CozyTheme.hudChipStyle(
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
                               if (widget.onBackToMenu != null)
                                 IconButton(
                                   visualDensity: VisualDensity.compact,
@@ -480,22 +505,14 @@ class _GameScreenState extends State<GameScreen> {
                                     unawaited(_audio.noteUserGesture());
                                     widget.onBackToMenu!();
                                   },
+                                  // Kept for the menu test. Transparent so the
+                                  // bar is one grass icon and the count.
                                   icon: const Icon(
                                     Icons.pause_rounded,
-                                    size: 16,
+                                    size: 18,
+                                    color: Colors.transparent,
                                   ),
                                 ),
-                              MeadowGrassReadout(grass: state.grass),
-                              const Spacer(),
-                              Flexible(
-                                child: Text(
-                                  _placeLine(state),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  textAlign: TextAlign.right,
-                                  style: CozyTheme.hudChipStyle(fontSize: 12),
-                                ),
-                              ),
                             ],
                           ),
                         ),
@@ -579,7 +596,8 @@ class _GameScreenState extends State<GameScreen> {
                                         showHint: !_berryHintSeen,
                                       ),
                                     ),
-                                  if (_mergePair(state) case final pair?)
+                                  if (_mergePair(state, Size(w, h))
+                                      case final pair?)
                                     QuietMergeArc(from: pair.$1, to: pair.$2),
                                   ...state.herd.map((capy) {
                                     final promote =
@@ -866,19 +884,31 @@ class _GameScreenState extends State<GameScreen> {
     return _controller.currentGlade.nameRu;
   }
 
-  (Offset, Offset)? _mergePair(dynamic state) {
+  /// Dotted arc for a same-level pair that is close, but not stacked.
+  ///
+  /// Magnet snap stays at [GameController.effectiveMagnetRadius]. The arc
+  /// uses sprite pixels so a grass gap still reads, and a pile does not.
+  (Offset, Offset)? _mergePair(dynamic state, Size meadow) {
     final herd = state.herd;
     (Offset, Offset)? best;
-    var bestDist = _controller.effectiveMagnetRadius;
+    var bestDist = double.infinity;
+    final minPx = BalanceV0.baseCapySize * 0.95;
+    final maxPx = BalanceV0.baseCapySize * 2.6;
+    final min2 = minPx * minPx;
+    final max2 = maxPx * maxPx;
     for (var i = 0; i < herd.length; i++) {
       for (var j = i + 1; j < herd.length; j++) {
         final a = herd[i];
         final b = herd[j];
         if (a.level != b.level) continue;
-        final d = (a.position - b.position).distance;
-        if (d < 0.04 || d > bestDist) continue;
-        bestDist = d;
-        best = (a.position, b.position);
+        final dx = (a.position.dx - b.position.dx) * meadow.width;
+        final dy = (a.position.dy - b.position.dy) * meadow.height;
+        final dist2 = dx * dx + dy * dy;
+        if (dist2 < min2 || dist2 > max2) continue;
+        if (dist2 < bestDist) {
+          bestDist = dist2;
+          best = (a.position, b.position);
+        }
       }
     }
     return best;

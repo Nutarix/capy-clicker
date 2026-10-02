@@ -58,6 +58,7 @@ class _UyutHubSheetState extends State<UyutHubSheet>
       vsync: this,
       initialIndex: widget.initialTab.clamp(0, 3),
     );
+    _tabs.addListener(_onChanged);
     c.addListener(_onChanged);
   }
 
@@ -65,9 +66,20 @@ class _UyutHubSheetState extends State<UyutHubSheet>
     if (mounted) setState(() {});
   }
 
+  /// Only the selected tab is built, so Еда cannot sit under Дом.
+  Widget _tabBody(bool permanentUnlocked) {
+    return switch (_tabs.index) {
+      0 => _FoodTab(controller: c),
+      1 => _RolesTab(controller: c, focusCapyId: widget.focusCapyId),
+      2 => _DecorTab(controller: c, softLocked: !permanentUnlocked),
+      _ => _ResearchTab(controller: c, softLocked: !permanentUnlocked),
+    };
+  }
+
   @override
   void dispose() {
     c.removeListener(_onChanged);
+    _tabs.removeListener(_onChanged);
     _tabs.dispose();
     super.dispose();
   }
@@ -120,20 +132,7 @@ class _UyutHubSheetState extends State<UyutHubSheet>
                     const Tab(height: 48, child: _HubTabLabel('Наука')),
                   ],
                 ),
-                Expanded(
-                  child: TabBarView(
-                    controller: _tabs,
-                    children: [
-                      _FoodTab(controller: c),
-                      _RolesTab(controller: c, focusCapyId: widget.focusCapyId),
-                      _DecorTab(controller: c, softLocked: !permanentUnlocked),
-                      _ResearchTab(
-                        controller: c,
-                        softLocked: !permanentUnlocked,
-                      ),
-                    ],
-                  ),
-                ),
+                Expanded(child: _tabBody(permanentUnlocked)),
               ],
             ),
           ),
@@ -374,14 +373,16 @@ class _DecorTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final state = controller.state;
-    final offer = <String>{
+    // One next buy, on the spot it will occupy. Empty places stay grass.
+    final open = [
       for (final decor in HomeDecor.values)
         if (!state.ownsDecor(decor) &&
             !softLocked &&
             (decor.requiresResearch == null ||
                 state.hasResearch(decor.requiresResearch!)))
-          decor.id,
-    };
+          decor,
+    ]..sort((a, b) => a.grassCost.compareTo(b.grassCost));
+    final offer = <String>{if (open.isNotEmpty) open.first.id};
     return Column(
       children: [
         Padding(

@@ -25,7 +25,7 @@ class HomeSlot {
 abstract final class HomeMeadowLayout {
   static const slots = <HomeDecor, HomeSlot>{
     HomeDecor.girlyanda: HomeSlot(x: 0.50, y: 0.18, w: 0.78, h: 0.16),
-    HomeDecor.fonarik: HomeSlot(x: 0.12, y: 0.52, w: 0.16, h: 0.20),
+    HomeDecor.fonarik: HomeSlot(x: 0.24, y: 0.52, w: 0.28, h: 0.22),
     HomeDecor.vazon: HomeSlot(x: 0.30, y: 0.56, w: 0.15, h: 0.18),
     HomeDecor.skvorechnik: HomeSlot(x: 0.86, y: 0.50, w: 0.16, h: 0.16),
     HomeDecor.lampa: HomeSlot(x: 0.64, y: 0.64, w: 0.14, h: 0.16),
@@ -63,7 +63,7 @@ class HomeMeadowScene extends StatelessWidget {
         final w = constraints.maxWidth;
         final h = constraints.maxHeight;
         return Stack(
-          clipBehavior: Clip.none,
+          clipBehavior: Clip.hardEdge,
           children: [
             for (final decor in HomeDecor.values)
               if (placedIds.contains(decor.id))
@@ -133,71 +133,68 @@ class _BuyPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final spark = decor.uyutCost > 0;
-    return Align(
-      alignment: Alignment.center,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: enabled ? onTap : null,
-          borderRadius: BorderRadius.circular(16),
-          child: Ink(
-            decoration: BoxDecoration(
-              color: const Color(0xFFFFF8EC)
-                  .withValues(alpha: enabled ? 0.94 : 0.72),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFF8A6A45), width: 1.4),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Image.asset(
-                      decor.assetPath,
-                      width: 22,
-                      height: 22,
-                      filterQuality: FilterQuality.none,
-                    ),
-                    Text(
-                      decor.labelRu,
-                      maxLines: 1,
-                      softWrap: false,
-                      style: CozyTheme.hudChipStyle(fontSize: 11),
-                    ),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: enabled ? onTap : null,
+        borderRadius: BorderRadius.circular(16),
+        child: Ink(
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFF8EC)
+                .withValues(alpha: enabled ? 0.94 : 0.72),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFF8A6A45), width: 1.6),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Image.asset(
+                    decor.assetPath,
+                    width: 48,
+                    height: 48,
+                    filterQuality: FilterQuality.none,
+                  ),
+                  Text(
+                    decor.labelRu,
+                    maxLines: 1,
+                    softWrap: false,
+                    style: CozyTheme.hudChipStyle(fontSize: 13),
+                  ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Image.asset(
+                        'assets/images/ui/icon_grass.png',
+                        width: 14,
+                        height: 14,
+                        filterQuality: FilterQuality.none,
+                      ),
+                      const SizedBox(width: 3),
+                      Text(
+                        '${decor.grassCost}',
+                        style: CozyTheme.hudChipStyle(fontSize: 13),
+                      ),
+                      if (spark) ...[
+                        const SizedBox(width: 4),
                         Image.asset(
-                          'assets/images/ui/icon_grass.png',
-                          width: 12,
-                          height: 12,
+                          'assets/images/ui/icon_spark.png',
+                          width: 14,
+                          height: 14,
                           filterQuality: FilterQuality.none,
                         ),
                         const SizedBox(width: 2),
                         Text(
-                          '${decor.grassCost}',
-                          style: CozyTheme.hudChipStyle(fontSize: 11),
+                          '${decor.uyutCost}',
+                          style: CozyTheme.hudChipStyle(fontSize: 13),
                         ),
-                        if (spark) ...[
-                          const SizedBox(width: 4),
-                          Image.asset(
-                            'assets/images/ui/icon_spark.png',
-                            width: 12,
-                            height: 12,
-                            filterQuality: FilterQuality.none,
-                          ),
-                          const SizedBox(width: 2),
-                          Text(
-                            '${decor.uyutCost}',
-                            style: CozyTheme.hudChipStyle(fontSize: 11),
-                          ),
-                        ],
                       ],
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
+                ],
               ),
             ),
           ),
