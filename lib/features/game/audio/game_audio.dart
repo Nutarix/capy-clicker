@@ -10,12 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// user gesture — call [noteUserGesture] after the first tap/drag so BGM can
 /// start. Mute preference is persisted and silences both BGM and SFX.
 class GameAudio extends ChangeNotifier {
-  GameAudio({
-    this.silent = false,
-    this._prefs,
-    this._bgm,
-    this._sfx,
-  });
+  GameAudio({this.silent = false, this._prefs, this._bgm, this._sfx});
 
   /// No-op audio for unit / widget tests (no platform channels).
   factory GameAudio.disabled() => GameAudio(silent: true);

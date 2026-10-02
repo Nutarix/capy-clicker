@@ -37,10 +37,7 @@ class MeadowBackground extends StatelessWidget {
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [
-                    Color(0x00000000),
-                    Color(0x14000000),
-                  ],
+                  colors: [Color(0x00000000), Color(0x14000000)],
                   stops: [0.55, 1.0],
                 ),
               ),

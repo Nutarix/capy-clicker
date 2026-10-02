@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 
 import '../models/balance.dart';
 import '../models/capy_wander.dart';
-import 'meadow_hint_chip.dart';
 
 /// Soft mud puddle zone. Accepts dragged capybaras and plays a cute wallow.
 class MudPuddle extends StatefulWidget {
@@ -135,18 +134,13 @@ class _MudPuddleState extends State<MudPuddle> with TickerProviderStateMixin {
                   child: const Text('💦', style: TextStyle(fontSize: 28)),
                 ),
               ],
-              Positioned(
-                left: 0,
-                right: 0,
-                // Below the painted disc — the chip must not sit on the wood.
-                bottom: -CapyWander.mudChipGapBelow,
-                child: Center(
-                  child: MeadowHintChip(
-                    text: widget.boostActive
-                        ? 'грязь ×2!'
-                        : (widget.isWallowing ? 'плеск!' : 'сюда!'),
-                  ),
+              // Thin ring around the wood slice. No «сюда!» chip.
+              CustomPaint(
+                size: const Size(
+                  CapyWander.mudDrawnW + 18,
+                  CapyWander.mudDrawnH + 14,
                 ),
+                painter: _PuddleRingPainter(),
               ),
             ],
           ),
@@ -262,4 +256,18 @@ class _WallowOverlayState extends State<WallowOverlay>
       child: widget.child,
     );
   }
+}
+
+class _PuddleRingPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2
+      ..color = const Color(0xFFF7F1E4).withValues(alpha: 0.9);
+    canvas.drawOval(Offset.zero & size, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

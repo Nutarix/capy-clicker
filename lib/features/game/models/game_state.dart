@@ -1,4 +1,5 @@
 import 'capybara.dart';
+import 'family_land.dart';
 import 'meadow_snapshot.dart';
 import 'multipliers/family_food.dart';
 import 'multipliers/home_decor.dart';
@@ -32,6 +33,9 @@ class GameState {
     this.researched = const {},
     this.roleSlots = 1,
     this.tentUnlocked = false,
+    this.visitedMist = false,
+    this.landChapter = 0,
+    this.otherLands = const [],
   });
 
   /// Herd progress in range 0.0–1.0 (fills toward next spawn) — **active** meadow.
@@ -92,6 +96,15 @@ class GameState {
 
   /// Whether Тент placeable is unlocked (research).
   final bool tentUnlocked;
+
+  /// True after the family has stood on Туманная опушка at least once.
+  final bool visitedMist;
+
+  /// 0 = original forest. Increments when the family sends one capy onward.
+  final int landChapter;
+
+  /// Other lands the family can visit. Grass and sparks are not stored here.
+  final List<FamilyLand> otherLands;
 
   int get herdCount => herd.length;
 
@@ -167,11 +180,11 @@ class GameState {
 
   /// Snapshot of the active meadow fields.
   MeadowSnapshot get activeSnapshot => MeadowSnapshot(
-        herd: herd,
-        herdProgress: herdProgress,
-        twinIdA: twinIdA,
-        twinIdB: twinIdB,
-      );
+    herd: herd,
+    herdProgress: herdProgress,
+    twinIdA: twinIdA,
+    twinIdB: twinIdB,
+  );
 
   /// Ensures [meadows] contains the active herd fields (call before persist).
   GameState withActiveSynced() {
@@ -203,6 +216,9 @@ class GameState {
     Set<String>? researched,
     int? roleSlots,
     bool? tentUnlocked,
+    bool? visitedMist,
+    int? landChapter,
+    List<FamilyLand>? otherLands,
   }) {
     final nextActive = activeMeadowId ?? this.activeMeadowId;
     final nextHerd = herd ?? this.herd;
@@ -250,6 +266,9 @@ class GameState {
       researched: researched ?? this.researched,
       roleSlots: roleSlots ?? this.roleSlots,
       tentUnlocked: tentUnlocked ?? this.tentUnlocked,
+      visitedMist: visitedMist ?? this.visitedMist,
+      landChapter: landChapter ?? this.landChapter,
+      otherLands: otherLands ?? this.otherLands,
     );
   }
 
@@ -279,6 +298,9 @@ class GameState {
       'researched': synced.researched.toList(),
       'roleSlots': synced.roleSlots,
       'tentUnlocked': synced.tentUnlocked,
+      'visitedMist': synced.visitedMist,
+      'landChapter': synced.landChapter,
+      'otherLands': [for (final land in synced.otherLands) land.toJson()],
     };
   }
 
@@ -312,16 +334,18 @@ class GameState {
       final key = e.key.toString();
       final value = e.value;
       if (value is Map) {
-        meadows[key] =
-            MeadowSnapshot.fromJson(Map<String, dynamic>.from(value));
+        meadows[key] = MeadowSnapshot.fromJson(
+          Map<String, dynamic>.from(value),
+        );
       }
     }
-    final activeId = (json['activeMeadowId'] as String?) ??
-        WorldZones.starterMeadowId;
-    final active = meadows[activeId] ??
+    final activeId =
+        (json['activeMeadowId'] as String?) ?? WorldZones.starterMeadowId;
+    final active =
+        meadows[activeId] ??
         MeadowSnapshot(
           herdProgress: (json['herdProgress'] as num?)?.toDouble() ?? 0,
-          herd: _parseHerdList(json['herd']),
+          herd: parseHerdList(json['herd']),
           twinIdA: json['twinIdA'] as String?,
           twinIdB: json['twinIdB'] as String?,
         );
@@ -349,14 +373,18 @@ class GameState {
       ownedDecor: _parseStringSet(json['ownedDecor']),
       placedDecor: _parseStringSet(json['placedDecor']),
       researched: researched,
-      roleSlots: (json['roleSlots'] as num?)?.toInt() ??
+      roleSlots:
+          (json['roleSlots'] as num?)?.toInt() ??
           (researched.contains('role_slot_2') ? 2 : 1),
       tentUnlocked: json['tentUnlocked'] as bool? ?? tentFromResearch,
+      visitedMist: json['visitedMist'] as bool? ?? false,
+      landChapter: (json['landChapter'] as num?)?.toInt() ?? 0,
+      otherLands: FamilyLand.listFromJson(json['otherLands']),
     );
   }
 
   static GameState _fromLegacySingleHerdJson(Map<String, dynamic> json) {
-    final herd = _parseHerdList(json['herd']);
+    final herd = parseHerdList(json['herd']);
     final progress = (json['herdProgress'] as num?)?.toDouble() ?? 0;
     final announced = (json['sunnyGladeAnnounced'] as num?)?.toInt() ?? 0;
     final twinA = json['twinIdA'] as String?;
@@ -399,14 +427,18 @@ class GameState {
       ownedDecor: _parseStringSet(json['ownedDecor']),
       placedDecor: _parseStringSet(json['placedDecor']),
       researched: researched,
-      roleSlots: (json['roleSlots'] as num?)?.toInt() ??
+      roleSlots:
+          (json['roleSlots'] as num?)?.toInt() ??
           (researched.contains('role_slot_2') ? 2 : 1),
-      tentUnlocked: json['tentUnlocked'] as bool? ??
-          researched.contains('unlock_tent'),
+      tentUnlocked:
+          json['tentUnlocked'] as bool? ?? researched.contains('unlock_tent'),
+      visitedMist: json['visitedMist'] as bool? ?? false,
+      landChapter: (json['landChapter'] as num?)?.toInt() ?? 0,
+      otherLands: FamilyLand.listFromJson(json['otherLands']),
     );
   }
 
-  static List<Capybara> _parseHerdList(dynamic raw) {
+  static List<Capybara> parseHerdList(dynamic raw) {
     final list = raw as List<dynamic>? ?? const [];
     return list
         .map((e) => Capybara.fromJson(Map<String, dynamic>.from(e as Map)))
@@ -414,12 +446,10 @@ class GameState {
   }
 
   static GameState initial() => GameState(
-        herdProgress: 0,
-        herd: const [],
-        nextId: 1,
-        activeMeadowId: WorldZones.starterMeadowId,
-        meadows: {
-          WorldZones.starterMeadowId: MeadowSnapshot.empty,
-        },
-      );
+    herdProgress: 0,
+    herd: const [],
+    nextId: 1,
+    activeMeadowId: WorldZones.starterMeadowId,
+    meadows: {WorldZones.starterMeadowId: MeadowSnapshot.empty},
+  );
 }

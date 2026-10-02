@@ -36,12 +36,12 @@ class Capybara {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'level': level,
-        'x': position.dx,
-        'y': position.dy,
-        if (role != null) 'role': role!.id,
-      };
+    'id': id,
+    'level': level,
+    'x': position.dx,
+    'y': position.dy,
+    if (role != null) 'role': role!.id,
+  };
 
   factory Capybara.fromJson(Map<String, dynamic> json) {
     return Capybara(

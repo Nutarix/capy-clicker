@@ -58,10 +58,7 @@ class _CapyClickerAppState extends State<CapyClickerApp> {
       // Game keeps PortraitPhoneFrame on desktop/web for playtest.
       home: _inGame
           ? PortraitPhoneFrame(
-              child: GameScreen(
-                audio: _audio,
-                onBackToMenu: _backToMenu,
-              ),
+              child: GameScreen(audio: _audio, onBackToMenu: _backToMenu),
             )
           : MainMenuScreen(
               audio: _audio,

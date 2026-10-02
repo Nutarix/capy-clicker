@@ -1,9 +1,9 @@
 import 'dart:async';
 
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
+
 import '../../theme/cozy_theme.dart';
-import '../../widgets/cozy_pixel_button.dart';
+
 import 'package:flutter/services.dart';
 
 import 'audio/game_audio.dart';
@@ -22,7 +22,8 @@ import 'widgets/meadow_decor.dart';
 import 'widgets/placed_home_decor.dart';
 import 'widgets/mud_puddle.dart';
 import 'widgets/grass_spend_panel.dart';
-import 'widgets/progress_bar.dart';
+import 'widgets/quiet_merge_arc.dart';
+import 'widgets/rocket_chapter.dart';
 import 'widgets/morning_cozy_sheet.dart';
 import 'widgets/tip_overlay.dart';
 import 'widgets/uyut/cozy_place_marker.dart';
@@ -31,12 +32,7 @@ import 'models/multipliers/multipliers.dart';
 
 /// Live game screen: auto progress, flowers, herd, merge, mud, berries, zoom.
 class GameScreen extends StatefulWidget {
-  const GameScreen({
-    super.key,
-    this.controller,
-    this.audio,
-    this.onBackToMenu,
-  });
+  const GameScreen({super.key, this.controller, this.audio, this.onBackToMenu});
 
   /// Optional injected controller (tests / DI).
   final GameController? controller;
@@ -68,18 +64,14 @@ class _GameScreenState extends State<GameScreen> {
   final List<FloatingGainEvent> _floats = [];
   int _floatSeq = 0;
 
-  /// Bumps CreamProgressBar pulse on explicit gains.
-  int _progressPulseToken = 0;
-
   /// Soft first-appearance hint on berry basket (session).
   bool _berryHintSeen = false;
 
   /// Forest map overlay visible.
   bool _forestMapOpen = false;
 
-  /// Collapsed «задания» cream HUD (persisted).
-  bool _goalsCollapsed = false;
-  static const _goalsCollapsedPrefsKey = 'capy_clicker_goals_collapsed_v1';
+  _RocketPhase _rocketPhase = _RocketPhase.none;
+  bool _landsOpen = false;
 
   /// Capy ids that should show a prominent Lv badge (drag / recent merge).
   final Set<String> _badgePromoted = {};
@@ -105,20 +97,6 @@ class _GameScreenState extends State<GameScreen> {
     _controller.addListener(_onControllerChanged);
     _controller.init();
     _audio.init();
-    unawaited(_loadGoalsCollapsedPref());
-  }
-
-  Future<void> _loadGoalsCollapsedPref() async {
-    final prefs = await SharedPreferences.getInstance();
-    final v = prefs.getBool(_goalsCollapsedPrefsKey) ?? false;
-    if (!mounted) return;
-    setState(() => _goalsCollapsed = v);
-  }
-
-  Future<void> _setGoalsCollapsed(bool value) async {
-    setState(() => _goalsCollapsed = value);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_goalsCollapsedPrefsKey, value);
   }
 
   void _onAudioChanged() {
@@ -284,7 +262,6 @@ class _GameScreenState extends State<GameScreen> {
           color: color ?? const Color(0xFF5A9A48),
         ),
       );
-      _progressPulseToken++;
     });
   }
 
@@ -369,9 +346,9 @@ class _GameScreenState extends State<GameScreen> {
     if (!_controller.isDailyBonusAvailable || _dailySheetOpen) return;
     _dailySheetOpen = true;
     final claimed = await MorningCozySheet.show(
-        context,
-        dailyGoalHint: _controller.dailyGoalHintRu,
-        onClaim: () {
+      context,
+      dailyGoalHint: _controller.dailyGoalHintRu,
+      onClaim: () {
         _controller.claimDailyBonus();
       },
     );
@@ -414,7 +391,8 @@ class _GameScreenState extends State<GameScreen> {
       // Float near puddle center in meadow space.
       final box = _meadowKey.currentContext?.findRenderObject() as RenderBox?;
       if (box != null && box.hasSize) {
-        final center = _controller.mudCenter ??
+        final center =
+            _controller.mudCenter ??
             const Offset(BalanceV0.mudCenterX, BalanceV0.mudCenterY);
         final local = Offset(
           center.dx * box.size.width,
@@ -425,9 +403,7 @@ class _GameScreenState extends State<GameScreen> {
           box.localToGlobal(local),
           color: const Color(0xFFB8860B),
         );
-      } else {
-        setState(() => _progressPulseToken++);
-      }
+      } else {}
     }
     return ok;
   }
@@ -455,203 +431,64 @@ class _GameScreenState extends State<GameScreen> {
     final boost = _controller.isMudBoostActive;
 
     final topInset = MediaQuery.paddingOf(context).top;
-    final goal = _controller.currentSessionGoal;
-    final goalLine = () {
-      if (goal == null) return 'Задания';
-      final detail = goal.hudCountDetailRu(
-        herdCount: state.herdCount,
-        maxCapyLevel: state.maxCapyLevel,
-        uyut: state.uyut,
-        familyPower: state.familyPower,
-      );
-      return detail.isEmpty
-          ? 'Цель: ${goal.titleRu}'
-          : 'Цель: ${goal.titleRu} · $detail';
-    }();
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: CozyTheme.systemOverlay,
       child: Scaffold(
-      backgroundColor: CozyTheme.cream,
-      body: MeadowBackground(
-        meadowId: state.activeMeadowId,
-        child: Stack(
+        backgroundColor: CozyTheme.cream,
+        body: MeadowBackground(
+          meadowId: state.activeMeadowId,
+          child: Stack(
             children: [
               Column(
                 children: [
                   Padding(
-                    padding: EdgeInsets.fromLTRB(16, topInset + 8, 16, 8),
+                    padding: EdgeInsets.fromLTRB(12, topInset + 6, 12, 4),
                     child: DecoratedBox(
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF8EDD8).withValues(alpha: 0.82),
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(
-                          color: const Color(0xFFE2CFA8).withValues(alpha: 0.9),
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.12),
-                            blurRadius: 10,
-                            offset: const Offset(0, 3),
-                          ),
-                        ],
+                        color: const Color(0xFFFFF8EC).withValues(alpha: 0.92),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: const Color(0xFFE2CFA8)),
                       ),
                       child: Padding(
-                        padding: EdgeInsets.fromLTRB(
-                          12,
-                          _goalsCollapsed ? 6 : 10,
-                          4,
-                          _goalsCollapsed ? 6 : 12,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
                         ),
-                        child: _goalsCollapsed
-                            ? Row(
-                                children: [
-                                  const Text('🎯', style: TextStyle(fontSize: 13)),
-                                  const SizedBox(width: 6),
-                                  Expanded(
-                                    child: Text(
-                                      goalLine,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: CozyTheme.hudChipMutedStyle(fontSize: 12),
-                                    ),
-                                  ),
-                                  IconButton(
-                                    visualDensity: VisualDensity.compact,
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints(
-                                      minWidth: 32,
-                                      minHeight: 32,
-                                    ),
-                                    tooltip: 'Развернуть задания',
-                                    onPressed: () {
-                                      unawaited(_audio.noteUserGesture());
-                                      unawaited(_setGoalsCollapsed(false));
-                                    },
-                                    icon: const Icon(Icons.expand_more, size: 22),
-                                  ),
-                                ],
-                              )
-                            : Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                        child: Row(
                           children: [
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: CreamProgressBar(
-                                    value: state.herdProgress,
-                                    boostActive: boost,
-                                    boostSeconds:
-                                        _controller.mudBoostRemainingSeconds,
-                                    autoRatePerSecond: _controller.autoRatePerSecond,
-                                    pulseToken: _progressPulseToken,
-                                  ),
+                            if (widget.onBackToMenu != null)
+                              IconButton(
+                                visualDensity: VisualDensity.compact,
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(
+                                  minWidth: 28,
+                                  minHeight: 28,
                                 ),
-                                IconButton(
-                                  visualDensity: VisualDensity.compact,
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(
-                                    minWidth: 32,
-                                    minHeight: 32,
-                                  ),
-                                  tooltip: 'Свернуть задания',
-                                  onPressed: () {
-                                    unawaited(_audio.noteUserGesture());
-                                    unawaited(_setGoalsCollapsed(true));
-                                  },
-                                  icon: const Icon(Icons.expand_less, size: 22),
+                                tooltip: 'Меню',
+                                onPressed: () {
+                                  unawaited(_audio.noteUserGesture());
+                                  widget.onBackToMenu!();
+                                },
+                                icon: const Icon(
+                                  Icons.pause_rounded,
+                                  size: 16,
                                 ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            Wrap(
-                              spacing: 8,
-                              runSpacing: 6,
-                              crossAxisAlignment: WrapCrossAlignment.center,
-                              children: [
-                                _SessionGoalChip(
-                                  goal: _controller.currentSessionGoal,
-                                  progress: _controller.sessionGoalProgress,
-                                  herdCount: state.herdCount,
-                                  maxCapyLevel: state.maxCapyLevel,
-                                  uyut: state.uyut,
-                                  familyPower: state.familyPower,
-                                ),
-                                _UyutChip(
-                                  uyut: state.uyut,
-                                  onPressed: () {
-                                    unawaited(_audio.noteUserGesture());
-                                    HapticFeedback.lightImpact();
-                                    UyutHubSheet.show(
-                                      context,
-                                      controller: _controller,
-                                    );
-                                  },
-                                ),
-                                _HerdSizeChip(count: state.herdCount),
-                                _SunnyGladeChip(
-                                  nameRu: _controller.currentGlade.nameRu,
-                                ),
-                                _ForestMapChip(
-                                  onPressed: () {
-                                    unawaited(_audio.noteUserGesture());
-                                    HapticFeedback.lightImpact();
-                                    setState(() => _forestMapOpen = true);
-                                  },
-                                ),
-                                _MuteChip(
-                                  muted: _audio.isMuted,
-                                  onToggle: () {
-                                    unawaited(_audio.noteUserGesture());
-                                    unawaited(_audio.toggleMute());
-                                  },
-                                ),
-                                if (widget.onBackToMenu != null)
-                                  _MenuBackChip(
-                                    onPressed: () {
-                                      unawaited(_audio.noteUserGesture());
-                                      HapticFeedback.lightImpact();
-                                      widget.onBackToMenu!();
-                                    },
-                                  ),
-                              ],
+                              ),
+                            MeadowGrassReadout(grass: state.grass),
+                            const Spacer(),
+                            Flexible(
+                              child: Text(
+                                _placeLine(state),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                textAlign: TextAlign.right,
+                                style: CozyTheme.hudChipStyle(fontSize: 12),
+                              ),
                             ),
                           ],
                         ),
                       ),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
-                    child: GrassSpendPanel(
-                      grass: state.grass,
-                      canCallCapy: _controller.canCallCapy,
-                      callBlockedReason: _controller.callCapyBlockedReason,
-                      canBoost: _controller.canGrassBoost,
-                      boostActive: _controller.isGrassBoostActive,
-                      foodHint: 'Еда · ${state.food.total}🍽',
-                      onUyutHub: () {
-                        unawaited(_audio.noteUserGesture());
-                        HapticFeedback.lightImpact();
-                        UyutHubSheet.show(
-                          context,
-                          controller: _controller,
-                        );
-                      },
-                      onCallCapy: () {
-                        unawaited(_audio.noteUserGesture());
-                        if (_controller.spendCallCapy()) {
-                          HapticFeedback.lightImpact();
-                          _spawnFloat('+капи', Offset.zero);
-                        }
-                      },
-                      onBoost: () {
-                        unawaited(_audio.noteUserGesture());
-                        if (_controller.spendGrassBoost()) {
-                          HapticFeedback.lightImpact();
-                          setState(() => _progressPulseToken++);
-                        }
-                      },
                     ),
                   ),
                   Expanded(
@@ -685,9 +522,11 @@ class _GameScreenState extends State<GameScreen> {
                                   if (_controller.mudVisible &&
                                       _controller.mudCenter != null)
                                     Positioned(
-                                      left: _controller.mudCenter!.dx * w -
+                                      left:
+                                          _controller.mudCenter!.dx * w -
                                           CapyWander.mudAnchorX,
-                                      top: _controller.mudCenter!.dy * h -
+                                      top:
+                                          _controller.mudCenter!.dy * h -
                                           CapyWander.mudAnchorY,
                                       child: MudPuddle(
                                         key: ValueKey(
@@ -710,9 +549,12 @@ class _GameScreenState extends State<GameScreen> {
                                         left: fx * w - FlowerDot.hitSize / 2,
                                         top: fy * h - FlowerDot.hitSize / 2,
                                         child: FlowerDot(
-                                          color: _flowerColors[
-                                              i % _flowerColors.length],
-                                          swayPhase: i / WorldZones.flowerPositions.length,
+                                          color:
+                                              _flowerColors[i %
+                                                  _flowerColors.length],
+                                          swayPhase:
+                                              i /
+                                              WorldZones.flowerPositions.length,
                                           onTap: _onFlowerTap,
                                         ),
                                       );
@@ -727,6 +569,8 @@ class _GameScreenState extends State<GameScreen> {
                                         showHint: !_berryHintSeen,
                                       ),
                                     ),
+                                  if (_mergePair(state) case final pair?)
+                                    QuietMergeArc(from: pair.$1, to: pair.$2),
                                   ...state.herd.map((capy) {
                                     final promote =
                                         _badgePromoted.contains(capy.id) ||
@@ -769,10 +613,7 @@ class _GameScreenState extends State<GameScreen> {
                                           capyId: id,
                                         );
                                         if (ok) {
-                                          _spawnFloat(
-                                            kind.emoji,
-                                            Offset.zero,
-                                          );
+                                          _spawnFloat(kind.emoji, Offset.zero);
                                         }
                                         return ok;
                                       },
@@ -786,8 +627,7 @@ class _GameScreenState extends State<GameScreen> {
                                           focusCapyId: capy.id,
                                         );
                                       },
-                                      onDragBadge: () =>
-                                          _promoteBadge(capy.id),
+                                      onDragBadge: () => _promoteBadge(capy.id),
                                       onMagnetTargetChanged: (id) {
                                         if (_magnetAttractedId == id) return;
                                         setState(() => _magnetAttractedId = id);
@@ -803,17 +643,41 @@ class _GameScreenState extends State<GameScreen> {
                     ),
                   ),
                   Padding(
-                    padding: EdgeInsets.only(
-                      bottom: 12 + MediaQuery.paddingOf(context).bottom,
-                      left: 16,
-                      right: 16,
+                    padding: EdgeInsets.fromLTRB(
+                      10,
+                      4,
+                      10,
+                      8 + MediaQuery.paddingOf(context).bottom,
                     ),
-                    child: Text(
-                      'держи капи · долгое нажатие — роль · Еда — хаб семьи',
-                      textAlign: TextAlign.center,
-                      style: CozyTheme.hudChipMutedStyle(fontSize: 11).copyWith(
-                        color: Colors.brown.shade900.withValues(alpha: 0.55),
-                      ),
+                    child: GrassSpendPanel(
+                      grass: state.grass,
+                      canCallCapy: _controller.canCallCapy,
+                      callBlockedReason: _controller.callCapyBlockedReason,
+                      canBoost: _controller.canGrassBoost,
+                      boostActive: _controller.isGrassBoostActive,
+                      onUyutHub: () {
+                        unawaited(_audio.noteUserGesture());
+                        HapticFeedback.lightImpact();
+                        UyutHubSheet.show(context, controller: _controller);
+                      },
+                      onForest: () {
+                        unawaited(_audio.noteUserGesture());
+                        HapticFeedback.lightImpact();
+                        setState(() => _forestMapOpen = true);
+                      },
+                      onCallCapy: () {
+                        unawaited(_audio.noteUserGesture());
+                        if (_controller.spendCallCapy()) {
+                          HapticFeedback.lightImpact();
+                          _spawnFloat('+капи', Offset.zero);
+                        }
+                      },
+                      onBoost: () {
+                        unawaited(_audio.noteUserGesture());
+                        if (_controller.spendGrassBoost()) {
+                          HapticFeedback.lightImpact();
+                        }
+                      },
                     ),
                   ),
                 ],
@@ -842,9 +706,7 @@ class _GameScreenState extends State<GameScreen> {
                           decoration: BoxDecoration(
                             color: const Color(0xFFFFF8EC),
                             borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: const Color(0xFFE2CFA8),
-                            ),
+                            border: Border.all(color: const Color(0xFFE2CFA8)),
                             boxShadow: [
                               BoxShadow(
                                 color: Colors.black.withValues(alpha: 0.12),
@@ -861,7 +723,10 @@ class _GameScreenState extends State<GameScreen> {
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Text('🎁', style: TextStyle(fontSize: 16)),
+                                const Text(
+                                  '🎁',
+                                  style: TextStyle(fontSize: 16),
+                                ),
                                 const SizedBox(width: 6),
                                 Text(
                                   'Уют',
@@ -882,6 +747,18 @@ class _GameScreenState extends State<GameScreen> {
                     activeMeadowId: _controller.state.activeMeadowId,
                     herdCountFor: _controller.herdCountForMeadow,
                     mistyBiomeUnlocked: _controller.state.mistyBiomeUnlocked,
+                    grass: _controller.state.grass,
+                    uyut: _controller.state.uyut,
+                    showRocket: _controller.rocketUnlocked,
+                    showLands: _controller.hasLandsGallery,
+                    onRocket: () => setState(() {
+                      _forestMapOpen = false;
+                      _rocketPhase = _RocketPhase.farewell;
+                    }),
+                    onLands: () => setState(() {
+                      _forestMapOpen = false;
+                      _landsOpen = true;
+                    }),
                     onClose: () => setState(() => _forestMapOpen = false),
                     onSelect: (id) {
                       if (_controller.switchToMeadow(id)) {
@@ -890,9 +767,39 @@ class _GameScreenState extends State<GameScreen> {
                     },
                   ),
                 ),
+              if (_rocketPhase == _RocketPhase.farewell)
+                Positioned.fill(
+                  child: RocketFarewell(
+                    onStay: () =>
+                        setState(() => _rocketPhase = _RocketPhase.none),
+                    onSend: () =>
+                        setState(() => _rocketPhase = _RocketPhase.flight),
+                  ),
+                ),
+              if (_rocketPhase == _RocketPhase.flight)
+                Positioned.fill(
+                  child: RocketFlight(
+                    onArrive: () {
+                      final ok = _controller.launchToNewLand();
+                      setState(() => _rocketPhase = _RocketPhase.none);
+                      if (!ok) return;
+                    },
+                  ),
+                ),
+              if (_landsOpen)
+                Positioned.fill(
+                  child: FamilyLandsSheet(
+                    state: _controller.state,
+                    onClose: () => setState(() => _landsOpen = false),
+                    onVisit: (chapter) {
+                      _controller.visitLand(chapter);
+                      setState(() => _landsOpen = false);
+                    },
+                  ),
+                ),
             ],
           ),
-      ),
+        ),
       ),
     );
   }
@@ -924,243 +831,45 @@ class _GameScreenState extends State<GameScreen> {
         ),
     ];
   }
-}
 
-
-
-/// Meta искры уюта — HUD chip (opens Уют семьи hub).
-class _UyutChip extends StatelessWidget {
-  const _UyutChip({required this.uyut, this.onPressed});
-
-  final int uyut;
-  final VoidCallback? onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(14),
-        child: Ink(
-          decoration: BoxDecoration(
-            color: const Color(0xFFFFF3D6).withValues(alpha: 0.95),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFFE2CFA8)),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text('✨', style: TextStyle(fontSize: 13)),
-                const SizedBox(width: 4),
-                Text(
-                  'искры $uyut',
-                  style: CozyTheme.hudChipStyle(),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Explicit family size (Семья) — never paired as «Glade N/12» progress.
-class _HerdSizeChip extends StatelessWidget {
-  const _HerdSizeChip({required this.count});
-
-  final int count;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF8EC).withValues(alpha: 0.95),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE2CFA8)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        child: Text(
-          'семья $count/${BalanceV0.maxHerdSize}',
-          style: CozyTheme.hudChipStyle(),
-        ),
-      ),
-    );
-  }
-}
-
-/// Soft label for the active «Солнечные поляны» circle (name only — not N/12).
-class _SunnyGladeChip extends StatelessWidget {
-  const _SunnyGladeChip({required this.nameRu});
-
-  final String nameRu;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF8EC).withValues(alpha: 0.92),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE2CFA8)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('🌿', style: TextStyle(fontSize: 12)),
-            const SizedBox(width: 5),
-            Text(
-              'поляна: $nameRu',
-              style: CozyTheme.hudChipMutedStyle(),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-
-/// Opens the forest map (Phase 2 named meadows).
-class _ForestMapChip extends StatelessWidget {
-  const _ForestMapChip({required this.onPressed});
-
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(14),
-        child: Ink(
-          decoration: BoxDecoration(
-            color: const Color(0xFFFFF8EC).withValues(alpha: 0.95),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFFE2CFA8)),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text('🌲', style: TextStyle(fontSize: 12)),
-                const SizedBox(width: 4),
-                Text(
-                  'Лес',
-                  style: CozyTheme.hudChipMutedStyle(),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Compact mute / unmute control for BGM + SFX.
-class _MuteChip extends StatelessWidget {
-  const _MuteChip({required this.muted, required this.onToggle});
-
-  final bool muted;
-  final VoidCallback onToggle;
-
-  @override
-  Widget build(BuildContext context) {
-    return CozyPixelIconButton(
-      icon: muted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
-      onPressed: onToggle,
-      tooltip: muted ? 'звук выкл' : 'звук',
-      semanticLabel: muted ? 'Включить звук' : 'Выключить звук',
-      size: 34,
-      iconSize: 18,
-    );
-  }
-}
-
-/// Compact return-to-menu control (does not wipe save).
-class _MenuBackChip extends StatelessWidget {
-  const _MenuBackChip({required this.onPressed});
-
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return CozyPixelIconButton(
-      icon: Icons.pause_rounded,
-      onPressed: onPressed,
-      tooltip: 'меню',
-      semanticLabel: 'Пауза — в меню',
-      size: 34,
-      iconSize: 18,
-    );
-  }
-}
-
-
-class _SessionGoalChip extends StatelessWidget {
-  const _SessionGoalChip({
-    required this.goal,
-    required this.progress,
-    required this.herdCount,
-    required this.maxCapyLevel,
-    required this.uyut,
-    this.familyPower,
-  });
-
-  final SessionGoal? goal;
-  final double progress;
-  final int herdCount;
-  final int maxCapyLevel;
-  final int uyut;
-  final int? familyPower;
-
-  @override
-  Widget build(BuildContext context) {
-    final SessionGoal effective = goal ?? SessionGoals.sequence.last;
-    final detail = effective.hudCountDetailRu(
-      herdCount: herdCount,
-      maxCapyLevel: maxCapyLevel,
-      uyut: uyut,
-      familyPower: familyPower,
-    );
-    final title = 'Цель: ${effective.titleRu}';
-    final String label;
-    if (detail.isNotEmpty) {
-      label = '$title · $detail';
-    } else {
-      final pct = (progress.clamp(0.0, 1.0) * 100).round();
-      label = '$title · $pct%';
+  String _placeLine(dynamic state) {
+    if (_controller.onFreshNewLand) {
+      return 'Новая земля · сила ${state.familyPower}/5';
     }
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF8EC).withValues(alpha: 0.95),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE2CFA8)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('🎯', style: TextStyle(fontSize: 12)),
-            const SizedBox(width: 5),
-            Text(
-              label,
-              style: CozyTheme.hudChipMutedStyle(),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        ),
-      ),
-    );
+    if (state.activeMeadowId == WorldZones.mistEdgeMeadowId &&
+        state.maxCapyLevel >= 4) {
+      return 'Туманный бор · после Lv.4';
+    }
+    final goal = _controller.currentSessionGoal;
+    if (goal != null && goal.kind == SessionGoalKind.glade) {
+      final detail = goal.hudCountDetailRu(
+        herdCount: state.herdCount,
+        maxCapyLevel: state.maxCapyLevel,
+        uyut: state.uyut,
+        familyPower: state.familyPower,
+      );
+      return detail.isEmpty ? goal.titleRu : '${goal.titleRu} · $detail';
+    }
+    return _controller.currentGlade.nameRu;
+  }
+
+  (Offset, Offset)? _mergePair(dynamic state) {
+    final herd = state.herd;
+    (Offset, Offset)? best;
+    var bestDist = _controller.effectiveMagnetRadius;
+    for (var i = 0; i < herd.length; i++) {
+      for (var j = i + 1; j < herd.length; j++) {
+        final a = herd[i];
+        final b = herd[j];
+        if (a.level != b.level) continue;
+        final d = (a.position - b.position).distance;
+        if (d < 0.04 || d > bestDist) continue;
+        bestDist = d;
+        best = (a.position, b.position);
+      }
+    }
+    return best;
   }
 }
+
+enum _RocketPhase { none, farewell, flight }

@@ -49,8 +49,7 @@ class CapybaraPlaceholder extends StatelessWidget {
 
   double get _width => sizeOverride ?? BalanceV0.capySizeForLevel(level);
 
-  CapyWalkSheet get walkSheet =>
-      CapyWalk.sheetFor(level: level, role: role);
+  CapyWalkSheet get walkSheet => CapyWalk.sheetFor(level: level, role: role);
 
   String get _assetPath => CapyWalk.assetPath(walkSheet, walkFrame);
 
@@ -175,7 +174,9 @@ class CapybaraPlaceholder extends StatelessWidget {
                 color: _badgeColor.withValues(alpha: compactLabel ? 0.7 : 0.92),
                 borderRadius: BorderRadius.circular(compactLabel ? 7 : 10),
                 border: Border.all(
-                  color: _borderColor.withValues(alpha: compactLabel ? 0.35 : 0.55),
+                  color: _borderColor.withValues(
+                    alpha: compactLabel ? 0.35 : 0.55,
+                  ),
                   width: compactLabel ? 0.8 : 1.2,
                 ),
                 boxShadow: compactLabel
@@ -191,9 +192,8 @@ class CapybaraPlaceholder extends StatelessWidget {
               child: Text(
                 compactLabel ? '$level' : 'Lv.$level',
                 style: TextStyle(
-                  color: const Color(0xFF5C3D1E).withValues(
-                    alpha: compactLabel ? 0.75 : 0.95,
-                  ),
+                  color: const Color(0xFF5C3D1E)
+                      .withValues(alpha: compactLabel ? 0.75 : 0.95),
                   fontSize: compactLabel ? 9 : (level >= 5 ? 12 : 11),
                   fontWeight: FontWeight.w800,
                   letterSpacing: 0.2,

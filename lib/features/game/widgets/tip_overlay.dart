@@ -23,7 +23,11 @@ class _FirstLaunchTipOverlayState extends State<FirstLaunchTipOverlay> {
       body: 'Перетащи капибар друг на друга',
       icon: Icons.swipe_rounded,
     ),
-    (title: 'Лужа', body: 'Перетащи на лужу — будет ×2 к прогрессу', icon: Icons.water_drop_rounded),
+    (
+      title: 'Лужа',
+      body: 'Перетащи на лужу — будет ×2 к прогрессу',
+      icon: Icons.water_drop_rounded,
+    ),
     (
       title: 'Ягоды',
       body: 'Корзина ягод появляется редко — нажми, пока она тут',

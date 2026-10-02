@@ -67,15 +67,18 @@ class _FloatingGainPopupState extends State<_FloatingGainPopup>
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 900),
-    )..forward().whenComplete(() {
-        if (mounted) widget.onFinished();
-      });
-    _dy = Tween<double>(begin: 0, end: -42).animate(
-      CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic),
-    );
+    _ctrl =
+        AnimationController(
+            vsync: this,
+            duration: const Duration(milliseconds: 900),
+          )
+          ..forward().whenComplete(() {
+            if (mounted) widget.onFinished();
+          });
+    _dy = Tween<double>(
+      begin: 0,
+      end: -42,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic));
     _opacity = TweenSequence<double>([
       TweenSequenceItem(tween: Tween(begin: 0, end: 1), weight: 15),
       TweenSequenceItem(tween: ConstantTween(1), weight: 45),
@@ -126,8 +129,10 @@ class _FloatingGainPopupState extends State<_FloatingGainPopup>
                   ],
                 ),
                 child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   child: Text(
                     widget.event.label,
                     style: TextStyle(

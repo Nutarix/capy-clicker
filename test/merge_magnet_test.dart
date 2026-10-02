@@ -1,4 +1,3 @@
-
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:capy_clicker/features/game/models/balance.dart';
@@ -54,10 +53,7 @@ void main() {
 
     test('rejects candidates beyond magnetRadius (no map-wide magnet)', () {
       // 0.15 > magnetRadius (tightened playtest P1)
-      final herd = [
-        capy('a', 1, 0.30, 0.50),
-        capy('b', 1, 0.45, 0.50),
-      ];
+      final herd = [capy('a', 1, 0.30, 0.50), capy('b', 1, 0.45, 0.50)];
       final hit = MergeMagnet.nearestEligible(
         draggedId: 'a',
         draggedLevel: 1,

@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import '../models/balance.dart';
 import '../models/capy_wander.dart';
 import '../models/capybara.dart';
+import '../models/family_land.dart';
 import '../models/game_state.dart';
 import '../models/meadow_snapshot.dart';
 import '../models/multipliers/multipliers.dart';
@@ -1200,6 +1201,10 @@ class GameController extends ChangeNotifier {
     if (state.uyut < 0) {
       state = state.copyWith(uyut: 0);
     }
+    if (state.activeMeadowId == WorldZones.mistEdgeMeadowId &&
+        !state.visitedMist) {
+      state = state.copyWith(visitedMist: true);
+    }
     // Keep roleSlots in sync with research.
     if (state.hasResearch('role_slot_2') && state.roleSlots < 2) {
       state = state.copyWith(roleSlots: 2);
@@ -1579,6 +1584,178 @@ class GameController extends ChangeNotifier {
     }
     if (dirty) notifyListeners();
     addProgress(autoRatePerSecond * dt, fromTap: false);
+  }
+
+  /// Newest chapter (not a visit back to an older land).
+  bool get playingNewestLand {
+    for (final land in _state.otherLands) {
+      if (land.chapter > _state.landChapter) return false;
+    }
+    return true;
+  }
+
+  /// Roadmap step 8, after prestige v0 is lived: mist unlocked, visited,
+  /// at least one spark, and someone stays home. Does not replace Туманный бор.
+  bool get rocketUnlocked =>
+      playingNewestLand &&
+      _state.mistyBiomeUnlocked &&
+      _state.visitedMist &&
+      _state.uyut >= 1 &&
+      _state.totalHerdAcrossMeadows >= 2;
+
+  bool get hasLandsGallery =>
+      _state.landChapter > 0 || _state.otherLands.isNotEmpty;
+
+  /// Arrival meadow: the newest land, before its own glades open.
+  bool get onFreshNewLand =>
+      playingNewestLand &&
+      _state.landChapter > 0 &&
+      _state.sunnyGladeAnnounced == 0 &&
+      !_state.mistyBiomeUnlocked;
+
+  /// Send the youngest capy on. Grass and sparks stay. Old land is archived.
+  bool launchToNewLand() {
+    if (!_ready || !rocketUnlocked) return false;
+    final synced = _state.withActiveSynced();
+    if (synced.totalHerdAcrossMeadows < 2) return false;
+    Capybara? traveler;
+    String? fromMeadow;
+    for (final entry in synced.meadows.entries) {
+      for (final capy in entry.value.herd) {
+        if (traveler == null || capy.level < traveler.level) {
+          traveler = capy;
+          fromMeadow = entry.key;
+        }
+      }
+    }
+    if (traveler == null || fromMeadow == null) return false;
+
+    final meadows = Map<String, MeadowSnapshot>.from(synced.meadows);
+    final snap = meadows[fromMeadow]!;
+    final leftBehind = [
+      for (final capy in snap.herd)
+        if (capy.id != traveler.id) capy,
+    ];
+    meadows[fromMeadow] = snap.copyWith(herd: leftBehind);
+    final travelerLeftActive = fromMeadow == synced.activeMeadowId;
+    final archive = FamilyLand.fromState(
+      synced.copyWith(
+        meadows: meadows,
+        herd: travelerLeftActive ? leftBehind : synced.herd,
+        clearTwin:
+            travelerLeftActive &&
+            (synced.twinIdA == traveler.id || synced.twinIdB == traveler.id),
+      ),
+    );
+
+    final grass = synced.grass;
+    final uyut = synced.uyut;
+    var nextId = synced.nextId;
+    final arrived = traveler.copyWith(
+      position: const Offset(0.30, 0.72),
+      clearRole: true,
+    );
+    final companion = Capybara(
+      id: 'c$nextId',
+      level: BalanceV0.startingLevel,
+      position: const Offset(0.68, 0.74),
+    );
+    nextId += 1;
+    final freshHerd = [arrived, companion];
+    _setState(
+      GameState(
+        herdProgress: 0,
+        herd: freshHerd,
+        nextId: nextId,
+        savedAtMs: synced.savedAtMs,
+        lastDailyClaimYmd: synced.lastDailyClaimYmd,
+        sunnyGladeAnnounced: 0,
+        grass: grass,
+        sessionGoalIndex: 0,
+        activeMeadowId: WorldZones.starterMeadowId,
+        meadows: {WorldZones.starterMeadowId: MeadowSnapshot(herd: freshHerd)},
+        uyut: uyut,
+        mistyBiomeUnlocked: false,
+        food: synced.food,
+        ownedDecor: synced.ownedDecor,
+        placedDecor: const {},
+        researched: synced.researched,
+        roleSlots: synced.roleSlots,
+        tentUnlocked: synced.tentUnlocked,
+        visitedMist: false,
+        landChapter: synced.landChapter + 1,
+        otherLands: [...synced.otherLands, archive],
+      ),
+    );
+    return _state.grass == grass &&
+        _state.uyut == uyut &&
+        _state.landChapter > 0;
+  }
+
+  /// Swap the live land with an archived one. Nothing is deleted.
+  bool visitLand(int chapter) {
+    if (!_ready) return false;
+    if (chapter == _state.landChapter) return true;
+    final others = List<FamilyLand>.from(_state.otherLands);
+    final index = others.indexWhere((land) => land.chapter == chapter);
+    if (index < 0) return false;
+    final target = others[index];
+    others[index] = FamilyLand.fromState(_state);
+    final grass = _state.grass;
+    final uyut = _state.uyut;
+    _setState(target.toGameState(globals: _state, otherLands: others));
+    return _state.landChapter == chapter &&
+        _state.grass == grass &&
+        _state.uyut == uyut;
+  }
+
+  /// Give [role] to the first capy on this meadow who has none.
+  bool assignRoleToFreeCapy(CapyRole role) {
+    for (final capy in _state.herd) {
+      if (capy.role == role) return true;
+    }
+    for (final entry in _state.meadows.entries) {
+      if (entry.key == _state.activeMeadowId) continue;
+      for (final capy in entry.value.herd) {
+        if (capy.role == role) return true;
+      }
+    }
+    for (final capy in _state.herd) {
+      if (capy.role == null) return assignRole(capy.id, role);
+    }
+    return false;
+  }
+
+  /// Take [role] off whoever holds it, on any meadow of this land.
+  bool clearRole(CapyRole role) {
+    final synced = _state.withActiveSynced();
+    final meadows = Map<String, MeadowSnapshot>.from(synced.meadows);
+    var changed = false;
+    for (final entry in meadows.entries) {
+      final next = <Capybara>[];
+      for (final capy in entry.value.herd) {
+        if (capy.role == role) {
+          changed = true;
+          next.add(capy.copyWith(clearRole: true));
+        } else {
+          next.add(capy);
+        }
+      }
+      meadows[entry.key] = entry.value.copyWith(herd: next);
+    }
+    if (!changed) return false;
+    final active = meadows[synced.activeMeadowId]!;
+    _setState(
+      synced.copyWith(
+        meadows: meadows,
+        herd: active.herd,
+        herdProgress: active.herdProgress,
+        twinIdA: active.twinIdA,
+        twinIdB: active.twinIdB,
+        clearTwin: active.twinIdA == null || active.twinIdB == null,
+      ),
+    );
+    return true;
   }
 
   /// Force berry visible (tests / sims).

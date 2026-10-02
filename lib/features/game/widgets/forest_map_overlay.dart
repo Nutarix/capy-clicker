@@ -15,6 +15,12 @@ class ForestMapOverlay extends StatelessWidget {
     required this.onSelect,
     required this.onClose,
     this.mistyBiomeUnlocked = false,
+    this.grass = 0,
+    this.uyut = 0,
+    this.showRocket = false,
+    this.showLands = false,
+    this.onRocket,
+    this.onLands,
   });
 
   final List<String> unlockedIds;
@@ -25,6 +31,12 @@ class ForestMapOverlay extends StatelessWidget {
 
   /// When false, Туманный бор section shows a locked chip.
   final bool mistyBiomeUnlocked;
+  final int grass;
+  final int uyut;
+  final bool showRocket;
+  final bool showLands;
+  final VoidCallback? onRocket;
+  final VoidCallback? onLands;
 
   @override
   Widget build(BuildContext context) {
@@ -113,8 +125,8 @@ class ForestMapOverlay extends StatelessWidget {
                             _MeadowChip(
                               glade: WorldZones.mistEdge,
                               unlocked: mistyBiomeUnlocked,
-                              active: activeMeadowId ==
-                                  WorldZones.mistEdgeMeadowId,
+                              active:
+                                  activeMeadowId == WorldZones.mistEdgeMeadowId,
                               herdCount: mistyBiomeUnlocked
                                   ? herdCountFor(WorldZones.mistEdgeMeadowId)
                                   : 0,
@@ -128,11 +140,33 @@ class ForestMapOverlay extends StatelessWidget {
                             ),
                           ],
                         ),
+                        if (showRocket && onRocket != null) ...[
+                          const SizedBox(height: 12),
+                          CozyPixelButton(
+                            label: 'Семья провожает',
+                            expand: true,
+                            onPressed: onRocket,
+                          ),
+                        ],
+                        if (showLands && onLands != null) ...[
+                          const SizedBox(height: 8),
+                          CozyPixelButton(
+                            label: 'Земли семьи',
+                            variant: CozyPixelButtonVariant.secondary,
+                            expand: true,
+                            onPressed: onLands,
+                          ),
+                        ],
                         const SizedBox(height: 12),
                         Text(
-                          'Трава и искры общие · семьи — у каждой поляны свои',
+                          'Трава и искры общие на все поляны. Семья у каждой своя.',
                           textAlign: TextAlign.center,
                           style: CozyTheme.hudChipMutedStyle(fontSize: 12),
+                        ),
+                        Text(
+                          'трава $grass · искры $uyut',
+                          textAlign: TextAlign.center,
+                          style: CozyTheme.hudChipMutedStyle(fontSize: 11),
                         ),
                       ],
                     ),
@@ -167,17 +201,14 @@ class _BiomeSection extends StatelessWidget {
           children: [
             Text(emoji, style: const TextStyle(fontSize: 14)),
             const SizedBox(width: 6),
-            Text(
-              titleRu,
-              style: CozyTheme.hudChipStyle(fontSize: 14),
-            ),
+            Text(titleRu, style: CozyTheme.hudChipStyle(fontSize: 14)),
           ],
         ),
         const SizedBox(height: 8),
-        Wrap(
-          spacing: 10,
-          runSpacing: 10,
-          children: children,
+        Column(
+          children: [
+            for (final child in children) ...[child, const SizedBox(height: 8)],
+          ],
         ),
       ],
     );
@@ -206,11 +237,9 @@ class _MeadowChip extends StatelessWidget {
     final bg = !unlocked
         ? const Color(0xFFE8DFD0).withValues(alpha: 0.7)
         : active
-            ? const Color(0xFFD8EEC8)
-            : const Color(0xFFFFF8EC);
-    final border = active
-        ? const Color(0xFF5A9A48)
-        : const Color(0xFFE2CFA8);
+        ? const Color(0xFFD8EEC8)
+        : const Color(0xFFFFF8EC);
+    final border = active ? const Color(0xFF5A9A48) : const Color(0xFFE2CFA8);
 
     return Material(
       color: Colors.transparent,
@@ -218,7 +247,7 @@ class _MeadowChip extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
         child: Ink(
-          width: 160,
+          width: double.infinity,
           decoration: BoxDecoration(
             color: bg,
             borderRadius: BorderRadius.circular(16),
@@ -244,14 +273,27 @@ class _MeadowChip extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
+                    if (unlocked)
+                      Text(
+                        '$herdCount',
+                        style: CozyTheme.hudChipStyle(fontSize: 16),
+                      )
+                    else
+                      Image.asset(
+                        'assets/images/ui/icon_lock.png',
+                        width: 18,
+                        height: 18,
+                        filterQuality: FilterQuality.none,
+                        errorBuilder: (_, _, _) => const Text('🔒'),
+                      ),
                   ],
                 ),
                 const SizedBox(height: 6),
                 Text(
                   unlocked
                       ? (active
-                          ? 'здесь · семья $herdCount'
-                          : 'семья $herdCount')
+                            ? 'здесь · семья на этой поляне'
+                            : 'семья на этой поляне')
                       : (lockedHintRu ?? 'ещё закрыта'),
                   style: CozyTheme.hudChipMutedStyle(fontSize: 12),
                 ),

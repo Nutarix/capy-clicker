@@ -39,10 +39,7 @@ void main() {
         WorldZones.backgroundAssetForMeadow('no_such_meadow'),
         WorldZones.fallbackBackgroundAsset,
       );
-      expect(
-        WorldZones.fallbackBackgroundAsset,
-        'assets/images/bg_forest.png',
-      );
+      expect(WorldZones.fallbackBackgroundAsset, 'assets/images/bg_forest.png');
     });
 
     test('gladeForHerd ids stay aligned with background map', () {
@@ -70,19 +67,13 @@ void main() {
           home: Scaffold(
             body: Column(
               children: [
-                CozyPixelButton(
-                  label: 'Primary',
-                  onPressed: () => taps++,
-                ),
+                CozyPixelButton(label: 'Primary', onPressed: () => taps++),
                 CozyPixelButton(
                   label: 'Secondary',
                   variant: CozyPixelButtonVariant.secondary,
                   onPressed: () => taps++,
                 ),
-                const CozyPixelButton(
-                  label: 'Disabled',
-                  onPressed: null,
-                ),
+                const CozyPixelButton(label: 'Disabled', onPressed: null),
                 CozyPixelIconButton(
                   icon: Icons.close_rounded,
                   onPressed: () => taps++,

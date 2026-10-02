@@ -495,13 +495,10 @@ void main() {
         ),
       );
       await tester.pump();
-      for (final word in ['сюда!', 'нажми!']) {
-        expect(find.text(word), findsOneWidget);
-        final para = tester.renderObject<RenderParagraph>(find.text(word));
-        expect(para.didExceedMaxLines, isFalse);
-        final intrinsic = para.getMaxIntrinsicWidth(double.infinity);
-        expect(para.size.width, greaterThanOrEqualTo(intrinsic - 0.5));
-      }
+      // Canon frames: no «сюда!» / «нажми!» chips on the puddle or basket.
+      expect(find.text('сюда!'), findsNothing);
+      expect(find.text('нажми!'), findsNothing);
+      expect(find.text('ягоды!'), findsNothing);
     });
 
     testWidgets('call button explains why it is gray', (tester) async {
@@ -527,17 +524,17 @@ void main() {
       }
 
       await pump(canCall: true, reason: null, grass: 20);
-      expect(find.textContaining('Позвать капи'), findsOneWidget);
+      expect(find.text('Позвать'), findsOneWidget);
       expect(find.text('Не хватает травы'), findsNothing);
       expect(find.text('Семья полная'), findsNothing);
 
       await pump(canCall: false, reason: 'Не хватает травы', grass: 3);
       expect(find.text('Не хватает травы'), findsOneWidget);
-      expect(find.textContaining('Позвать капи'), findsNothing);
+      expect(find.text('Позвать'), findsNothing);
 
       await pump(canCall: false, reason: 'Семья полная', grass: 126);
       expect(find.text('Семья полная'), findsOneWidget);
-      expect(find.textContaining('Позвать капи'), findsNothing);
+      expect(find.text('Позвать'), findsNothing);
     });
 
     testWidgets('Ускорение keeps the whole word and the grass cost', (
@@ -568,8 +565,7 @@ void main() {
       expect(finder, findsOneWidget);
       final para = tester.renderObject<RenderParagraph>(finder);
       final shown = para.text.toPlainText();
-      expect(shown, contains('Ускорение'));
-      expect(shown, contains('🌿'));
+      expect(shown, 'Ускорение');
       expect(shown, isNot(contains('...')));
       expect(shown, isNot(contains('…')));
       expect(para.didExceedMaxLines, isFalse);
@@ -610,7 +606,8 @@ void main() {
       c.assignRole(id, CapyRole.nanya);
       await tester.pump();
       expect(find.text('Роли пока не назначены'), findsNothing);
-      expect(find.textContaining('Капи $id'), findsWidgets);
+      expect(find.textContaining('Капи $id'), findsNothing);
+      expect(find.text('Снять'), findsWidgets);
       expect(find.textContaining('Няня'), findsWidgets);
 
       c.dispose();

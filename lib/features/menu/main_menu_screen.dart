@@ -102,15 +102,13 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
           ),
           title: Text(
             'Начать заново?',
-            style: CozyTheme.secondaryButtonStyle(fontSize: 18).copyWith(
-              fontWeight: FontWeight.w800,
-            ),
+            style: CozyTheme.secondaryButtonStyle(fontSize: 18)
+                .copyWith(fontWeight: FontWeight.w800),
           ),
           content: Text(
             'Текущее сохранение семьи будет стёрто. Это нельзя отменить.',
-            style: CozyTheme.hudChipMutedStyle(fontSize: 14).copyWith(
-              height: 1.35,
-            ),
+            style: CozyTheme.hudChipMutedStyle(fontSize: 14)
+                .copyWith(height: 1.35),
           ),
           actions: [
             CozyPixelButton(
@@ -170,9 +168,11 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                                 begin: Alignment.topCenter,
                                 end: Alignment.bottomCenter,
                                 colors: [
-                                  const Color(0xFFF8EDD8).withValues(alpha: 0.18),
+                                  const Color(0xFFF8EDD8)
+                                      .withValues(alpha: 0.18),
                                   Colors.transparent,
-                                  const Color(0xFFF8EDD8).withValues(alpha: 0.12),
+                                  const Color(0xFFF8EDD8)
+                                      .withValues(alpha: 0.12),
                                 ],
                                 stops: const [0.0, 0.4, 1.0],
                               ),
@@ -280,8 +280,9 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                                         ),
                                       ),
                                       CozyPixelButton(
-                                        label:
-                                            _hasSave ? 'Продолжить' : 'Играть',
+                                        label: _hasSave
+                                            ? 'Продолжить'
+                                            : 'Играть',
                                         onPressed: _onPrimary,
                                         expand: true,
                                         maxWidth: 260,
@@ -303,7 +304,10 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                                   ),
                                 ),
                                 // —— Lower third: empty forest / ground ——
-                                const Expanded(flex: 1, child: SizedBox.expand()),
+                                const Expanded(
+                                  flex: 1,
+                                  child: SizedBox.expand(),
+                                ),
                               ],
                             ),
                           ),
@@ -327,12 +331,25 @@ class _MenuMuteIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CozyPixelIconButton(
-      icon: muted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
-      onPressed: onToggle,
-      semanticLabel: muted ? 'Включить звук' : 'Выключить звук',
-      size: 38,
-      iconSize: 20,
+    return Semantics(
+      button: true,
+      label: muted ? 'Включить звук' : 'Выключить звук',
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onToggle,
+          customBorder: const CircleBorder(),
+          child: Opacity(
+            opacity: muted ? 0.4 : 1,
+            child: Image.asset(
+              'assets/images/ui/icon_speaker.png',
+              width: 36,
+              height: 28,
+              filterQuality: FilterQuality.none,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

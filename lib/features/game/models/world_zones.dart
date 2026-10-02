@@ -159,12 +159,8 @@ abstract final class WorldZones {
   static const double meadowBottom = 0.92;
 
   /// Inclusive AABB of the starter glade (Тёплая опушка).
-  static Rect get meadowRect => const Rect.fromLTRB(
-        meadowLeft,
-        meadowTop,
-        meadowRight,
-        meadowBottom,
-      );
+  static Rect get meadowRect =>
+      const Rect.fromLTRB(meadowLeft, meadowTop, meadowRight, meadowBottom);
 
   /// Active Sunny Glade for [familyPower] (sum of levels; see [GameState.familyPower]).
   ///

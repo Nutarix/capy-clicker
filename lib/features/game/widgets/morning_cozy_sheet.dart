@@ -74,7 +74,12 @@ class MorningCozySheet extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 16),
-                const Text('🎁', style: TextStyle(fontSize: 36)),
+                Image.asset(
+                  'assets/images/ui/icon_spark.png',
+                  width: 54,
+                  height: 54,
+                  filterQuality: FilterQuality.none,
+                ),
                 const SizedBox(height: 10),
                 const Text(
                   'Утренний уют',
@@ -86,7 +91,16 @@ class MorningCozySheet extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Нежный подарок на сегодня:\n'
+                  'Нежный подарок на сегодня',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    height: 1.3,
+                    color: Colors.brown.shade800.withValues(alpha: 0.85),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
                   '+${(BalanceV0.dailyBonusProgress * 100).round()}% к прогрессу семьи',
                   textAlign: TextAlign.center,
                   style: TextStyle(
@@ -107,16 +121,7 @@ class MorningCozySheet extends StatelessWidget {
                     ),
                   ),
                 ],
-                const SizedBox(height: 6),
-                Text(
-                  'Один раз в календарный день · без таймеров давления',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: Colors.brown.shade600.withValues(alpha: 0.65),
-                  ),
-                ),
-                const SizedBox(height: 18),
+                const SizedBox(height: 14),
                 CozyPixelButton(
                   label: 'Забрать уют',
                   expand: true,

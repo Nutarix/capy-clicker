@@ -19,12 +19,12 @@ import 'package:capy_clicker/features/game/widgets/uyut/uyut_hub_sheet.dart';
 
 /// All soft-pixel paths wired in the multipliers art sew-in (SHA 7c81af6).
 List<String> get _allArtPaths => [
-      for (final r in CapyRole.values) r.assetPath,
-      for (final f in FamilyFood.values) f.assetPath,
-      for (final p in CozyPlaceKind.values) p.assetPath,
-      for (final d in HomeDecor.values) d.assetPath,
-      UyutResearch.assetPath,
-    ];
+  for (final r in CapyRole.values) r.assetPath,
+  for (final f in FamilyFood.values) f.assetPath,
+  for (final p in CozyPlaceKind.values) p.assetPath,
+  for (final d in HomeDecor.values) d.assetPath,
+  UyutResearch.assetPath,
+];
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -66,21 +66,28 @@ void main() {
       expect(HomeDecor.fonarik.assetPath, 'assets/images/decor_fonarik.png');
       expect(HomeDecor.kovrik.assetPath, 'assets/images/decor_kovrik.png');
       expect(HomeDecor.vazon.assetPath, 'assets/images/decor_vazon.png');
-      expect(HomeDecor.girlyanda.assetPath, 'assets/images/decor_girlyanda.png');
+      expect(
+        HomeDecor.girlyanda.assetPath,
+        'assets/images/decor_girlyanda.png',
+      );
       expect(
         HomeDecor.skvorechnik.assetPath,
         'assets/images/decor_skvorechnik.png',
       );
       expect(HomeDecor.podushka.assetPath, 'assets/images/decor_podushka.png');
       expect(HomeDecor.lampa.assetPath, 'assets/images/decor_lampa.png');
-      expect(HomeDecor.kormushka.assetPath, 'assets/images/decor_kormushka.png');
+      expect(
+        HomeDecor.kormushka.assetPath,
+        'assets/images/decor_kormushka.png',
+      );
       expect(UyutResearch.assetPath, 'assets/images/research_uyut.png');
     });
   });
 
   group('MultiplierIcon / CozyPlaceMarker widgets', () {
-    testWidgets('MultiplierIcon resolves Image.asset for every art path',
-        (tester) async {
+    testWidgets('MultiplierIcon resolves Image.asset for every art path', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -88,7 +95,11 @@ void main() {
               child: Wrap(
                 children: [
                   for (final path in _allArtPaths)
-                    MultiplierIcon(key: ValueKey(path), assetPath: path, size: 24),
+                    MultiplierIcon(
+                      key: ValueKey(path),
+                      assetPath: path,
+                      size: 24,
+                    ),
                 ],
               ),
             ),
@@ -98,11 +109,7 @@ void main() {
       await tester.pump();
       expect(tester.takeException(), isNull);
       for (final path in _allArtPaths) {
-        expect(
-          find.byKey(ValueKey(path)),
-          findsOneWidget,
-          reason: path,
-        );
+        expect(find.byKey(ValueKey(path)), findsOneWidget, reason: path);
         expect(
           find.descendant(
             of: find.byKey(ValueKey(path)),
@@ -123,7 +130,9 @@ void main() {
       }
     });
 
-    testWidgets('CozyPlaceMarker for each place does not crash', (tester) async {
+    testWidgets('CozyPlaceMarker for each place does not crash', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -147,10 +156,7 @@ void main() {
       expect(tester.takeException(), isNull);
       for (final kind in CozyPlaceKind.values) {
         expect(find.byKey(ValueKey(kind.id)), findsOneWidget);
-        expect(
-          find.image(AssetImage(kind.assetPath)),
-          findsWidgets,
-        );
+        expect(find.image(AssetImage(kind.assetPath)), findsWidgets);
       }
       expect(find.textContaining('с'), findsOneWidget); // cooldown label
     });
@@ -173,26 +179,14 @@ void main() {
           'sunnyGladeAnnounced': 1,
           'activeMeadowId': 'warm_edge',
           'herd': [
-            {
-              'id': 'c1',
-              'level': 2,
-              'x': 0.4,
-              'y': 0.7,
-              'role': 'nanya',
-            },
+            {'id': 'c1', 'level': 2, 'x': 0.4, 'y': 0.7, 'role': 'nanya'},
             {'id': 'c2', 'level': 1, 'x': 0.55, 'y': 0.7},
           ],
           'meadows': {
             'warm_edge': {
               'herdProgress': 0.0,
               'herd': [
-                {
-                  'id': 'c1',
-                  'level': 2,
-                  'x': 0.4,
-                  'y': 0.7,
-                  'role': 'nanya',
-                },
+                {'id': 'c1', 'level': 2, 'x': 0.4, 'y': 0.7, 'role': 'nanya'},
                 {'id': 'c2', 'level': 1, 'x': 0.55, 'y': 0.7},
               ],
             },
@@ -210,15 +204,14 @@ void main() {
       await tester.pump(const Duration(milliseconds: 350));
     }
 
-    testWidgets('food / roles / decor / research tabs render art icons',
-        (tester) async {
+    testWidgets('food / roles / decor / research tabs render art icons', (
+      tester,
+    ) async {
       final c = await readyController();
 
       await tester.pumpWidget(
         MaterialApp(
-          home: Scaffold(
-            body: UyutHubSheet(controller: c),
-          ),
+          home: Scaffold(body: UyutHubSheet(controller: c)),
         ),
       );
       await pumpTab(tester);
@@ -283,80 +276,85 @@ void main() {
   });
 
   group('save/load roles + decor', () {
-    test('GamePersistence round-trips roles and decor with art-linked ids',
-        () async {
-      final herd = [
-        Capybara(
-          id: 'c1',
-          level: 2,
-          position: const Offset(0.4, 0.7),
-          role: CapyRole.nanya,
-        ),
-        Capybara(
-          id: 'c2',
-          level: 1,
-          position: const Offset(0.55, 0.7),
-          role: CapyRole.sobiratel,
-        ),
-      ];
-      final state = GameState(
-        herdProgress: 0.3,
-        herd: herd,
-        nextId: 5,
-        grass: 55,
-        uyut: 3,
-        food: const FoodInventory(travka: 1, yagody: 2, oreshki: 1),
-        ownedDecor: {
-          HomeDecor.fonarik.id,
-          HomeDecor.kovrik.id,
-          HomeDecor.vazon.id,
-        },
-        placedDecor: {HomeDecor.fonarik.id, HomeDecor.vazon.id},
-        researched: {'more_flowers', 'longer_mud'},
-        roleSlots: 2,
-        tentUnlocked: true,
-        activeMeadowId: WorldZones.starterMeadowId,
-        meadows: {
-          WorldZones.starterMeadowId: MeadowSnapshot(
-            herd: herd,
-            herdProgress: 0.3,
+    test(
+      'GamePersistence round-trips roles and decor with art-linked ids',
+      () async {
+        final herd = [
+          Capybara(
+            id: 'c1',
+            level: 2,
+            position: const Offset(0.4, 0.7),
+            role: CapyRole.nanya,
           ),
-        },
-      );
+          Capybara(
+            id: 'c2',
+            level: 1,
+            position: const Offset(0.55, 0.7),
+            role: CapyRole.sobiratel,
+          ),
+        ];
+        final state = GameState(
+          herdProgress: 0.3,
+          herd: herd,
+          nextId: 5,
+          grass: 55,
+          uyut: 3,
+          food: const FoodInventory(travka: 1, yagody: 2, oreshki: 1),
+          ownedDecor: {
+            HomeDecor.fonarik.id,
+            HomeDecor.kovrik.id,
+            HomeDecor.vazon.id,
+          },
+          placedDecor: {HomeDecor.fonarik.id, HomeDecor.vazon.id},
+          researched: {'more_flowers', 'longer_mud'},
+          roleSlots: 2,
+          tentUnlocked: true,
+          activeMeadowId: WorldZones.starterMeadowId,
+          meadows: {
+            WorldZones.starterMeadowId: MeadowSnapshot(
+              herd: herd,
+              herdProgress: 0.3,
+            ),
+          },
+        );
 
-      final persistence = GamePersistence();
-      await persistence.save(state);
-      final loaded = await persistence.load();
-      expect(loaded, isNotNull);
-      expect(loaded!.herd.map((c) => c.role), [
-        CapyRole.nanya,
-        CapyRole.sobiratel,
-      ]);
-      expect(loaded.ownedDecor, containsAll([
-        HomeDecor.fonarik.id,
-        HomeDecor.kovrik.id,
-        HomeDecor.vazon.id,
-      ]));
-      expect(loaded.placedDecor, containsAll([
-        HomeDecor.fonarik.id,
-        HomeDecor.vazon.id,
-      ]));
-      expect(loaded.food.yagody, 2);
-      expect(loaded.roleSlots, 2);
-      expect(loaded.tentUnlocked, isTrue);
-      // asset paths still resolve after load
-      for (final capy in loaded.herd) {
-        if (capy.role != null) {
-          final data = await rootBundle.load(capy.role!.assetPath);
+        final persistence = GamePersistence();
+        await persistence.save(state);
+        final loaded = await persistence.load();
+        expect(loaded, isNotNull);
+        expect(loaded!.herd.map((c) => c.role), [
+          CapyRole.nanya,
+          CapyRole.sobiratel,
+        ]);
+        expect(
+          loaded.ownedDecor,
+          containsAll([
+            HomeDecor.fonarik.id,
+            HomeDecor.kovrik.id,
+            HomeDecor.vazon.id,
+          ]),
+        );
+        expect(
+          loaded.placedDecor,
+          containsAll([HomeDecor.fonarik.id, HomeDecor.vazon.id]),
+        );
+        expect(loaded.food.yagody, 2);
+        expect(loaded.roleSlots, 2);
+        expect(loaded.tentUnlocked, isTrue);
+        // asset paths still resolve after load
+        for (final capy in loaded.herd) {
+          if (capy.role != null) {
+            final data = await rootBundle.load(capy.role!.assetPath);
+            expect(data.lengthInBytes, greaterThan(1000));
+          }
+        }
+        for (final id in loaded.ownedDecor) {
+          final decor = HomeDecorX.tryParse(id)!;
+          final data = await rootBundle.load(decor.assetPath);
           expect(data.lengthInBytes, greaterThan(1000));
         }
-      }
-      for (final id in loaded.ownedDecor) {
-        final decor = HomeDecorX.tryParse(id)!;
-        final data = await rootBundle.load(decor.assetPath);
-        expect(data.lengthInBytes, greaterThan(1000));
-      }
-    });
+      },
+    );
   });
 }
 

@@ -13,31 +13,30 @@ enum FamilyFood {
 extension FamilyFoodX on FamilyFood {
   String get id => name;
 
-
   /// Soft-pixel icon (chroma-keyed).
   String get assetPath => switch (this) {
-        FamilyFood.travka => 'assets/images/food_travka.png',
-        FamilyFood.yagody => 'assets/images/food_yagody.png',
-        FamilyFood.oreshki => 'assets/images/food_oreshki.png',
-      };
+    FamilyFood.travka => 'assets/images/food_travka.png',
+    FamilyFood.yagody => 'assets/images/food_yagody.png',
+    FamilyFood.oreshki => 'assets/images/food_oreshki.png',
+  };
 
   String get emoji => switch (this) {
-        FamilyFood.travka => '🌱',
-        FamilyFood.yagody => '🫐',
-        FamilyFood.oreshki => '🥜',
-      };
+    FamilyFood.travka => '🌱',
+    FamilyFood.yagody => '🫐',
+    FamilyFood.oreshki => '🥜',
+  };
 
   String get labelRu => switch (this) {
-        FamilyFood.travka => 'Травка',
-        FamilyFood.yagody => 'Ягоды',
-        FamilyFood.oreshki => 'Орешки',
-      };
+    FamilyFood.travka => 'Травка',
+    FamilyFood.yagody => 'Ягоды',
+    FamilyFood.oreshki => 'Орешки',
+  };
 
   String get effectRu => switch (this) {
-        FamilyFood.travka => 'спокойный авто-буст',
-        FamilyFood.yagody => 'короткий сильный авто',
-        FamilyFood.oreshki => 'удача слияния + авто',
-      };
+    FamilyFood.travka => 'спокойный авто-буст',
+    FamilyFood.yagody => 'короткий сильный авто',
+    FamilyFood.oreshki => 'удача слияния + авто',
+  };
 
   static FamilyFood? tryParse(String? raw) {
     if (raw == null) return null;
@@ -50,21 +49,17 @@ extension FamilyFoodX on FamilyFood {
 
 /// Persisted food inventory counts.
 class FoodInventory {
-  const FoodInventory({
-    this.travka = 0,
-    this.yagody = 0,
-    this.oreshki = 0,
-  });
+  const FoodInventory({this.travka = 0, this.yagody = 0, this.oreshki = 0});
 
   final int travka;
   final int yagody;
   final int oreshki;
 
   int countOf(FamilyFood food) => switch (food) {
-        FamilyFood.travka => travka,
-        FamilyFood.yagody => yagody,
-        FamilyFood.oreshki => oreshki,
-      };
+    FamilyFood.travka => travka,
+    FamilyFood.yagody => yagody,
+    FamilyFood.oreshki => oreshki,
+  };
 
   int get total => travka + yagody + oreshki;
 
@@ -95,10 +90,10 @@ class FoodInventory {
   }
 
   Map<String, dynamic> toJson() => {
-        'travka': travka,
-        'yagody': yagody,
-        'oreshki': oreshki,
-      };
+    'travka': travka,
+    'yagody': yagody,
+    'oreshki': oreshki,
+  };
 
   factory FoodInventory.fromJson(Map<String, dynamic>? json) {
     if (json == null) return const FoodInventory();

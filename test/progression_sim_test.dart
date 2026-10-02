@@ -129,8 +129,7 @@ void main() {
           for (final cap in herd) {
             byLevel.putIfAbsent(cap.level, () => []).add(cap.id);
           }
-          final pairs =
-              byLevel.values.where((ids) => ids.length >= 2).toList();
+          final pairs = byLevel.values.where((ids) => ids.length >= 2).toList();
           if (pairs.isNotEmpty) {
             final pick = pairs[rng.nextInt(pairs.length)];
             a = pick[0];
@@ -142,7 +141,8 @@ void main() {
           final wasTwin = c.state.isTwinMarked(a) && c.state.isTwinMarked(b);
           if (c.tryMerge(a, b)) {
             mergesDone++;
-            if (wasTwin && c.state.grass >= beforeGrass + BalanceV0.twinMergeBonusGrass) {
+            if (wasTwin &&
+                c.state.grass >= beforeGrass + BalanceV0.twinMergeBonusGrass) {
               twinMerges++;
               twinBonusAt ??= simSeconds;
             }
@@ -174,7 +174,8 @@ void main() {
     expect(
       firstGladeAt!,
       inInclusiveRange(45, 360),
-      reason: 'First glade ~1–6 min cozy (family power ≥5; call-capy can land ~1 min); got ${firstGladeAt}s',
+      reason:
+          'First glade ~1–6 min cozy (family power ≥5; call-capy can land ~1 min); got ${firstGladeAt}s',
     );
     expect(firstSpendAt, isNotNull, reason: 'Spend fork should be used');
     expect(calls + boosts, greaterThan(0));
@@ -214,7 +215,8 @@ void main() {
               c.state.sessionGoalIndex >= 2 ||
               c.state.sunnyGladeAnnounced >= 2),
       isTrue,
-      reason: '12 min should push toward Солнечный прогал '
+      reason:
+          '12 min should push toward Солнечный прогал '
           '(goalIdx=${c.state.sessionGoalIndex} glade=${c.state.sunnyGladeAnnounced} '
           'herd=${c.state.herdCount} progress=${c.sessionGoalProgress})',
     );

@@ -80,14 +80,15 @@ class _CozyPlaceMarkerState extends State<CozyPlaceMarker>
                         borderRadius: BorderRadius.circular(18),
                         boxShadow: [
                           BoxShadow(
-                            color: (widget.active
-                                    ? const Color(0xFFE0A020)
-                                    : const Color(0xFFFFE08A))
-                                .withValues(
-                              alpha: widget.active
-                                  ? activeGlow
-                                  : 0.18 + _pulse.value * 0.22,
-                            ),
+                            color:
+                                (widget.active
+                                        ? const Color(0xFFE0A020)
+                                        : const Color(0xFFFFE08A))
+                                    .withValues(
+                                      alpha: widget.active
+                                          ? activeGlow
+                                          : 0.18 + _pulse.value * 0.22,
+                                    ),
                             blurRadius: widget.active ? 18 : 12,
                             spreadRadius: widget.active ? 3 : 1,
                           ),
@@ -103,7 +104,7 @@ class _CozyPlaceMarkerState extends State<CozyPlaceMarker>
                         color: widget.active
                             ? const Color(0xFFFFE08A).withValues(alpha: 0.92)
                             : const Color(0xFFF8EDD8)
-                                .withValues(alpha: dim ? 0.45 : 0.75),
+                                  .withValues(alpha: dim ? 0.45 : 0.75),
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
                           color: widget.active

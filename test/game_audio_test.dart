@@ -28,9 +28,7 @@ void main() {
   });
 
   test('mute preference persists across instances (silent path)', () async {
-    SharedPreferences.setMockInitialValues({
-      GameAudio.mutedPrefsKey: true,
-    });
+    SharedPreferences.setMockInitialValues({GameAudio.mutedPrefsKey: true});
     final audio = GameAudio(silent: true);
     await audio.init();
     expect(audio.isMuted, isTrue);

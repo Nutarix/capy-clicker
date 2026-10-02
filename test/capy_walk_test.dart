@@ -92,8 +92,7 @@ void main() {
     test('idle amplitudes differ by sheet', () {
       const t = 1.0; // max of reverse controller
       final amps = {
-        for (final s in CapyWalkSheet.values)
-          s: CapyWalk.idleBobY(s, t).abs(),
+        for (final s in CapyWalkSheet.values) s: CapyWalk.idleBobY(s, t).abs(),
       };
       expect(amps[CapyWalkSheet.nanny]! < amps[CapyWalkSheet.base]!, isTrue);
       expect(amps[CapyWalkSheet.guard]! < amps[CapyWalkSheet.nanny]!, isTrue);

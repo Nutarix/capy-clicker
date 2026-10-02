@@ -32,11 +32,11 @@ class MeadowSnapshot {
   }
 
   Map<String, dynamic> toJson() => {
-        'herdProgress': herdProgress,
-        'herd': herd.map((c) => c.toJson()).toList(),
-        if (twinIdA != null) 'twinIdA': twinIdA,
-        if (twinIdB != null) 'twinIdB': twinIdB,
-      };
+    'herdProgress': herdProgress,
+    'herd': herd.map((c) => c.toJson()).toList(),
+    if (twinIdA != null) 'twinIdA': twinIdA,
+    if (twinIdB != null) 'twinIdB': twinIdB,
+  };
 
   factory MeadowSnapshot.fromJson(Map<String, dynamic> json) {
     final rawHerd = json['herd'] as List<dynamic>? ?? const [];

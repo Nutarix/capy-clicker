@@ -228,8 +228,7 @@ void main() {
           for (final cap in c.state.herd) {
             byLevel.putIfAbsent(cap.level, () => []).add(cap.id);
           }
-          final pairs =
-              byLevel.values.where((ids) => ids.length >= 2).toList();
+          final pairs = byLevel.values.where((ids) => ids.length >= 2).toList();
           if (pairs.isNotEmpty) {
             final pick = pairs[rng.nextInt(pairs.length)];
             a = pick[0];
@@ -242,8 +241,7 @@ void main() {
           if (c.tryMerge(a, b)) {
             merges++;
             if (wasTwin &&
-                c.state.grass >=
-                    beforeGrass + BalanceV0.twinMergeBonusGrass) {
+                c.state.grass >= beforeGrass + BalanceV0.twinMergeBonusGrass) {
               twinMerges++;
               twinBonusAt ??= simSeconds;
             }
@@ -252,12 +250,9 @@ void main() {
       }
     }
 
-    final grassAvg =
-        grassSamples == 0 ? 0.0 : grassSum / grassSamples;
-    final midAvg =
-        midGrassSamples == 0 ? 0.0 : midGrassSum / midGrassSamples;
-    final zeroFrac =
-        grassSamples == 0 ? 1.0 : grassZeroSamples / grassSamples;
+    final grassAvg = grassSamples == 0 ? 0.0 : grassSum / grassSamples;
+    final midAvg = midGrassSamples == 0 ? 0.0 : midGrassSum / midGrassSamples;
+    final zeroFrac = grassSamples == 0 ? 1.0 : grassZeroSamples / grassSamples;
 
     // ignore: avoid_print
     print(
@@ -277,7 +272,8 @@ void main() {
     expect(
       firstGladeAt!,
       inInclusiveRange(45, 360),
-      reason: 'First berry glade ~1–6 min cozy (family power ≥5); got ${firstGladeAt}s',
+      reason:
+          'First berry glade ~1–6 min cozy (family power ≥5); got ${firstGladeAt}s',
     );
 
     expect(calls, greaterThan(0));

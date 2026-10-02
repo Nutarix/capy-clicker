@@ -47,6 +47,7 @@ abstract final class BalanceV0 {
   static const double zoomClose = 1.0;
   static const double zoomMid = 0.82;
   static const double zoomFar = 0.66;
+
   /// @Deprecated Prefer [zoomWidest] — 11–12 share one glade circle.
   static const double zoomWide = 0.50;
   static const double zoomWidest = 0.50;
@@ -83,10 +84,8 @@ abstract final class BalanceV0 {
       if (p.dy > maxY) maxY = p.dy;
     }
 
-    final width =
-        (maxX - minX + 2 * zoomFitPadding).clamp(0.05, 1.5);
-    final height =
-        (maxY - minY + 2 * zoomFitPadding).clamp(0.05, 1.5);
+    final width = (maxX - minX + 2 * zoomFitPadding).clamp(0.05, 1.5);
+    final height = (maxY - minY + 2 * zoomFitPadding).clamp(0.05, 1.5);
     final span = math.max(width, height);
 
     final fit = zoomFitComfortSpan / span;
@@ -125,8 +124,8 @@ abstract final class BalanceV0 {
 
   /// Fallback anchor only — the live puddle is a temporary spawn
   /// ([randomMudCenter]), never a saved fixture. Kept inside every glade.
-  static const double mudCenterX = 0.22;
-  static const double mudCenterY = 0.78;
+  static const double mudCenterX = 0.48;
+  static const double mudCenterY = 0.84;
 
   /// Hit ellipse radius in normalized meadow space.
   ///
@@ -161,7 +160,8 @@ abstract final class BalanceV0 {
     const inset = 0.05;
     final left = r.left + inset;
     final right = r.right - inset;
-    final top = r.top + inset;
+    // Keep the wood ring low on the grass, not up on the tree line.
+    final top = r.top + r.height * 0.55;
     final bottom = r.bottom - inset;
     if (right <= left || bottom <= top) {
       return WorldZones.clampToMeadow(
@@ -201,7 +201,7 @@ abstract final class BalanceV0 {
   /// Normalized meadow position for the berry basket (grass clearing only).
   /// Must remain inside [WorldZones] walkable meadow — never on tree trunks.
   static const double berryPosX = 0.78;
-  static const double berryPosY = 0.72;
+  static const double berryPosY = 0.80;
 
   // --- Meadow decor unlocks (visual only) ---
 
@@ -234,7 +234,6 @@ abstract final class BalanceV0 {
 
   /// How strongly the drag feedback eases toward the magnet target (0–1).
   static const double magnetPullLerp = 0.28;
-
 
   // --- Grass currency (session loop fork) ---
 
@@ -298,7 +297,6 @@ abstract final class BalanceV0 {
   /// First Уют grant when Great Glade + family Lv.4 chain completes.
   static const int firstMistyUyutGrant = 1;
 
-
   // --- Multipliers v0: family food ---
 
   /// Steady idle auto mult while Травка feed is active.
@@ -318,6 +316,7 @@ abstract final class BalanceV0 {
 
   /// Chance flower tap grants a food item (base; research/decor add).
   static const double flowerFoodDropChance = 0.18;
+
   /// Relative weights travka : yagody : oreshki
   static const double foodDropTravkaWeight = 0.55;
   static const double foodDropYagodyWeight = 0.30;
@@ -325,6 +324,7 @@ abstract final class BalanceV0 {
 
   /// Convert grass → Травка feed pack.
   static const int grassToTravkaCost = 4;
+
   /// Showable v1: 7 → 6 — food stays a light sink next to call/boost.
   static const int grassToYagodyCost = 6;
   static const int grassToOreshkiCost = 12;
@@ -363,7 +363,6 @@ abstract final class BalanceV0 {
   static const double researchFoodDropBonus = 0.10;
 
   // --- Juice / tips ---
-
 
   /// Brief merge flash duration on the new merged capy.
   static const Duration mergeFlashDuration = Duration(milliseconds: 520);

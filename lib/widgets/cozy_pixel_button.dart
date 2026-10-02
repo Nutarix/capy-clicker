@@ -122,11 +122,15 @@ class CozyPixelButton extends StatelessWidget {
                 ],
                 if (expand)
                   Flexible(
-                    child: Text(
-                      label,
-                      textAlign: TextAlign.center,
-                      overflow: TextOverflow.ellipsis,
-                      style: labelStyle,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        label,
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        softWrap: false,
+                        style: labelStyle,
+                      ),
                     ),
                   )
                 else

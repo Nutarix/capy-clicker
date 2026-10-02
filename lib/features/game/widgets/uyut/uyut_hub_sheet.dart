@@ -4,10 +4,10 @@ import 'package:flutter/services.dart';
 import '../../../../theme/cozy_theme.dart';
 import '../../../../widgets/cozy_pixel_button.dart';
 import '../../controllers/game_controller.dart';
-import '../../models/capybara.dart';
 import '../../models/balance.dart';
 import '../../models/multipliers/multipliers.dart';
 import 'multiplier_icon.dart';
+import '../home_meadow_scene.dart';
 
 /// Bottom sheet «Уют» with tabs: Еда / Роли / Дом / Исследования.
 class UyutHubSheet extends StatefulWidget {
@@ -106,11 +106,6 @@ class _UyutHubSheetState extends State<UyutHubSheet>
                   style: CozyTheme.hudChipStyle(fontSize: 18)
                       .copyWith(fontWeight: FontWeight.w800),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  '🌿 ${state.grass}   ✨ искры ${state.uyut}',
-                  style: CozyTheme.hudChipMutedStyle(fontSize: 12),
-                ),
                 TabBar(
                   controller: _tabs,
                   labelColor: const Color(0xFF5C3D1E),
@@ -121,20 +116,8 @@ class _UyutHubSheetState extends State<UyutHubSheet>
                   tabs: [
                     const Tab(height: 48, child: _HubTabLabel('Еда')),
                     const Tab(height: 48, child: _HubTabLabel('Роли')),
-                    Tab(
-                      height: 48,
-                      child: _HubTabLabel(
-                        'Дом',
-                        hint: permanentUnlocked ? null : 'скоро',
-                      ),
-                    ),
-                    Tab(
-                      height: 48,
-                      child: _HubTabLabel(
-                        'Наука',
-                        hint: permanentUnlocked ? null : 'скоро',
-                      ),
-                    ),
+                    const Tab(height: 48, child: _HubTabLabel('Дом')),
+                    const Tab(height: 48, child: _HubTabLabel('Наука')),
                   ],
                 ),
                 Expanded(
@@ -162,33 +145,20 @@ class _UyutHubSheetState extends State<UyutHubSheet>
 
 /// Tab title that always paints the full word (no «Наука · ско» clip).
 class _HubTabLabel extends StatelessWidget {
-  const _HubTabLabel(this.title, {this.hint});
+  const _HubTabLabel(this.title);
 
   final String title;
-  final String? hint;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Text(
-            title,
-            maxLines: 1,
-            softWrap: false,
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
-          ),
-        ),
-        if (hint != null)
-          Text(
-            hint!,
-            maxLines: 1,
-            softWrap: false,
-            style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w600),
-          ),
-      ],
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Text(
+        title,
+        maxLines: 1,
+        softWrap: false,
+        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+      ),
     );
   }
 }
@@ -197,38 +167,31 @@ class _FoodTab extends StatelessWidget {
   const _FoodTab({required this.controller});
   final GameController controller;
 
+  int _cost(FamilyFood food) => switch (food) {
+    FamilyFood.travka => BalanceV0.grassToTravkaCost,
+    FamilyFood.yagody => BalanceV0.grassToYagodyCost,
+    FamilyFood.oreshki => BalanceV0.grassToOreshkiCost,
+  };
+
   @override
   Widget build(BuildContext context) {
-    final food = controller.state.food;
-    final selected = controller.selectedFood;
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
       children: [
-        Text(
-          'Корм для семьи — временный буст',
-          style: CozyTheme.hudChipMutedStyle(fontSize: 13),
-        ),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            for (final f in FamilyFood.values)
-              _FoodChip(
-                food: f,
-                count: food.countOf(f),
-                selected: selected == f,
-                onSelect: () => controller.selectFood(f),
-                onBuy: () {
-                  HapticFeedback.lightImpact();
-                  controller.buyFood(f);
-                },
-              ),
-          ],
-        ),
-        const SizedBox(height: 16),
+        for (final food in FamilyFood.values) ...[
+          _FoodRow(
+            food: food,
+            cost: _cost(food),
+            onBuy: () {
+              HapticFeedback.lightImpact();
+              controller.selectFood(food);
+              controller.buyFood(food);
+            },
+          ),
+          const SizedBox(height: 10),
+        ],
         CozyPixelButton(
-          label: 'Покормить семью · ${selected.labelRu}',
+          label: 'Покормить семью',
           expand: true,
           onPressed: controller.canFeedSelected
               ? () {
@@ -236,84 +199,54 @@ class _FoodTab extends StatelessWidget {
                   controller.feedFamily();
                 }
               : null,
-          leading: MultiplierIcon(assetPath: selected.assetPath, size: 22),
-          fontSize: 14,
-        ),
-        if (controller.isFoodBoostActive) ...[
-          const SizedBox(height: 10),
-          Text(
-            'Активно: ${controller.activeFoodBoost?.labelRu} '
-            '(${controller.foodBoostRemainingSeconds.ceil()}с)',
-            style: CozyTheme.hudChipStyle(fontSize: 13),
-          ),
-        ],
-        const SizedBox(height: 12),
-        Text(
-          'Цветы иногда дают еду. Или купи за траву:\n'
-          'Травка ${BalanceV0.grassToTravkaCost}🌿 · '
-          'Ягоды ${BalanceV0.grassToYagodyCost}🌿 · '
-          'Орешки ${BalanceV0.grassToOreshkiCost}🌿',
-          style: CozyTheme.hudChipMutedStyle(fontSize: 11),
         ),
       ],
     );
   }
 }
 
-class _FoodChip extends StatelessWidget {
-  const _FoodChip({
-    required this.food,
-    required this.count,
-    required this.selected,
-    required this.onSelect,
-    required this.onBuy,
-  });
+class _FoodRow extends StatelessWidget {
+  const _FoodRow({required this.food, required this.cost, required this.onBuy});
 
   final FamilyFood food;
-  final int count;
-  final bool selected;
-  final VoidCallback onSelect;
+  final int cost;
   final VoidCallback onBuy;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onSelect,
-      borderRadius: BorderRadius.circular(14),
-      child: Ink(
-        decoration: BoxDecoration(
-          color: selected ? const Color(0xFFE8F5D8) : const Color(0xFFFFF3D6),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: selected ? const Color(0xFF6B9B4A) : const Color(0xFFE2CFA8),
-            width: selected ? 2 : 1,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onBuy,
+        borderRadius: BorderRadius.circular(28),
+        child: Ink(
+          decoration: BoxDecoration(
+            color: const Color(0xFFF3E6C8),
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(color: const Color(0xFFE2CFA8)),
           ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  MultiplierIcon(assetPath: food.assetPath, size: 28),
-                  const SizedBox(width: 6),
-                  Text('${food.labelRu} ×$count'),
-                ],
-              ),
-              Text(
-                food.effectRu,
-                style: CozyTheme.hudChipMutedStyle(fontSize: 10),
-              ),
-              CozyPixelButton(
-                label: 'Купить',
-                variant: CozyPixelButtonVariant.secondary,
-                compact: true,
-                fontSize: 11,
-                onPressed: onBuy,
-              ),
-            ],
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            child: Row(
+              children: [
+                MultiplierIcon(assetPath: food.assetPath, size: 36),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    food.labelRu,
+                    style: CozyTheme.hudChipStyle(fontSize: 16),
+                  ),
+                ),
+                Image.asset(
+                  'assets/images/ui/icon_grass.png',
+                  width: 16,
+                  height: 16,
+                  filterQuality: FilterQuality.none,
+                ),
+                const SizedBox(width: 4),
+                Text('$cost', style: CozyTheme.hudChipStyle(fontSize: 14)),
+              ],
+            ),
           ),
         ),
       ),
@@ -324,148 +257,111 @@ class _FoodChip extends StatelessWidget {
 class _RolesTab extends StatelessWidget {
   const _RolesTab({required this.controller, this.focusCapyId});
   final GameController controller;
+
+  /// Kept so a long-press still opens this tab. Roles are not listed by id.
   final String? focusCapyId;
 
-  /// Empty line only when nobody here has a role. An assigned capy
-  /// (even «Капи c1») must not sit under «Роли пока не назначены».
-  String _rolesSummary(List<Capybara> herd) {
-    final bonuses = controller.activeRoleBonusesRu;
-    final anyHere = herd.any((c) => c.role != null);
-    if (!anyHere) return bonuses;
-    if (bonuses == 'Роли пока не назначены') {
-      return herd
-          .where((c) => c.role != null)
-          .map((c) => c.role!.labelRu)
-          .join(' · ');
+  bool _held(CapyRole role) {
+    final state = controller.state;
+    for (final capy in state.herd) {
+      if (capy.role == role) return true;
     }
-    return bonuses;
+    for (final entry in state.meadows.entries) {
+      if (entry.key == state.activeMeadowId) continue;
+      for (final capy in entry.value.herd) {
+        if (capy.role == role) return true;
+      }
+    }
+    return false;
   }
 
   @override
   Widget build(BuildContext context) {
-    final state = controller.state;
-    final herd = List.of(state.herd)
-      ..sort((a, b) {
-        if (a.id == focusCapyId) return -1;
-        if (b.id == focusCapyId) return 1;
-        return a.level.compareTo(b.level);
-      });
+    final any = CapyRole.values.any(_held);
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
       children: [
-        Text(
-          'Слоты ролей: ${state.assignedRoleCount}/${state.roleSlots}',
-          style: CozyTheme.hudChipStyle(fontSize: 14),
-        ),
-        const SizedBox(height: 6),
-        Text(_rolesSummary(herd), style: CozyTheme.hudChipStyle(fontSize: 12)),
-        const SizedBox(height: 6),
-        Text(
-          'Подсказка: долгое нажатие на капи на лугу сразу открывает роли.',
-          style: CozyTheme.hudChipMutedStyle(fontSize: 11),
-        ),
-        const SizedBox(height: 8),
-        for (final role in CapyRole.values)
+        if (!any)
           Padding(
-            padding: const EdgeInsets.only(bottom: 4),
+            padding: const EdgeInsets.only(bottom: 8),
             child: Text(
-              '• ${role.tipRu}',
-              style: CozyTheme.hudChipMutedStyle(fontSize: 11),
+              'Роли пока не назначены',
+              style: CozyTheme.hudChipMutedStyle(fontSize: 12),
             ),
           ),
-        const SizedBox(height: 12),
-        for (final capy in herd) ...[
-          DecoratedBox(
-            decoration: BoxDecoration(
-              color: capy.id == focusCapyId
-                  ? const Color(0xFFE8F5D8)
-                  : const Color(0xFFFFF3D6),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFFE2CFA8)),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(10),
+        for (final role in CapyRole.values) ...[
+          _RoleCard(
+            role: role,
+            held: _held(role),
+            onAssign: () {
+              HapticFeedback.lightImpact();
+              controller.assignRoleToFreeCapy(role);
+            },
+            onClear: () {
+              HapticFeedback.lightImpact();
+              controller.clearRole(role);
+            },
+          ),
+          const SizedBox(height: 10),
+        ],
+      ],
+    );
+  }
+}
+
+class _RoleCard extends StatelessWidget {
+  const _RoleCard({
+    required this.role,
+    required this.held,
+    required this.onAssign,
+    required this.onClear,
+  });
+
+  final CapyRole role;
+  final bool held;
+  final VoidCallback onAssign;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: held ? const Color(0xFFE8F5D8) : const Color(0xFFFFF8EC),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2CFA8)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Row(
+          children: [
+            MultiplierIcon(assetPath: role.assetPath, size: 54),
+            const SizedBox(width: 8),
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      if (capy.role != null) ...[
-                        MultiplierIcon(
-                          assetPath: capy.role!.assetPath,
-                          size: 22,
-                        ),
-                        const SizedBox(width: 6),
-                      ],
-                      Expanded(
-                        child: Text(
-                          'Капи ${capy.id} · Lv.${capy.level}'
-                          '${capy.role != null ? ' · ${capy.role!.labelRu}' : ''}',
-                          style: CozyTheme.hudChipStyle(fontSize: 13),
-                        ),
-                      ),
-                    ],
+                  Text(
+                    role.labelRu,
+                    style: CozyTheme.hudChipStyle(fontSize: 15),
                   ),
-                  const SizedBox(height: 6),
-                  Wrap(
-                    spacing: 6,
-                    children: [
-                      for (final role in CapyRole.values)
-                        ActionChip(
-                          avatar: MultiplierIcon(
-                            assetPath: role.assetPath,
-                            size: 18,
-                          ),
-                          label: Text(
-                            role.labelRu,
-                            style: const TextStyle(fontSize: 11),
-                          ),
-                          onPressed: () {
-                            HapticFeedback.lightImpact();
-                            final ok = controller.assignRole(capy.id, role);
-                            if (!context.mounted) return;
-                            if (!ok) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Нет свободного слота роли'),
-                                  behavior: SnackBarBehavior.floating,
-                                ),
-                              );
-                            } else {
-                              final toast = controller.lastRoleToast;
-                              if (toast != null) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(toast),
-                                    behavior: SnackBarBehavior.floating,
-                                    backgroundColor: const Color(0xFF5A9A48)
-                                        .withValues(alpha: 0.94),
-                                    duration: const Duration(
-                                      milliseconds: 1600,
-                                    ),
-                                  ),
-                                );
-                                controller.acknowledgeRoleToast();
-                              }
-                            }
-                          },
-                        ),
-                      ActionChip(
-                        label: const Text(
-                          'Снять',
-                          style: TextStyle(fontSize: 11),
-                        ),
-                        onPressed: () => controller.assignRole(capy.id, null),
-                      ),
-                    ],
+                  Text(
+                    role.tipRu,
+                    style: CozyTheme.hudChipMutedStyle(fontSize: 11),
                   ),
                 ],
               ),
             ),
-          ),
-          const SizedBox(height: 8),
-        ],
-      ],
+            CozyPixelButton(
+              label: held ? 'Снять' : 'Назначить',
+              variant: held
+                  ? CozyPixelButtonVariant.secondary
+                  : CozyPixelButtonVariant.primary,
+              compact: true,
+              onPressed: held ? onClear : onAssign,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -478,102 +374,61 @@ class _DecorTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final state = controller.state;
-    return ListView(
-      padding: const EdgeInsets.all(16),
+    final offer = <String>{
+      for (final decor in HomeDecor.values)
+        if (!state.ownsDecor(decor) &&
+            !softLocked &&
+            (decor.requiresResearch == null ||
+                state.hasResearch(decor.requiresResearch!)))
+          decor.id,
+    };
+    return Column(
       children: [
-        Text(
-          'Уют дома — постоянные бонусы',
-          style: CozyTheme.hudChipMutedStyle(fontSize: 13),
-        ),
-        if (softLocked) ...[
-          const SizedBox(height: 10),
-          DecoratedBox(
-            decoration: BoxDecoration(
-              color: const Color(0xFFF0E6D4).withValues(alpha: 0.85),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFE2CFA8)),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Text(
-                'Скоро — после Ягодной поляны. Пока корми семью на вкладке Еда.',
-                style: CozyTheme.hudChipMutedStyle(fontSize: 12),
-              ),
-            ),
-          ),
-        ],
-        const SizedBox(height: 10),
-        for (final d in HomeDecor.values) ...[
-          _DecorRow(controller: controller, decor: d, softLocked: softLocked),
-          const SizedBox(height: 8),
-        ],
-        if (state.ownedDecor.isEmpty && !softLocked)
-          Text(
-            'Купи первый декор за траву — семья станет уютнее.',
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+          child: Text(
+            'По одному. Каждая вещь — на своём месте.',
             style: CozyTheme.hudChipMutedStyle(fontSize: 12),
           ),
-      ],
-    );
-  }
-}
-
-class _DecorRow extends StatelessWidget {
-  const _DecorRow({
-    required this.controller,
-    required this.decor,
-    this.softLocked = false,
-  });
-  final GameController controller;
-  final HomeDecor decor;
-  final bool softLocked;
-
-  @override
-  Widget build(BuildContext context) {
-    final state = controller.state;
-    final owned = state.ownsDecor(decor);
-    final req = decor.requiresResearch;
-    final locked = softLocked || (req != null && !state.hasResearch(req));
-    final cost =
-        '${decor.grassCost}🌿${decor.uyutCost > 0 ? ' + ${decor.uyutCost}✨' : ''}';
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: owned ? const Color(0xFFE8F5D8) : const Color(0xFFFFF3D6),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE2CFA8)),
-      ),
-      child: ListTile(
-        leading: MultiplierIcon(assetPath: decor.assetPath, size: 36),
-        title: Text(decor.labelRu, style: CozyTheme.hudChipStyle(fontSize: 13)),
-        subtitle: Text(
-          softLocked
-              ? 'Скоро'
-              : locked
-              ? 'Нужно исследование'
-              : '${decor.effectRu}${owned ? '' : ' · $cost'}',
-          style: CozyTheme.hudChipMutedStyle(fontSize: 11),
         ),
-        trailing: owned
-            ? CozyPixelIconButton(
-                icon: state.placedDecor.contains(decor.id)
-                    ? Icons.check_circle
-                    : Icons.add_circle_outline,
-                onPressed: () => controller.togglePlaceDecor(decor),
-                tooltip: 'Разместить',
-                size: 36,
-                iconSize: 20,
-              )
-            : CozyPixelButton(
-                label: softLocked ? 'Скоро' : 'Купить',
-                variant: CozyPixelButtonVariant.secondary,
-                compact: true,
-                onPressed: locked
-                    ? null
-                    : () {
-                        HapticFeedback.lightImpact();
-                        controller.buyDecor(decor);
-                      },
+        if (softLocked)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text(
+              'Скоро — после Ягодной поляны.',
+              style: CozyTheme.hudChipMutedStyle(fontSize: 12),
+            ),
+          ),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Image.asset(
+                    'assets/images/bg_berry_glade.png',
+                    fit: BoxFit.cover,
+                  ),
+                  HomeMeadowScene(
+                    placedIds: state.placedDecor,
+                    labelPlaced: true,
+                    offerIds: offer,
+                    canBuy: (decor) =>
+                        state.grass >= decor.grassCost &&
+                        state.uyut >= decor.uyutCost,
+                    buyDecor: (decor) {
+                      HapticFeedback.lightImpact();
+                      controller.buyDecor(decor);
+                    },
+                  ),
+                ],
               ),
-      ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -583,69 +438,77 @@ class _ResearchTab extends StatelessWidget {
   final GameController controller;
   final bool softLocked;
 
+  static const _icons = <String, String>{
+    'more_flowers': 'assets/images/ui/icon_science_flowers.png',
+    'longer_mud': 'assets/images/ui/icon_science_mud.png',
+    'more_berries': 'assets/images/ui/icon_science_berries.png',
+    'unlock_tent': 'assets/images/ui/icon_science_tent.png',
+    'role_slot_2': 'assets/images/ui/icon_science_role.png',
+    'food_pouch': 'assets/images/ui/icon_science_pouch.png',
+    'cozy_lamp': 'assets/images/ui/icon_science_lamp.png',
+    'soft_cap_plus': 'assets/images/ui/icon_science_family.png',
+  };
+
   @override
   Widget build(BuildContext context) {
-    final unlocked = controller.state.researched;
-    return ListView(
-      padding: const EdgeInsets.all(16),
+    final nodes = UyutResearch.all;
+    return Column(
       children: [
-        Row(
-          children: [
-            const MultiplierIcon(assetPath: UyutResearch.assetPath, size: 32),
-            const SizedBox(width: 8),
-            Text(
-              'Исследования уюта',
-              style: CozyTheme.hudChipMutedStyle(fontSize: 13),
-            ),
-          ],
-        ),
-        if (softLocked) ...[
-          const SizedBox(height: 10),
-          DecoratedBox(
-            decoration: BoxDecoration(
-              color: const Color(0xFFF0E6D4).withValues(alpha: 0.85),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFE2CFA8)),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Text(
-                'Скоро — после Ягодной поляны. Первый узел уже недорогой (12🌿).',
-                style: CozyTheme.hudChipMutedStyle(fontSize: 12),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+          child: Row(
+            children: [
+              const MultiplierIcon(assetPath: UyutResearch.assetPath, size: 28),
+              const SizedBox(width: 8),
+              Text(
+                'Исследования уюта',
+                style: CozyTheme.hudChipMutedStyle(fontSize: 13),
               ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: GridView.builder(
+            padding: const EdgeInsets.all(12),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              mainAxisSpacing: 8,
+              crossAxisSpacing: 8,
+              childAspectRatio: 1.55,
             ),
+            itemCount: nodes.length,
+            itemBuilder: (context, index) {
+              final node = nodes[index];
+              return _ResearchCard(
+                controller: controller,
+                node: node,
+                icon: _icons[node.id] ?? UyutResearch.assetPath,
+                softLocked: softLocked,
+              );
+            },
           ),
-        ],
-        const SizedBox(height: 10),
-        for (final node in UyutResearch.all) ...[
-          _ResearchRow(
-            controller: controller,
-            node: node,
-            unlocked: unlocked,
-            softLocked: softLocked,
-          ),
-          const SizedBox(height: 8),
-        ],
+        ),
       ],
     );
   }
 }
 
-class _ResearchRow extends StatelessWidget {
-  const _ResearchRow({
+class _ResearchCard extends StatelessWidget {
+  const _ResearchCard({
     required this.controller,
     required this.node,
-    required this.unlocked,
-    this.softLocked = false,
+    required this.icon,
+    required this.softLocked,
   });
 
   final GameController controller;
   final ResearchNode node;
-  final Set<String> unlocked;
+  final String icon;
   final bool softLocked;
 
   @override
   Widget build(BuildContext context) {
+    final unlocked = controller.state.researched;
     final done = unlocked.contains(node.id);
     final can =
         !softLocked &&
@@ -655,51 +518,67 @@ class _ResearchRow extends StatelessWidget {
           grass: controller.state.grass,
           uyut: controller.state.uyut,
         );
-    final prereqOk = node.requires.every(unlocked.contains);
-    final cost =
-        '${node.grassCost}🌿${node.uyutCost > 0 ? ' + ${node.uyutCost}✨' : ''}';
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: done
-            ? const Color(0xFFE8F5D8)
-            : prereqOk && !softLocked
-            ? const Color(0xFFFFF3D6)
-            : const Color(0xFFF0E6D4).withValues(alpha: 0.7),
+    final need = UyutResearch.requiresLine(node);
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: can
+            ? () {
+                HapticFeedback.mediumImpact();
+                controller.unlockResearch(node.id);
+              }
+            : null,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: done ? const Color(0xFF6B9B4A) : const Color(0xFFE2CFA8),
+        child: Ink(
+          decoration: BoxDecoration(
+            color: done ? const Color(0xFFE8F5D8) : const Color(0xFFFFF8EC),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: done ? const Color(0xFF6B9B4A) : const Color(0xFFE2CFA8),
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(8),
+            child: Row(
+              children: [
+                Image.asset(
+                  icon,
+                  width: 36,
+                  height: 36,
+                  fit: BoxFit.contain,
+                  filterQuality: FilterQuality.none,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        node.labelRu,
+                        maxLines: 2,
+                        style: CozyTheme.hudChipStyle(fontSize: 12),
+                      ),
+                      Text(
+                        done ? 'есть' : node.effectRu,
+                        maxLines: 2,
+                        style: CozyTheme.hudChipMutedStyle(fontSize: 10),
+                      ),
+                      if (!done)
+                        Text(
+                          '${node.grassCost}'
+                          '${node.uyutCost > 0 ? ' + ${node.uyutCost}' : ''}'
+                          '${need.isEmpty ? '' : ' · $need'}',
+                          maxLines: 2,
+                          style: CozyTheme.hudChipMutedStyle(fontSize: 10),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
-      ),
-      child: ListTile(
-        leading: const MultiplierIcon(
-          assetPath: UyutResearch.assetPath,
-          size: 32,
-        ),
-        title: Text(node.labelRu, style: CozyTheme.hudChipStyle(fontSize: 13)),
-        subtitle: Text(
-          softLocked
-              ? 'Скоро · ${node.effectRu} · $cost'
-              : done
-              ? 'Открыто · ${node.effectRu}'
-              : '${node.effectRu} · $cost'
-                    '${UyutResearch.requiresLine(node).isEmpty ? '' : '\n${UyutResearch.requiresLine(node)}'}',
-          style: CozyTheme.hudChipMutedStyle(fontSize: 11),
-        ),
-        trailing: done
-            ? const Icon(Icons.check, color: Color(0xFF6B9B4A))
-            : CozyPixelButton(
-                label: softLocked ? 'Скоро' : 'Открыть',
-                variant: softLocked || !can
-                    ? CozyPixelButtonVariant.secondary
-                    : CozyPixelButtonVariant.primary,
-                compact: true,
-                onPressed: can
-                    ? () {
-                        HapticFeedback.mediumImpact();
-                        controller.unlockResearch(node.id);
-                      }
-                    : null,
-              ),
       ),
     );
   }

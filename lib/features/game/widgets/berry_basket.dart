@@ -1,14 +1,8 @@
 import 'package:flutter/material.dart';
 
-import 'meadow_hint_chip.dart';
-
 /// Berry basket sprite — tap for a large progress burst.
 class BerryBasket extends StatefulWidget {
-  const BerryBasket({
-    super.key,
-    required this.onTap,
-    this.showHint = false,
-  });
+  const BerryBasket({super.key, required this.onTap, this.showHint = false});
 
   /// Called with global anchor for floating «+N%».
   final ValueChanged<Offset> onTap;
@@ -72,6 +66,8 @@ class _BerryBasketState extends State<BerryBasket>
       child: AnimatedBuilder(
         animation: Listenable.merge([_bob, _pop, _glow]),
         builder: (context, _) {
+          // Chips are gone. Flag kept so existing callers still compile.
+          final _ = widget.showHint;
           final bobY = (_bob.value - 0.5) * 10;
           final scale =
               1.0 +
@@ -98,7 +94,8 @@ class _BerryBasketState extends State<BerryBasket>
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFFE03A5C).withValues(alpha: glow),
+                            color: const Color(0xFFE03A5C)
+                                .withValues(alpha: glow),
                             blurRadius: 18,
                             spreadRadius: 2,
                           ),
@@ -111,7 +108,8 @@ class _BerryBasketState extends State<BerryBasket>
                         width: 52,
                         height: 14,
                         decoration: BoxDecoration(
-                          color: const Color(0xFFE03A5C).withValues(alpha: 0.18),
+                          color: const Color(0xFFE03A5C)
+                              .withValues(alpha: 0.18),
                           borderRadius: BorderRadius.circular(20),
                         ),
                       ),
@@ -122,17 +120,6 @@ class _BerryBasketState extends State<BerryBasket>
                       height: 68,
                       fit: BoxFit.contain,
                       filterQuality: FilterQuality.none,
-                    ),
-                    Positioned(
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      child: Center(
-                        child: MeadowHintChip(
-                          text: widget.showHint ? 'нажми!' : 'ягоды!',
-                          fontSize: 12,
-                        ),
-                      ),
                     ),
                   ],
                 ),

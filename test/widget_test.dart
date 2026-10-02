@@ -60,7 +60,7 @@ void main() {
     expect(find.text('Grow! Capy!'), findsOneWidget);
     expect(find.text('Продолжить'), findsOneWidget);
     expect(find.text('Заново'), findsOneWidget);
-    expect(find.text('Прогресс'), findsNothing);
+    expect(find.text('Лес'), findsNothing);
   });
 
   testWidgets('main menu vertical thirds: title above capy above Play', (
@@ -79,7 +79,8 @@ void main() {
     expect(title.dy, lessThan(capy.dy));
     expect(capy.dy, lessThan(play.dy));
     // Play sits near end of middle band (~55–70% of stage height).
-    final stageH = tester.view.physicalSize.height / tester.view.devicePixelRatio;
+    final stageH =
+        tester.view.physicalSize.height / tester.view.devicePixelRatio;
     expect(play.dy / stageH, greaterThan(0.50));
     expect(play.dy / stageH, lessThan(0.78));
     expect(find.textContaining('цветы'), findsNothing);
@@ -96,8 +97,11 @@ void main() {
     await tester.tap(find.text('Играть'));
     await _pumpReady(tester);
 
-    expect(find.text('Прогресс'), findsOneWidget);
-    expect(find.textContaining('семья'), findsWidgets);
+    expect(find.text('Лес'), findsOneWidget);
+    expect(find.text('Ускорение'), findsOneWidget);
+    expect(find.textContaining('поляна'), findsWidgets);
+    // Empty save cannot pay the summon yet, so the gray reason stays the label.
+    expect(find.text('Не хватает травы'), findsOneWidget);
 
     // Back to menu; pump past soft daily Future.delayed so no pending timer.
     await tester.tap(find.byIcon(Icons.pause_rounded));
@@ -112,9 +116,8 @@ void main() {
     await tester.pumpWidget(const CapyClickerApp());
     await _enterGameFromMenu(tester);
 
-    expect(find.text('Прогресс'), findsOneWidget);
-    expect(find.textContaining('семья'), findsWidgets);
-    expect(find.textContaining('поляна:'), findsOneWidget);
+    expect(find.text('Лес'), findsOneWidget);
+    expect(find.textContaining('поляна'), findsWidgets);
     expect(find.byIcon(Icons.pause_rounded), findsOneWidget);
     // Idle badges are compact digits; at least one level mark is present.
     expect(find.textContaining('1'), findsWidgets);
@@ -125,14 +128,14 @@ void main() {
   ) async {
     await tester.pumpWidget(const CapyClickerApp());
     await _enterGameFromMenu(tester);
-    expect(find.text('Прогресс'), findsOneWidget);
+    expect(find.text('Лес'), findsOneWidget);
 
     await tester.tap(find.byIcon(Icons.pause_rounded));
     await _pumpReady(tester);
 
     expect(find.text('Grow! Capy!'), findsOneWidget);
     expect(find.text('Продолжить'), findsOneWidget);
-    expect(find.text('Прогресс'), findsNothing);
+    expect(find.text('Лес'), findsNothing);
   });
 
   testWidgets('first-launch tip overlay shows merge tip', (

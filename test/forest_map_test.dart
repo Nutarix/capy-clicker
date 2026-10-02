@@ -27,9 +27,7 @@ void main() {
       ],
     );
     final berry = MeadowSnapshot(
-      herd: [
-        Capybara(id: 'c3', level: 1, position: const Offset(0.3, 0.6)),
-      ],
+      herd: [Capybara(id: 'c3', level: 1, position: const Offset(0.3, 0.6))],
     );
     final state = GameState(
       herdProgress: warm.herdProgress,
@@ -38,10 +36,7 @@ void main() {
       grass: 42,
       sunnyGladeAnnounced: 1,
       activeMeadowId: 'warm_edge',
-      meadows: {
-        'warm_edge': warm,
-        'berry_glade': berry,
-      },
+      meadows: {'warm_edge': warm, 'berry_glade': berry},
     );
 
     final back = GameState.fromJson(state.toJson());
@@ -104,7 +99,10 @@ void main() {
     expect(c.state.herdCount, 5);
     expect(c.state.herd.map((e) => e.id).toSet(), warmIds);
     expect(c.state.grass, greaterThanOrEqualTo(grassBefore));
-    expect(c.herdCountForMeadow('berry_glade'), BalanceV0.meadowStarterHerdSize + 1);
+    expect(
+      c.herdCountForMeadow('berry_glade'),
+      BalanceV0.meadowStarterHerdSize + 1,
+    );
     c.dispose();
   });
 
@@ -117,8 +115,14 @@ void main() {
       c.addProgress(1.0, fromTap: true);
     }
     expect(c.unlockedMeadowIds, ['warm_edge', 'berry_glade']);
-    expect(c.herdCountForMeadow('berry_glade'), BalanceV0.meadowStarterHerdSize);
-    expect(c.state.meadows['berry_glade']!.herd.every((e) => e.level == 1), isTrue);
+    expect(
+      c.herdCountForMeadow('berry_glade'),
+      BalanceV0.meadowStarterHerdSize,
+    );
+    expect(
+      c.state.meadows['berry_glade']!.herd.every((e) => e.level == 1),
+      isTrue,
+    );
     // Active meadow unchanged.
     expect(c.state.activeMeadowId, 'warm_edge');
     expect(c.state.herdCount, 5);
@@ -168,7 +172,10 @@ void main() {
     expect(c.state.activeMeadowId, 'warm_edge');
     expect(c.state.herdCount, 3);
     expect(c.state.isMeadowUnlocked('berry_glade'), isTrue);
-    expect(c.herdCountForMeadow('berry_glade'), BalanceV0.meadowStarterHerdSize);
+    expect(
+      c.herdCountForMeadow('berry_glade'),
+      BalanceV0.meadowStarterHerdSize,
+    );
     expect(c.state.grass, 4);
     c.dispose();
   });
@@ -216,7 +223,10 @@ void main() {
     expect(c.state.sunnyGladeAnnounced, 2);
     expect(c.state.isMeadowUnlocked('sunny_clearing'), isTrue);
     expect(c.state.isMeadowUnlocked('great_meadow'), isFalse);
-    expect(c.herdCountForMeadow('sunny_clearing'), BalanceV0.meadowStarterHerdSize);
+    expect(
+      c.herdCountForMeadow('sunny_clearing'),
+      BalanceV0.meadowStarterHerdSize,
+    );
 
     // Soft-cap bodies at 12 (= power 12) is not enough for Great (needs 16).
     for (var i = 0; i < 2; i++) {
@@ -248,11 +258,16 @@ void main() {
     }
     expect(c.state.familyPower, greaterThanOrEqualTo(16));
     expect(c.state.sunnyGladeAnnounced, 3);
+    expect(c.unlockedMeadowIds, [
+      'warm_edge',
+      'berry_glade',
+      'sunny_clearing',
+      'great_meadow',
+    ]);
     expect(
-      c.unlockedMeadowIds,
-      ['warm_edge', 'berry_glade', 'sunny_clearing', 'great_meadow'],
+      c.herdCountForMeadow('great_meadow'),
+      BalanceV0.meadowStarterHerdSize,
     );
-    expect(c.herdCountForMeadow('great_meadow'), BalanceV0.meadowStarterHerdSize);
     // Active meadow still warm — unlock does not force switch.
     expect(c.state.activeMeadowId, 'warm_edge');
     c.dispose();
@@ -298,7 +313,10 @@ void main() {
 
     expect(c.switchToMeadow('berry_glade'), isTrue);
     expect(c.state.grass, afterSpend);
-    expect(c.spendGrassBoost() || c.state.grass < BalanceV0.grassBoostCost, isTrue);
+    expect(
+      c.spendGrassBoost() || c.state.grass < BalanceV0.grassBoostCost,
+      isTrue,
+    );
     // Grass never negative after spend/switch.
     expect(c.state.grass, greaterThanOrEqualTo(0));
     c.switchToMeadow('warm_edge');

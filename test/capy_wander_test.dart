@@ -29,8 +29,22 @@ void main() {
     test('pickTarget stays clamped in meadow for herd', () {
       var i = 0;
       final seq = <double>[
-        0.01, 0.99, 0.5, 0.5, 0.2, 0.8, 0.9, 0.1, 0.3, 0.7, 0.4, 0.6,
-        0.15, 0.85, 0.55, 0.45,
+        0.01,
+        0.99,
+        0.5,
+        0.5,
+        0.2,
+        0.8,
+        0.9,
+        0.1,
+        0.3,
+        0.7,
+        0.4,
+        0.6,
+        0.15,
+        0.85,
+        0.55,
+        0.45,
       ];
       double rnd() => seq[i++ % seq.length];
 
@@ -176,11 +190,7 @@ void main() {
           home: Scaffold(
             body: Column(
               children: [
-                FlowerDot(
-                  color: Colors.pink,
-                  swayPhase: 0.3,
-                  onTap: (_) {},
-                ),
+                FlowerDot(color: Colors.pink, swayPhase: 0.3, onTap: (_) {}),
                 CozyPlaceMarker(
                   kind: CozyPlaceKind.pen,
                   active: false,

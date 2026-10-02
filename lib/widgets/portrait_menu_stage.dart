@@ -48,11 +48,7 @@ class PortraitMenuStage extends StatelessWidget {
           ),
         ],
         Center(
-          child: SizedBox(
-            width: frameW,
-            height: frameH,
-            child: child,
-          ),
+          child: SizedBox(width: frameW, height: frameH, child: child),
         ),
       ],
     );

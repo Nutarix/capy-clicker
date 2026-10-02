@@ -4,7 +4,10 @@ import '../../../theme/cozy_theme.dart';
 import '../../../widgets/cozy_pixel_button.dart';
 import '../models/balance.dart';
 
-/// Cozy spend row: grass chip + Call Capy / Boost pills.
+/// One even row: Позвать, Ускорение, Еда, Лес.
+///
+/// Costs stay in behavior ([BalanceV0]) and in semantics. The short label
+/// hides the number, matching the meadow frames.
 class GrassSpendPanel extends StatelessWidget {
   const GrassSpendPanel({
     super.key,
@@ -16,13 +19,14 @@ class GrassSpendPanel extends StatelessWidget {
     required this.onBoost,
     this.boostActive = false,
     this.onUyutHub,
+    this.onForest,
     this.foodHint,
   });
 
   final int grass;
   final bool canCallCapy;
 
-  /// Shown instead of «Позвать капи» while the call is gray.
+  /// Shown instead of «Позвать» while the call is gray.
   /// «Не хватает травы» or «Семья полная».
   final String? callBlockedReason;
 
@@ -31,89 +35,59 @@ class GrassSpendPanel extends StatelessWidget {
   final VoidCallback onBoost;
   final bool boostActive;
   final VoidCallback? onUyutHub;
+  final VoidCallback? onForest;
+
+  /// Kept for callers. The meadow button is just «Еда».
   final String? foodHint;
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8EDD8).withValues(alpha: 0.88),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: const Color(0xFFE2CFA8).withValues(alpha: 0.9),
+    assert(grass >= 0);
+    final callLabel = callBlockedReason ?? 'Позвать';
+    return Row(
+      children: [
+        Expanded(
+          child: _SpendPill(
+            label: callLabel,
+            semantics: callBlockedReason == null
+                ? 'Позвать, ${BalanceV0.callCapyGrassCost} травы'
+                : callLabel,
+            enabled: canCallCapy,
+            onTap: onCallCapy,
+          ),
         ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
-        child: Row(
-          children: [
-            _GrassChip(grass: grass),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: [
-                  _SpendPill(
-                    label: callBlockedReason ?? 'Позвать капи',
-                    cost: BalanceV0.callCapyGrassCost,
-                    enabled: canCallCapy,
-                    onTap: onCallCapy,
-                    hideCost: callBlockedReason != null,
-                  ),
-                  _SpendPill(
-                    label: boostActive ? 'Ускорение' : 'Ускорение',
-                    cost: BalanceV0.grassBoostCost,
-                    enabled: canBoost,
-                    onTap: onBoost,
-                    fontSize: 10,
-                  ),
-                  if (onUyutHub != null)
-                    _SpendPill(
-                      label: foodHint ?? 'Еда',
-                      cost: 0,
-                      enabled: true,
-                      onTap: onUyutHub!,
-                      hideCost: true,
-                    ),
-                ],
-              ),
+        const SizedBox(width: 6),
+        Expanded(
+          child: _SpendPill(
+            label: 'Ускорение',
+            semantics: 'Ускорение, ${BalanceV0.grassBoostCost} травы',
+            enabled: canBoost && !boostActive,
+            onTap: onBoost,
+          ),
+        ),
+        if (onUyutHub != null) ...[
+          const SizedBox(width: 6),
+          Expanded(
+            child: _SpendPill(
+              label: 'Еда',
+              semantics: 'Еда',
+              enabled: true,
+              onTap: onUyutHub!,
             ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _GrassChip extends StatelessWidget {
-  const _GrassChip({required this.grass});
-
-  final int grass;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: const Color(0xFFE8F5D8),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFA8C878)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('🌿', style: TextStyle(fontSize: 13)),
-            const SizedBox(width: 4),
-            Text(
-              '$grass',
-              style: CozyTheme.hudChipStyle(fontSize: 13)
-                  .copyWith(fontWeight: FontWeight.w800),
+          ),
+        ],
+        if (onForest != null) ...[
+          const SizedBox(width: 6),
+          Expanded(
+            child: _SpendPill(
+              label: 'Лес',
+              semantics: 'Лес',
+              enabled: true,
+              onTap: onForest!,
             ),
-          ],
-        ),
-      ),
+          ),
+        ],
+      ],
     );
   }
 }
@@ -121,28 +95,69 @@ class _GrassChip extends StatelessWidget {
 class _SpendPill extends StatelessWidget {
   const _SpendPill({
     required this.label,
-    required this.cost,
+    required this.semantics,
     required this.enabled,
     required this.onTap,
-    this.hideCost = false,
-    this.fontSize = 11,
   });
 
   final String label;
-  final int cost;
+  final String semantics;
   final bool enabled;
   final VoidCallback onTap;
-  final bool hideCost;
-  final double fontSize;
 
   @override
   Widget build(BuildContext context) {
-    return CozyPixelButton(
-      label: hideCost ? label : '$label · $cost🌿',
-      variant: CozyPixelButtonVariant.secondary,
-      compact: true,
-      fontSize: fontSize,
-      onPressed: enabled ? onTap : null,
+    return Semantics(
+      button: true,
+      label: semantics,
+      child: CozyPixelButton(
+        label: label,
+        variant: CozyPixelButtonVariant.secondary,
+        compact: true,
+        expand: true,
+        fontSize: 12,
+        onPressed: enabled ? onTap : null,
+      ),
+    );
+  }
+}
+
+/// Grass count for the thin top bar. [grass] is accepted so callers compile.
+class MeadowGrassReadout extends StatelessWidget {
+  const MeadowGrassReadout({super.key, required this.grass, this.uyut = 0});
+
+  final int grass;
+  final int uyut;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Image.asset(
+          'assets/images/ui/icon_grass.png',
+          width: 22,
+          height: 22,
+          filterQuality: FilterQuality.none,
+        ),
+        const SizedBox(width: 4),
+        Text(
+          '$grass',
+          style: CozyTheme.hudChipStyle(fontSize: 16)
+              .copyWith(fontWeight: FontWeight.w800),
+        ),
+        if (uyut > 0) ...[
+          const SizedBox(width: 10),
+          Image.asset(
+            'assets/images/ui/icon_spark.png',
+            width: 18,
+            height: 18,
+            filterQuality: FilterQuality.none,
+          ),
+          const SizedBox(width: 2),
+          Text('$uyut', style: CozyTheme.hudChipStyle(fontSize: 14)),
+        ],
+      ],
     );
   }
 }

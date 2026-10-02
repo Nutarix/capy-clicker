@@ -5,13 +5,7 @@ import 'capy_wander.dart';
 ///
 /// Each type has its own 4-frame sheet under `assets/images/walk/`.
 /// Role sheets are the role look while walking — not only a badge overlay.
-enum CapyWalkSheet {
-  base,
-  lv3,
-  nanny,
-  gatherer,
-  guard,
-}
+enum CapyWalkSheet { base, lv3, nanny, gatherer, guard }
 
 abstract final class CapyWalk {
   static const int frameCount = 4;
@@ -49,12 +43,12 @@ abstract final class CapyWalk {
 
   /// Role-specific walk FPS (paws cycle).
   static double fps(CapyWalkSheet sheet) => switch (sheet) {
-        CapyWalkSheet.base => 9.0,
-        CapyWalkSheet.lv3 => 6.5,
-        CapyWalkSheet.nanny => 7.0,
-        CapyWalkSheet.gatherer => 10.5,
-        CapyWalkSheet.guard => 8.0,
-      };
+    CapyWalkSheet.base => 9.0,
+    CapyWalkSheet.lv3 => 6.5,
+    CapyWalkSheet.nanny => 7.0,
+    CapyWalkSheet.gatherer => 10.5,
+    CapyWalkSheet.guard => 8.0,
+  };
 
   /// Duration of one full 4-frame loop.
   static Duration loopDuration(CapyWalkSheet sheet) {

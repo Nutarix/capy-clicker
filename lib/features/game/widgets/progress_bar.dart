@@ -76,7 +76,7 @@ class _CreamProgressBarState extends State<CreamProgressBar>
     final ratePct = rate == null ? null : (rate * 100);
     final boostLabel = widget.boostActive
         ? 'грязь ×${BalanceV0.mudBoostMultiplier.toStringAsFixed(0)} '
-            '(${widget.boostSeconds.ceil()}с)'
+              '(${widget.boostSeconds.ceil()}с)'
         : null;
 
     return Column(
@@ -182,8 +182,9 @@ class _CreamProgressBarState extends State<CreamProgressBar>
                                       widthFactor: 1,
                                       child: DecoratedBox(
                                         decoration: BoxDecoration(
-                                          color: Colors.white
-                                              .withValues(alpha: 0.28),
+                                          color: Colors.white.withValues(
+                                            alpha: 0.28,
+                                          ),
                                         ),
                                       ),
                                     ),
@@ -200,8 +201,9 @@ class _CreamProgressBarState extends State<CreamProgressBar>
                                         gradient: LinearGradient(
                                           colors: [
                                             Colors.white.withValues(alpha: 0),
-                                            Colors.white
-                                                .withValues(alpha: 0.35),
+                                            Colors.white.withValues(
+                                              alpha: 0.35,
+                                            ),
                                             Colors.white.withValues(alpha: 0),
                                           ],
                                         ),

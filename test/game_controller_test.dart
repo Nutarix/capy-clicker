@@ -22,7 +22,10 @@ void main() {
 
     // Simulate ~2 seconds of auto progress without waiting real time.
     c.addProgress(BalanceV0.autoProgressPerSecond * 2, fromTap: false);
-    expect(c.state.herdProgress, closeTo(BalanceV0.autoProgressPerSecond * 2, 0.001));
+    expect(
+      c.state.herdProgress,
+      closeTo(BalanceV0.autoProgressPerSecond * 2, 0.001),
+    );
     c.dispose();
   });
 
@@ -114,38 +117,32 @@ void main() {
     c.dispose();
   });
 
-  test('mud puddle despawns, cooldown, respawns elsewhere, not saved', () async {
-    final c = GameController(persistence: GamePersistence());
-    await c.init();
-    c.debugPlaceMud(const Offset(0.30, 0.70), seconds: 0.4);
-    final id = c.state.herd.first.id;
-    expect(c.tryMudWallow(id), isTrue);
-    c.debugAdvance(0.5);
-    expect(c.mudVisible, isFalse);
-    expect(c.mudCenter, isNull);
-    expect(c.isOverMud(const Offset(0.30, 0.70)), isFalse);
-    expect(c.tryMudWallow(id), isFalse);
-    expect(c.state.toJson().keys.any((k) => k.contains('mud')), isFalse);
+  test(
+    'mud puddle despawns, cooldown, respawns elsewhere, not saved',
+    () async {
+      final c = GameController(persistence: GamePersistence());
+      await c.init();
+      c.debugPlaceMud(const Offset(0.30, 0.70), seconds: 0.4);
+      final id = c.state.herd.first.id;
+      expect(c.tryMudWallow(id), isTrue);
+      c.debugAdvance(0.5);
+      expect(c.mudVisible, isFalse);
+      expect(c.mudCenter, isNull);
+      expect(c.isOverMud(const Offset(0.30, 0.70)), isFalse);
+      expect(c.tryMudWallow(id), isFalse);
+      expect(c.state.toJson().keys.any((k) => k.contains('mud')), isFalse);
 
-    c.debugAdvance(BalanceV0.mudCooldownMaxSeconds + 0.2);
-    expect(c.mudVisible, isTrue);
-    expect(c.puddleToast, 'Лужа!');
-    final next = c.mudCenter!;
-    expect(
-      (next - const Offset(0.30, 0.70)).distance,
-      greaterThan(0.02),
-    );
-    expect(
-      WorldZones.isInMeadow(
-        next,
-        herdCount: c.state.herdCount,
-      ),
-      isTrue,
-    );
-    c.acknowledgePuddleToast();
-    expect(c.puddleToast, isNull);
-    c.dispose();
-  });
+      c.debugAdvance(BalanceV0.mudCooldownMaxSeconds + 0.2);
+      expect(c.mudVisible, isTrue);
+      expect(c.puddleToast, 'Лужа!');
+      final next = c.mudCenter!;
+      expect((next - const Offset(0.30, 0.70)).distance, greaterThan(0.02));
+      expect(WorldZones.isInMeadow(next, herdCount: c.state.herdCount), isTrue);
+      c.acknowledgePuddleToast();
+      expect(c.puddleToast, isNull);
+      c.dispose();
+    },
+  );
 
   test('zoom widens with Sunny Glade circles', () {
     expect(BalanceV0.zoomForHerdCount(1), BalanceV0.zoomClose);
@@ -174,7 +171,10 @@ void main() {
     expect(c.gladeUnlockToast, 'Открылась Ягодная поляна');
     expect(c.state.sunnyGladeAnnounced, 1);
     expect(c.state.isMeadowUnlocked('berry_glade'), isTrue);
-    expect(c.herdCountForMeadow('berry_glade'), BalanceV0.meadowStarterHerdSize);
+    expect(
+      c.herdCountForMeadow('berry_glade'),
+      BalanceV0.meadowStarterHerdSize,
+    );
 
     c.acknowledgeGladeUnlock();
     expect(c.gladeUnlockToast, isNull);
@@ -196,10 +196,7 @@ void main() {
     });
 
     var clock = now;
-    final c = GameController(
-      persistence: GamePersistence(),
-      now: () => clock,
-    );
+    final c = GameController(persistence: GamePersistence(), now: () => clock);
     await c.init();
 
     // Cap = 180s * autoProgressPerSecond → progress 0.1 + grant
@@ -226,10 +223,7 @@ void main() {
           '"herd":[{"id":"c1","level":1,"x":0.5,"y":0.5}]}',
     });
 
-    final c = GameController(
-      persistence: GamePersistence(),
-      now: () => now,
-    );
+    final c = GameController(persistence: GamePersistence(), now: () => now);
     await c.init();
     expect(c.hasOfflineWelcome, isFalse);
     expect(c.state.herdProgress, closeTo(0.2, 0.001));
@@ -258,10 +252,7 @@ void main() {
   test('daily bonus available once per local calendar day', () async {
     final day = DateTime(2026, 9, 21, 10, 0, 0);
     var clock = day;
-    final c = GameController(
-      persistence: GamePersistence(),
-      now: () => clock,
-    );
+    final c = GameController(persistence: GamePersistence(), now: () => clock);
     await c.init();
     expect(c.isDailyBonusAvailable, isTrue);
     final before = c.state.herdProgress;
@@ -296,26 +287,16 @@ void main() {
   });
 
   test('calendarDayKey pads month and day', () {
-    expect(
-      GameController.calendarDayKey(DateTime(2026, 9, 21)),
-      '2026-09-21',
-    );
-    expect(
-      GameController.calendarDayKey(DateTime(2026, 1, 5)),
-      '2026-01-05',
-    );
+    expect(GameController.calendarDayKey(DateTime(2026, 9, 21)), '2026-09-21');
+    expect(GameController.calendarDayKey(DateTime(2026, 1, 5)), '2026-01-05');
   });
-
 
   test('spawn and drag-end clamp into active named meadow', () async {
     final c = GameController(persistence: GamePersistence());
     await c.init();
     final warmKey = WorldZones.gladeById('warm_edge').minHerd;
     for (final capy in c.state.herd) {
-      expect(
-        WorldZones.isInMeadow(capy.position, herdCount: warmKey),
-        isTrue,
-      );
+      expect(WorldZones.isInMeadow(capy.position, herdCount: warmKey), isTrue);
     }
     // Fill herd on warm_edge — stays on warm rect; 12×Lv1 = power 12 → Sunny.
     for (var i = 0; i < 11; i++) {
@@ -324,7 +305,10 @@ void main() {
     expect(c.state.herdCount, BalanceV0.maxHerdSize);
     expect(c.state.familyPower, 12);
     expect(c.currentGlade.id, 'warm_edge');
-    expect(c.state.sunnyGladeAnnounced, 2); // Great needs power ≥16 (merge path)
+    expect(
+      c.state.sunnyGladeAnnounced,
+      2,
+    ); // Great needs power ≥16 (merge path)
 
     // Merge + refill until Great unlocks (power ≥16).
     var guard = 0;
@@ -362,10 +346,7 @@ void main() {
     final moved = c.state.herd.firstWhere((e) => e.id == id);
     expect(moved.position.dx, glade.left);
     expect(moved.position.dy, glade.top);
-    expect(
-      WorldZones.isInMeadow(moved.position, herdCount: greatKey),
-      isTrue,
-    );
+    expect(WorldZones.isInMeadow(moved.position, herdCount: greatKey), isTrue);
     c.dispose();
   });
 
@@ -442,7 +423,6 @@ void main() {
     c.dispose();
   });
 
-
   test('flower tap grants grass and spendCallCapy spawns under cap', () async {
     final c = GameController(persistence: GamePersistence());
     await c.init();
@@ -459,7 +439,10 @@ void main() {
     expect(c.canCallCapy, isTrue);
     expect(c.spendCallCapy(), isTrue);
     expect(c.state.herdCount, before + 1);
-    expect(c.state.grass, lessThan(BalanceV0.callCapyGrassCost + BalanceV0.flowerTapGrassMax));
+    expect(
+      c.state.grass,
+      lessThan(BalanceV0.callCapyGrassCost + BalanceV0.flowerTapGrassMax),
+    );
     c.dispose();
   });
 
@@ -589,5 +572,4 @@ void main() {
     expect(c2.state.herdCount, herd);
     c2.dispose();
   });
-
 }

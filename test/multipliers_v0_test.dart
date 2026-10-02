@@ -73,9 +73,7 @@ void main() {
     await GamePersistence().save(
       GameState(
         herdProgress: 0,
-        herd: [
-          Capybara(id: 'c1', level: 1, position: const Offset(0.5, 0.7)),
-        ],
+        herd: [Capybara(id: 'c1', level: 1, position: const Offset(0.5, 0.7))],
         nextId: 2,
         grass: 20,
         food: const FoodInventory(travka: 1),
@@ -197,39 +195,41 @@ void main() {
     c.dispose();
   });
 
-  test('unlockResearch more_flowers then longer_mud (research category)',
-      () async {
-    SharedPreferences.setMockInitialValues({
-      'capy_clicker_game_state_v1': jsonEncode({
-        'herdProgress': 0.0,
-        'nextId': 2,
-        'grass': 200,
-        'uyut': 2,
-        'activeMeadowId': 'warm_edge',
-        'herd': [
-          {'id': 'c1', 'level': 1, 'x': 0.5, 'y': 0.7},
-        ],
-        'meadows': {
-          'warm_edge': {
-            'herdProgress': 0.0,
-            'herd': [
-              {'id': 'c1', 'level': 1, 'x': 0.5, 'y': 0.7},
-            ],
+  test(
+    'unlockResearch more_flowers then longer_mud (research category)',
+    () async {
+      SharedPreferences.setMockInitialValues({
+        'capy_clicker_game_state_v1': jsonEncode({
+          'herdProgress': 0.0,
+          'nextId': 2,
+          'grass': 200,
+          'uyut': 2,
+          'activeMeadowId': 'warm_edge',
+          'herd': [
+            {'id': 'c1', 'level': 1, 'x': 0.5, 'y': 0.7},
+          ],
+          'meadows': {
+            'warm_edge': {
+              'herdProgress': 0.0,
+              'herd': [
+                {'id': 'c1', 'level': 1, 'x': 0.5, 'y': 0.7},
+              ],
+            },
           },
-        },
-      }),
-    });
-    final c = GameController(random: _FixedRandom(0.5));
-    await c.init();
-    expect(c.unlockResearch('longer_mud'), isFalse);
-    expect(c.unlockResearch('more_flowers'), isTrue);
-    expect(c.state.hasResearch('more_flowers'), isTrue);
-    expect(c.unlockResearch('longer_mud'), isTrue);
-    expect(c.state.hasResearch('longer_mud'), isTrue);
-    expect(c.state.grass, greaterThanOrEqualTo(0));
-    expect(c.state.uyut, greaterThanOrEqualTo(0));
-    c.dispose();
-  });
+        }),
+      });
+      final c = GameController(random: _FixedRandom(0.5));
+      await c.init();
+      expect(c.unlockResearch('longer_mud'), isFalse);
+      expect(c.unlockResearch('more_flowers'), isTrue);
+      expect(c.state.hasResearch('more_flowers'), isTrue);
+      expect(c.unlockResearch('longer_mud'), isTrue);
+      expect(c.state.hasResearch('longer_mud'), isTrue);
+      expect(c.state.grass, greaterThanOrEqualTo(0));
+      expect(c.state.uyut, greaterThanOrEqualTo(0));
+      c.dispose();
+    },
+  );
 
   test('stacking order: decor + role + uyut multiply base', () async {
     SharedPreferences.setMockInitialValues({
@@ -255,7 +255,8 @@ void main() {
     });
     final c = GameController(random: _FixedRandom(0.5));
     await c.init();
-    final expected = BalanceV0.autoProgressPerSecond *
+    final expected =
+        BalanceV0.autoProgressPerSecond *
         1.0 *
         (1.0 + BalanceV0.roleNanyaAutoBonus) *
         (1.0 + HomeDecor.fonarik.autoBonus) *

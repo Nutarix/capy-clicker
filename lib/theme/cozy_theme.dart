@@ -16,6 +16,7 @@ class CozyTheme {
   static const softBrown = Color(0xFF8A6A45);
   static const meadowGreen = Color(0xFF6B9B4A);
   static const buttonGreen = Color(0xFF5A9A48);
+
   /// Soft sage for cozy menu CTA pill (not Material discord green).
   static const softSage = Color(0xFF7AAD68);
   static const softSageEdge = Color(0xFF4F7A42);
@@ -39,14 +40,9 @@ class CozyTheme {
       seedColor: meadowGreen,
       brightness: Brightness.light,
     );
-    final base = ThemeData(
-      colorScheme: colorScheme,
-      useMaterial3: true,
-    );
-    final nunitoText = GoogleFonts.nunitoTextTheme(base.textTheme).apply(
-      bodyColor: warmBrown,
-      displayColor: warmBrown,
-    );
+    final base = ThemeData(colorScheme: colorScheme, useMaterial3: true);
+    final nunitoText = GoogleFonts.nunitoTextTheme(base.textTheme)
+        .apply(bodyColor: warmBrown, displayColor: warmBrown);
     return base.copyWith(
       scaffoldBackgroundColor: cream,
       canvasColor: cream,
@@ -145,12 +141,7 @@ class CozyTheme {
       color: cream,
     );
     final nunitoFamily = GoogleFonts.nunito().fontFamily;
-    return pixel.copyWith(
-      fontFamilyFallback: [
-        ?nunitoFamily,
-        'Nunito',
-      ],
-    );
+    return pixel.copyWith(fontFamilyFallback: [?nunitoFamily, 'Nunito']);
   }
 
   static TextStyle primaryButtonStyle({double fontSize = 20}) {

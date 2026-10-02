@@ -20,12 +20,27 @@ void main() {
         (4, 'warm_edge', const Rect.fromLTRB(0.10, 0.52, 0.86, 0.92), 1.0),
         (5, 'berry_glade', const Rect.fromLTRB(0.06, 0.50, 0.90, 0.93), 0.82),
         (9, 'berry_glade', const Rect.fromLTRB(0.06, 0.50, 0.90, 0.93), 0.82),
-        (10, 'sunny_clearing', const Rect.fromLTRB(0.05, 0.40, 0.91, 0.945), 0.66),
-        (15, 'sunny_clearing', const Rect.fromLTRB(0.05, 0.40, 0.91, 0.945), 0.66),
+        (
+          10,
+          'sunny_clearing',
+          const Rect.fromLTRB(0.05, 0.40, 0.91, 0.945),
+          0.66,
+        ),
+        (
+          15,
+          'sunny_clearing',
+          const Rect.fromLTRB(0.05, 0.40, 0.91, 0.945),
+          0.66,
+        ),
         (16, 'great_meadow', const Rect.fromLTRB(0.03, 0.34, 0.94, 0.96), 0.50),
         (20, 'great_meadow', const Rect.fromLTRB(0.03, 0.34, 0.94, 0.96), 0.50),
-        (12, 'sunny_clearing', const Rect.fromLTRB(0.05, 0.40, 0.91, 0.945), 0.66),
-];
+        (
+          12,
+          'sunny_clearing',
+          const Rect.fromLTRB(0.05, 0.40, 0.91, 0.945),
+          0.66,
+        ),
+      ];
       for (final (herd, id, rect, zoom) in cases) {
         final g = WorldZones.gladeForHerd(herd);
         expect(g.id, id, reason: 'power $herd');
@@ -95,10 +110,7 @@ void main() {
       const side = Offset(0.04, 0.70); // left of starter, inside great meadow
       expect(WorldZones.isInMeadow(side), isFalse);
       expect(WorldZones.isInMeadow(side, herdCount: 16), isTrue);
-      expect(
-        WorldZones.clampToMeadow(side, herdCount: 16),
-        side,
-      );
+      expect(WorldZones.clampToMeadow(side, herdCount: 16), side);
     });
   });
 
@@ -161,13 +173,10 @@ void main() {
       for (final herd in [1, 4, 9, 16]) {
         var i = 0;
         final samples = List.generate(40, (_) {
-          return WorldZones.randomInMeadow(
-            () {
-              i += 1;
-              return (i % 10) / 10.0;
-            },
-            herdCount: herd,
-          );
+          return WorldZones.randomInMeadow(() {
+            i += 1;
+            return (i % 10) / 10.0;
+          }, herdCount: herd);
         });
         for (final p in samples) {
           expect(WorldZones.isInMeadow(p, herdCount: herd), isTrue);
@@ -178,20 +187,14 @@ void main() {
 
   group('camera fit zoom', () {
     test('tight cluster keeps glade baseline', () {
-      final positions = [
-        const Offset(0.5, 0.7),
-        const Offset(0.52, 0.72),
-      ];
+      final positions = [const Offset(0.5, 0.7), const Offset(0.52, 0.72)];
       final zoom = BalanceV0.cameraZoomForHerd(2, positions);
       expect(zoom, BalanceV0.zoomClose);
     });
 
     test('spread herd pulls camera back below glade baseline', () {
       // At Тёплая опушка (baseline 1.0), a wide bbox must step the camera back.
-      final positions = [
-        const Offset(0.12, 0.55),
-        const Offset(0.84, 0.90),
-      ];
+      final positions = [const Offset(0.12, 0.55), const Offset(0.84, 0.90)];
       final tier = BalanceV0.zoomForHerdCount(2);
       final fit = BalanceV0.zoomToFitPositions(positions);
       final zoom = BalanceV0.cameraZoomForHerd(2, positions);
@@ -202,10 +205,7 @@ void main() {
     });
 
     test('cameraZoomForHerd never exceeds glade baseline', () {
-      final positions = [
-        const Offset(0.04, 0.36),
-        const Offset(0.92, 0.94),
-      ];
+      final positions = [const Offset(0.04, 0.36), const Offset(0.92, 0.94)];
       final zoom = BalanceV0.cameraZoomForHerd(16, positions);
       expect(zoom, lessThanOrEqualTo(BalanceV0.zoomForHerdCount(16)));
       expect(zoom, greaterThanOrEqualTo(BalanceV0.zoomWidest));
