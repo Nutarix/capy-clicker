@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 
 import '../models/balance.dart';
@@ -76,6 +78,37 @@ class CapybaraPlaceholder extends StatelessWidget {
     return 0.12 + t * 0.28;
   }
 
+  /// Blurred tint of the walk sheet, so the glow is the body not a rectangle.
+  Widget _spriteGlow(
+    double w,
+    double h,
+    Color color,
+    double alpha,
+    double blur,
+  ) {
+    return ImageFiltered(
+      imageFilter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+      child: Opacity(
+        opacity: alpha.clamp(0.0, 1.0),
+        child: ColorFiltered(
+          colorFilter: ColorFilter.mode(color, BlendMode.srcATop),
+          child: _rawSprite(w, h),
+        ),
+      ),
+    );
+  }
+
+  Widget _rawSprite(double w, double h) {
+    return Image.asset(
+      _assetPath,
+      width: w,
+      height: h,
+      fit: BoxFit.contain,
+      filterQuality: FilterQuality.none,
+      gaplessPlayback: true,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final w = _width;
@@ -121,46 +154,25 @@ class CapybaraPlaceholder extends StatelessWidget {
       );
     }
 
+    // Glow follows the opaque pixels. A frame BoxShadow read as a gray card
+    // around the transparent corners of the walk sheet.
+    Widget framed = sprite;
+    if (_halo > 0 || flash) {
+      framed = Stack(
+        alignment: Alignment.center,
+        clipBehavior: Clip.none,
+        children: [
+          if (_halo > 0) _spriteGlow(w, h, const Color(0xFFFFB74D), _halo, 7),
+          if (flash) _spriteGlow(w, h, const Color(0xFFFFD54F), 0.9, 9),
+          sprite,
+        ],
+      );
+    }
+
     Widget body = Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          width: w,
-          height: h,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(w * 0.18),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.18),
-                blurRadius: 12,
-                offset: const Offset(0, 5),
-              ),
-              if (_halo > 0)
-                BoxShadow(
-                  color: const Color(0xFFFFB74D).withValues(alpha: _halo),
-                  blurRadius: 10 + level * 2.0,
-                  spreadRadius: 1 + level * 0.4,
-                ),
-              if (flash)
-                BoxShadow(
-                  color: const Color(0xFFFFD54F).withValues(alpha: 0.85),
-                  blurRadius: 22,
-                  spreadRadius: 6,
-                ),
-            ],
-            border: flash
-                ? Border.all(color: const Color(0xFFFFE082), width: 3.5)
-                : (level >= 4
-                      ? Border.all(
-                          color: _borderColor.withValues(alpha: 0.55),
-                          width: 2,
-                        )
-                      : null),
-          ),
-          clipBehavior: Clip.none,
-          child: sprite,
-        ),
+        SizedBox(width: w, height: h, child: framed),
         if (showLabel) ...[
           SizedBox(height: compactLabel ? 2 : 5),
           Opacity(
@@ -246,26 +258,8 @@ class _TwinSparkleHaloState extends State<TwinSparkleHalo>
     return AnimatedBuilder(
       animation: _ctrl,
       builder: (context, child) {
-        final a = 0.35 + _ctrl.value * 0.45;
-        final blur = 10.0 + _ctrl.value * 10.0;
-        return Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(widget.size * 0.22),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF7EC8E3).withValues(alpha: a),
-                blurRadius: blur,
-                spreadRadius: 2 + _ctrl.value * 3,
-              ),
-              BoxShadow(
-                color: const Color(0xFFFFF8E1).withValues(alpha: a * 0.45),
-                blurRadius: blur * 0.6,
-                spreadRadius: 1,
-              ),
-            ],
-          ),
-          child: child,
-        );
+        // No frame shadow. A slight breathe keeps the twin mark without a card.
+        return Opacity(opacity: 0.88 + _ctrl.value * 0.12, child: child);
       },
       child: widget.child,
     );

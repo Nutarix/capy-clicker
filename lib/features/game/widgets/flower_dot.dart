@@ -98,14 +98,10 @@ class _FlowerDotState extends State<FlowerDot> with TickerProviderStateMixin {
               alignment: Alignment.center,
               clipBehavior: Clip.none,
               children: [
-                // Soft invisible hit pad (helps fat-finger taps).
-                Container(
+                // Hit pad stays the full size. No tinted disk behind the sprite.
+                const SizedBox(
                   width: FlowerDot.hitSize,
                   height: FlowerDot.hitSize,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: widget.color.withValues(alpha: 0.06),
-                  ),
                 ),
                 if (_burst)
                   for (var i = 0; i < 6; i++)

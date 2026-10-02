@@ -72,54 +72,27 @@ class _CozyPlaceMarkerState extends State<CozyPlaceMarker>
               child: Stack(
                 alignment: Alignment.center,
                 children: [
-                  if (widget.active || !dim)
+                  if (widget.active)
                     Container(
-                      width: 58,
-                      height: 46,
+                      width: 48,
+                      height: 48,
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(18),
+                        shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color:
-                                (widget.active
-                                        ? const Color(0xFFE0A020)
-                                        : const Color(0xFFFFE08A))
-                                    .withValues(
-                                      alpha: widget.active
-                                          ? activeGlow
-                                          : 0.18 + _pulse.value * 0.22,
-                                    ),
-                            blurRadius: widget.active ? 18 : 12,
-                            spreadRadius: widget.active ? 3 : 1,
+                            color: const Color(0xFFE0A020)
+                                .withValues(alpha: activeGlow.clamp(0.2, 0.7)),
+                            blurRadius: 16,
                           ),
                         ],
                       ),
                     ),
                   Opacity(
-                    opacity: dim ? 0.5 : readyPulse.clamp(0.55, 1.0),
-                    child: Container(
-                      width: 56,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: widget.active
-                            ? const Color(0xFFFFE08A).withValues(alpha: 0.92)
-                            : const Color(0xFFF8EDD8)
-                                  .withValues(alpha: dim ? 0.45 : 0.75),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: widget.active
-                              ? const Color(0xFFE0A020)
-                              : const Color(0xFFE2CFA8),
-                          width: widget.active ? 2 : 1,
-                        ),
-                      ),
-                      child: Center(
-                        child: MultiplierIcon(
-                          assetPath: widget.kind.assetPath,
-                          size: 30,
-                          opacity: dim ? 0.55 : 1,
-                        ),
-                      ),
+                    opacity: dim ? 0.5 : readyPulse.clamp(0.85, 1.0),
+                    child: MultiplierIcon(
+                      assetPath: widget.kind.assetPath,
+                      size: 40,
+                      opacity: dim ? 0.55 : 1,
                     ),
                   ),
                   if (widget.onCooldown && widget.cooldownSeconds > 0.4)

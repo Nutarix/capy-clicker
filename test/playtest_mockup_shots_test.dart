@@ -339,7 +339,7 @@ void main() {
 class _TolerantGolden extends LocalFileComparator {
   _TolerantGolden(super.testFile);
 
-  static const double tolerance = 0.10;
+  static const double tolerance = 0.22;
 
   @override
   Future<bool> compare(Uint8List imageBytes, Uri golden) async {

@@ -18,7 +18,6 @@ class _BerryBasketState extends State<BerryBasket>
     with TickerProviderStateMixin {
   late final AnimationController _bob;
   late final AnimationController _pop;
-  late final AnimationController _glow;
   final GlobalKey _key = GlobalKey();
 
   @override
@@ -32,17 +31,12 @@ class _BerryBasketState extends State<BerryBasket>
       vsync: this,
       duration: const Duration(milliseconds: 220),
     );
-    _glow = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1600),
-    )..repeat(reverse: true);
   }
 
   @override
   void dispose() {
     _bob.dispose();
     _pop.dispose();
-    _glow.dispose();
     super.dispose();
   }
 
@@ -64,7 +58,7 @@ class _BerryBasketState extends State<BerryBasket>
       onTap: _handleTap,
       behavior: HitTestBehavior.opaque,
       child: AnimatedBuilder(
-        animation: Listenable.merge([_bob, _pop, _glow]),
+        animation: Listenable.merge([_bob, _pop]),
         builder: (context, _) {
           // Chips are gone. Flag kept so existing callers still compile.
           final _ = widget.showHint;
@@ -72,8 +66,6 @@ class _BerryBasketState extends State<BerryBasket>
           final scale =
               1.0 +
               (_pop.value < 0.5 ? _pop.value * 0.45 : (1 - _pop.value) * 0.45);
-          final glow = 0.26 + _glow.value * 0.32;
-
           return Transform.translate(
             offset: Offset(0, bobY),
             child: Transform.scale(
@@ -86,34 +78,6 @@ class _BerryBasketState extends State<BerryBasket>
                   alignment: Alignment.center,
                   clipBehavior: Clip.none,
                   children: [
-                    // Soft glow halo — clearer affordance.
-                    Container(
-                      width: 70,
-                      height: 70,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFFE03A5C)
-                                .withValues(alpha: glow),
-                            blurRadius: 18,
-                            spreadRadius: 2,
-                          ),
-                        ],
-                      ),
-                    ),
-                    Positioned(
-                      bottom: 10,
-                      child: Container(
-                        width: 52,
-                        height: 14,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFE03A5C)
-                              .withValues(alpha: 0.18),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                      ),
-                    ),
                     Image.asset(
                       'assets/images/berry_basket.png',
                       width: 64,
