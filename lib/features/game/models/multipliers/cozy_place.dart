@@ -39,10 +39,13 @@ extension CozyPlaceKindX on CozyPlaceKind {
   };
 
   /// Normalized meadow center.
+  ///
+  /// Clear of the low wood ring (~0.48, 0.84), the berry basket (~0.78, 0.80),
+  /// and the early-meadow bodies. Sprites only — no plate behind them.
   (double x, double y) get center => switch (this) {
-    CozyPlaceKind.pen => (0.58, 0.84),
-    CozyPlaceKind.warmStone => (0.42, 0.60),
-    CozyPlaceKind.tent => (0.70, 0.52),
+    CozyPlaceKind.pen => (0.16, 0.84),
+    CozyPlaceKind.warmStone => (0.30, 0.58),
+    CozyPlaceKind.tent => (0.84, 0.54),
   };
 
   static CozyPlaceKind? tryParse(String? raw) {
