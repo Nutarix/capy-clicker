@@ -73,7 +73,7 @@ class GameGoals extends GamePart {
       idx++;
     }
     if (toast != null) {
-      core.messages.goalCompleteToast = toast;
+      core.messages.goalCompleted(toast);
     }
     if (idx == state.sessionGoalIndex && grass == state.grass) return state;
     return state.copyWith(sessionGoalIndex: idx, grass: grass);
@@ -87,7 +87,22 @@ class GameGoals extends GamePart {
     return '$y-$m-$d';
   }
 
-  String get _todayKey => calendarDayKey(core.now());
+  /// Today's key, formatted once per day (read on every change notice).
+  String get _todayKey {
+    final now = core.now();
+    final cached = _dayKey;
+    if (cached != null &&
+        now.day == _keyDay.day &&
+        now.month == _keyDay.month &&
+        now.year == _keyDay.year) {
+      return cached;
+    }
+    _keyDay = now;
+    return _dayKey = calendarDayKey(now);
+  }
+
+  String? _dayKey;
+  DateTime _keyDay = DateTime(0);
 
   /// Soft daily gift available (once per local calendar day, not claimed yet).
   bool get isDailyBonusAvailable =>

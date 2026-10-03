@@ -35,7 +35,7 @@ class FamilyRoles extends GamePart {
     ];
     core.commit(state.copyWith(herd: herd));
     if (role != null) {
-      core.messages.roleToast = role.assignToastRu;
+      core.messages.roleAssigned(role.assignToastRu);
     }
     return true;
   }

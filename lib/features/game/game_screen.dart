@@ -74,6 +74,9 @@ class _GameScreenState extends State<GameScreen> {
   /// Save on the way out, pause in background, greet on return.
   late final AppLifecycleListener _lifecycle;
 
+  /// One-shot messages from the game (plates, daily sheet).
+  late final StreamSubscription<GameEvent> _events;
+
   bool _dailyPromptShown = false;
   bool _dailySheetOpen = false;
 
@@ -117,6 +120,7 @@ class _GameScreenState extends State<GameScreen> {
     _audio = widget.audio ?? GameAudio();
     _audio.addListener(_onAudioChanged);
     _controller.addListener(_onControllerChanged);
+    _events = _controller.events.listen(_onGameEvent);
     _controller.init();
     _audio.init();
     _lifecycle = AppLifecycleListener(
@@ -154,17 +158,27 @@ class _GameScreenState extends State<GameScreen> {
   void _onControllerChanged() {
     if (!mounted) return;
     setState(() {});
-    _maybeShowOfflineWelcome();
-    _maybeShowDailyBonus();
-    _maybeShowGladeUnlock();
-    _maybeShowPuddle();
-    _maybeShowGoalComplete();
   }
 
-  void _maybeShowGladeUnlock() {
-    final msg = _controller.gladeUnlockToast;
-    if (msg == null || msg.isEmpty) return;
-    final grassReward = _controller.lastGladeGrassReward;
+  void _onGameEvent(GameEvent event) {
+    if (!mounted) return;
+    switch (event) {
+      case OfflineWelcome(:final seconds, :final progress):
+        _showOfflineWelcome(seconds, progress);
+      case DailyBonusReady():
+        _maybeShowDailyBonus();
+      case GladeUnlocked(:final text, :final grass):
+        _showGladeUnlock(text, grass);
+      case PuddleAppeared():
+        _showPuddle();
+      case GoalCompleted(:final text):
+        _showGoalComplete(text);
+      case RoleAssigned():
+        break;
+    }
+  }
+
+  void _showGladeUnlock(String msg, int grassReward) {
     _controller.acknowledgeGladeUnlock();
     _audio.playGlade();
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -195,9 +209,7 @@ class _GameScreenState extends State<GameScreen> {
     });
   }
 
-  void _maybeShowPuddle() {
-    final msg = _controller.puddleToast;
-    if (msg == null || msg.isEmpty) return;
+  void _showPuddle() {
     _controller.acknowledgePuddleToast();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -219,9 +231,7 @@ class _GameScreenState extends State<GameScreen> {
     });
   }
 
-  void _maybeShowGoalComplete() {
-    final msg = _controller.goalCompleteToast;
-    if (msg == null || msg.isEmpty) return;
+  void _showGoalComplete(String msg) {
     _controller.acknowledgeGoalComplete();
     _audio.playGlade();
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -253,10 +263,7 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   /// Cold start and every return from background (acknowledge = once).
-  void _maybeShowOfflineWelcome() {
-    if (!_controller.isReady || !_controller.hasOfflineWelcome) return;
-    final seconds = _controller.offlineSecondsApplied;
-    final progress = _controller.offlineProgressGranted;
+  void _showOfflineWelcome(int seconds, double progress) {
     _controller.acknowledgeOfflineWelcome();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -286,6 +293,7 @@ class _GameScreenState extends State<GameScreen> {
   @override
   void dispose() {
     _lifecycle.dispose();
+    _events.cancel();
     _badgeClearTimer?.cancel();
     _controller.removeListener(_onControllerChanged);
     _audio.removeListener(_onAudioChanged);

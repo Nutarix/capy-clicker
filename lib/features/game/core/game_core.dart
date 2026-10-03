@@ -92,7 +92,11 @@ class GameCore {
   /// the chain again would change nothing (see [commitProgress]).
   bool get checked => _checked;
 
-  void notify() => _onNotify();
+  /// Change notice to listeners, then the one-shot messages it brought.
+  void notify() {
+    _onNotify();
+    messages.flush();
+  }
 
   /// Every rule change lands here: reclamp to the active glade, keep the
   /// research flags in sync, open glades and goals, notify, save soon.
@@ -139,6 +143,7 @@ class GameCore {
 
   /// Load save (or bootstrap), grant capped offline progress, start ticker.
   Future<void> init() async {
+    messages.resetDaily();
     final loaded = await persistence.load();
     // Left before the save loaded: keep it as is, no ticker on a dead screen.
     if (disposed) return;
@@ -154,7 +159,9 @@ class GameCore {
       state = goals.advanceGoalsQuiet(state);
       final savedMs = state.savedAtMs;
       if (savedMs != null) {
-        clock.applyOfflineProgress(DateTime.fromMillisecondsSinceEpoch(savedMs));
+        clock.applyOfflineProgress(
+          DateTime.fromMillisecondsSinceEpoch(savedMs),
+        );
       }
     } else {
       state = herd.bootstrap();
@@ -182,6 +189,7 @@ class GameCore {
     puddle.dispose();
     finds.dispose();
     merge.dispose();
+    messages.dispose();
     disposed = true;
     // Before load finished [state] is the empty placeholder — never write it.
     if (ready) {

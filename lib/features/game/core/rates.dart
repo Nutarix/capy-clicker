@@ -64,7 +64,8 @@ class GameRates extends GamePart {
   double get effectiveMagnetRadius {
     final boosts = core.boosts;
     var r = BalanceV0.magnetRadius;
-    if (boosts.isFoodBoostActive && boosts.foodBoostKind == FamilyFood.oreshki) {
+    if (boosts.isFoodBoostActive &&
+        boosts.foodBoostKind == FamilyFood.oreshki) {
       r *= (1.0 + BalanceV0.foodOreshkiMagnetBonus);
     }
     if (boosts.isPlaceBoostActive &&
@@ -77,7 +78,8 @@ class GameRates extends GamePart {
   double get twinMarkChanceBonus {
     final boosts = core.boosts;
     var b = 0.0;
-    if (boosts.isFoodBoostActive && boosts.foodBoostKind == FamilyFood.oreshki) {
+    if (boosts.isFoodBoostActive &&
+        boosts.foodBoostKind == FamilyFood.oreshki) {
       b += BalanceV0.foodOreshkiTwinChanceBonus;
     }
     if (boosts.isPlaceBoostActive &&

@@ -67,8 +67,10 @@ class GamePuddle extends GamePart {
     final span =
         BalanceV0.mudVisibleMaxSeconds - BalanceV0.mudVisibleMinSeconds;
     _secondsLeft =
-        BalanceV0.mudVisibleMinSeconds + core.random.nextDouble() * span + extra;
-    core.messages.puddleToast = 'Лужа!';
+        BalanceV0.mudVisibleMinSeconds +
+        core.random.nextDouble() * span +
+        extra;
+    core.messages.puddleAppeared();
   }
 
   void _beginCooldown() {
@@ -103,7 +105,7 @@ class GamePuddle extends GamePart {
     _cooling = false;
     center = at;
     _secondsLeft = seconds;
-    core.messages.puddleToast = null;
+    core.messages.acknowledgePuddle();
     core.notify();
   }
 

@@ -4,13 +4,15 @@ import 'dart:ui';
 import 'package:flutter/foundation.dart';
 
 import '../core/game_core.dart';
+import '../core/game_events.dart';
 import '../core/goals.dart';
-import '../models/balance.dart';
 import '../models/game_state.dart';
 import '../models/multipliers/multipliers.dart';
 import '../models/session_goals.dart';
 import '../models/world_zones.dart';
 import '../persistence/game_persistence.dart';
+
+export '../core/game_events.dart';
 
 /// The one entry point of the game for the screen and tests.
 ///
@@ -62,13 +64,6 @@ class GameController extends ChangeNotifier {
   double get grassBoostRemainingSeconds =>
       _core.boosts.grassBoostRemainingSeconds;
 
-  /// Combined boost remaining for HUD (prefer mud label when both).
-  double get activeBoostRemainingSeconds {
-    if (isMudBoostActive) return mudBoostRemainingSeconds;
-    if (isGrassBoostActive) return grassBoostRemainingSeconds;
-    return 0;
-  }
-
   bool get isFoodBoostActive => _core.boosts.isFoodBoostActive;
   double get foodBoostRemainingSeconds =>
       _core.boosts.foodBoostRemainingSeconds;
@@ -81,12 +76,6 @@ class GameController extends ChangeNotifier {
       _core.boosts.isPlaceOnCooldown(kind);
   double placeCooldownRemaining(CozyPlaceKind kind) =>
       _core.boosts.placeCooldownRemaining(kind);
-
-  bool get isAnyBoostActive =>
-      isMudBoostActive ||
-      isGrassBoostActive ||
-      isFoodBoostActive ||
-      isPlaceBoostActive;
 
   // --- Meadow life: puddle, berries, merge flash ---
 
@@ -105,6 +94,10 @@ class GameController extends ChangeNotifier {
 
   // --- One-shot messages ---
 
+  /// Puddle, new glade, goal, role, offline welcome, daily gift — once each,
+  /// right after the change notice that brought them (see [GameEvent]).
+  Stream<GameEvent> get events => _core.messages.events;
+
   /// Pending «Солнечные поляны» unlock line (e.g. «Открылась Ягодная поляна»).
   String? get gladeUnlockToast => _core.messages.gladeUnlockToast;
 
@@ -114,26 +107,15 @@ class GameController extends ChangeNotifier {
   /// Clear unlock toast after the UI shows it (once).
   void acknowledgeGladeUnlock() => _core.messages.acknowledgeGladeUnlock();
 
-  /// One-shot toast after assigning a role («Няня: +15% авто»).
-  String? get lastRoleToast => _core.messages.roleToast;
-
-  void acknowledgeRoleToast() {
-    _core.messages.roleToast = null;
-  }
-
   /// One-shot «Лужа!» when a puddle appears. UI must acknowledge.
   String? get puddleToast => _core.messages.puddleToast;
 
-  void acknowledgePuddleToast() {
-    _core.messages.puddleToast = null;
-  }
+  void acknowledgePuddleToast() => _core.messages.acknowledgePuddle();
 
   /// Pending session-goal celebration line.
   String? get goalCompleteToast => _core.messages.goalCompleteToast;
 
-  void acknowledgeGoalComplete() {
-    _core.messages.goalCompleteToast = null;
-  }
+  void acknowledgeGoalComplete() => _core.messages.acknowledgeGoalComplete();
 
   /// Offline grant from this session's [init] (consume once for UI).
   double get offlineProgressGranted => _core.messages.offlineProgressGranted;
@@ -217,12 +199,9 @@ class GameController extends ChangeNotifier {
 
   /// Grass granted by the most recent flower/berry tap (for UI float).
   int get lastTapGrass => _core.finds.lastTapGrass;
-  set lastTapGrass(int value) => _core.finds.lastTapGrass = value;
 
   /// Last food granted by flower/buy (UI float); null if none.
   FamilyFood? get lastDroppedFood => _core.finds.lastDroppedFood;
-  set lastDroppedFood(FamilyFood? value) =>
-      _core.finds.lastDroppedFood = value;
 
   /// Force berry visible (tests / sims).
   @visibleForTesting
@@ -271,25 +250,12 @@ class GameController extends ChangeNotifier {
 
   bool get canFeedSelected => _core.shop.canFeedSelected;
 
-  /// True if [normalized] is inside a cozy place hit circle.
-  CozyPlaceKind? placeAt(Offset normalized) {
-    for (final kind in CozyPlaceKind.values) {
-      if (kind == CozyPlaceKind.tent && !state.tentUnlocked) continue;
-      final (cx, cy) = kind.center;
-      final dx = normalized.dx - cx;
-      final dy = normalized.dy - cy;
-      if (sqrt(dx * dx + dy * dy) <= BalanceV0.placeHitRadius) {
-        return kind;
-      }
-    }
-    return null;
-  }
-
-  bool isOverPlace(Offset normalized) => placeAt(normalized) != null;
-
   /// Drag capy onto place OR tap place → activate (with cooldown).
-  bool tryActivatePlace(CozyPlaceKind kind, {String? capyId, Offset? standAt}) =>
-      _core.shop.tryActivatePlace(kind, capyId: capyId, standAt: standAt);
+  bool tryActivatePlace(
+    CozyPlaceKind kind, {
+    String? capyId,
+    Offset? standAt,
+  }) => _core.shop.tryActivatePlace(kind, capyId: capyId, standAt: standAt);
 
   /// Buy a decor item if affordable and research-unlocked.
   bool buyDecor(HomeDecor decor) => _core.shop.buyDecor(decor);
