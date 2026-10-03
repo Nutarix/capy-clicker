@@ -31,65 +31,67 @@ class GameTopBar extends StatelessWidget {
     final topInset = MediaQuery.paddingOf(context).top;
     return Padding(
       padding: EdgeInsets.fromLTRB(12, topInset + 6, 12, 4),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: const Color(0xFFFFF8EC).withValues(alpha: 0.92),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0xFFE2CFA8)),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          child: Stack(
-            alignment: Alignment.centerLeft,
-            children: [
-              GameSelector<(int, String)>(
-                listenable: controller,
-                select: () => (controller.state.grass, placeLine(controller)),
-                builder: (context, view) => Row(
-                  children: [
-                    MeadowGrassReadout(grass: view.$1),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Align(
-                        alignment: Alignment.centerRight,
-                        child: FittedBox(
-                          fit: BoxFit.scaleDown,
+      child: RepaintBoundary(
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFF8EC).withValues(alpha: 0.92),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: const Color(0xFFE2CFA8)),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            child: Stack(
+              alignment: Alignment.centerLeft,
+              children: [
+                GameSelector<(int, String)>(
+                  listenable: controller,
+                  select: () => (controller.state.grass, placeLine(controller)),
+                  builder: (context, view) => Row(
+                    children: [
+                      MeadowGrassReadout(grass: view.$1),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Align(
                           alignment: Alignment.centerRight,
-                          child: Text(
-                            view.$2,
-                            maxLines: 1,
-                            softWrap: false,
-                            textAlign: TextAlign.right,
-                            style: CozyTheme.hudChipStyle(fontSize: 13),
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerRight,
+                            child: Text(
+                              view.$2,
+                              maxLines: 1,
+                              softWrap: false,
+                              textAlign: TextAlign.right,
+                              style: CozyTheme.hudChipStyle(fontSize: 13),
+                            ),
                           ),
                         ),
                       ),
+                    ],
+                  ),
+                ),
+                if (onBackToMenu != null)
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(
+                      minWidth: 28,
+                      minHeight: 28,
                     ),
-                  ],
-                ),
-              ),
-              if (onBackToMenu != null)
-                IconButton(
-                  visualDensity: VisualDensity.compact,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(
-                    minWidth: 28,
-                    minHeight: 28,
+                    tooltip: 'Меню',
+                    onPressed: () {
+                      unawaited(audio.noteUserGesture());
+                      onBackToMenu!();
+                    },
+                    // Kept for the menu test. Transparent so the
+                    // bar is one grass icon and the count.
+                    icon: const Icon(
+                      Icons.pause_rounded,
+                      size: 18,
+                      color: Colors.transparent,
+                    ),
                   ),
-                  tooltip: 'Меню',
-                  onPressed: () {
-                    unawaited(audio.noteUserGesture());
-                    onBackToMenu!();
-                  },
-                  // Kept for the menu test. Transparent so the
-                  // bar is one grass icon and the count.
-                  icon: const Icon(
-                    Icons.pause_rounded,
-                    size: 18,
-                    color: Colors.transparent,
-                  ),
-                ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -145,44 +147,46 @@ class GameBottomBar extends StatelessWidget {
         10,
         8 + MediaQuery.paddingOf(context).bottom,
       ),
-      child: GameSelector<(int, bool, String?, bool, bool)>(
-        listenable: controller,
-        select: () => (
-          controller.state.grass,
-          controller.canCallCapy,
-          controller.callCapyBlockedReason,
-          controller.canGrassBoost,
-          controller.isGrassBoostActive,
-        ),
-        builder: (context, view) => GrassSpendPanel(
-          grass: view.$1,
-          canCallCapy: view.$2,
-          callBlockedReason: view.$3,
-          canBoost: view.$4,
-          boostActive: view.$5,
-          onUyutHub: () {
-            unawaited(audio.noteUserGesture());
-            HapticFeedback.lightImpact();
-            UyutHubSheet.show(context, controller: controller);
-          },
-          onForest: () {
-            unawaited(audio.noteUserGesture());
-            HapticFeedback.lightImpact();
-            onForest();
-          },
-          onCallCapy: () {
-            unawaited(audio.noteUserGesture());
-            if (controller.spendCallCapy()) {
+      child: RepaintBoundary(
+        child: GameSelector<(int, bool, String?, bool, bool)>(
+          listenable: controller,
+          select: () => (
+            controller.state.grass,
+            controller.canCallCapy,
+            controller.callCapyBlockedReason,
+            controller.canGrassBoost,
+            controller.isGrassBoostActive,
+          ),
+          builder: (context, view) => GrassSpendPanel(
+            grass: view.$1,
+            canCallCapy: view.$2,
+            callBlockedReason: view.$3,
+            canBoost: view.$4,
+            boostActive: view.$5,
+            onUyutHub: () {
+              unawaited(audio.noteUserGesture());
               HapticFeedback.lightImpact();
-              onFloat('+капи', Offset.zero);
-            }
-          },
-          onBoost: () {
-            unawaited(audio.noteUserGesture());
-            if (controller.spendGrassBoost()) {
+              UyutHubSheet.show(context, controller: controller);
+            },
+            onForest: () {
+              unawaited(audio.noteUserGesture());
               HapticFeedback.lightImpact();
-            }
-          },
+              onForest();
+            },
+            onCallCapy: () {
+              unawaited(audio.noteUserGesture());
+              if (controller.spendCallCapy()) {
+                HapticFeedback.lightImpact();
+                onFloat('+капи', Offset.zero);
+              }
+            },
+            onBoost: () {
+              unawaited(audio.noteUserGesture());
+              if (controller.spendGrassBoost()) {
+                HapticFeedback.lightImpact();
+              }
+            },
+          ),
         ),
       ),
     );

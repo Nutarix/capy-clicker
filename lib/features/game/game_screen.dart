@@ -216,11 +216,13 @@ class _GameScreenState extends State<GameScreen>
                 ],
               ),
               Positioned.fill(
-                child: ValueListenableBuilder<List<FloatingGainEvent>>(
-                  valueListenable: _floats,
-                  builder: (context, floats, _) => FloatingGainLayer(
-                    events: floats,
-                    onFinished: _floatFinished,
+                child: RepaintBoundary(
+                  child: ValueListenableBuilder<List<FloatingGainEvent>>(
+                    valueListenable: _floats,
+                    builder: (context, floats, _) => FloatingGainLayer(
+                      events: floats,
+                      onFinished: _floatFinished,
+                    ),
                   ),
                 ),
               ),

@@ -207,12 +207,15 @@ class _MeadowLayerState extends State<MeadowLayer> {
 
   @override
   Widget build(BuildContext context) {
-    return GameSelector<_MeadowView>(
-      listenable: _controller,
-      select: _view,
-      builder: (context, view) => LayoutBuilder(
-        builder: (context, constraints) =>
-            _meadow(view, constraints.maxWidth, constraints.maxHeight),
+    // Meadow animations repaint the meadow, never the bars around it.
+    return RepaintBoundary(
+      child: GameSelector<_MeadowView>(
+        listenable: _controller,
+        select: _view,
+        builder: (context, view) => LayoutBuilder(
+          builder: (context, constraints) =>
+              _meadow(view, constraints.maxWidth, constraints.maxHeight),
+        ),
       ),
     );
   }
@@ -243,23 +246,33 @@ class _MeadowLayerState extends State<MeadowLayer> {
           child: Stack(
             clipBehavior: Clip.none,
             children: [
-              MeadowDecorLayer(herdCount: herd.length, meadowSize: Size(w, h)),
-              PlacedHomeDecorLayer(
-                placedIds: view.placed,
-                meadowSize: Size(w, h),
+              // Each looping animation paints in its own layer (spec 002, Т8).
+              RepaintBoundary(
+                child: MeadowDecorLayer(
+                  herdCount: herd.length,
+                  meadowSize: Size(w, h),
+                ),
+              ),
+              RepaintBoundary(
+                child: PlacedHomeDecorLayer(
+                  placedIds: view.placed,
+                  meadowSize: Size(w, h),
+                ),
               ),
               // Temporary mud puddle (behind capys). Absent during cooldown.
               if (mud != null)
                 Positioned(
                   left: mud.dx * w - CapyWander.mudAnchorX,
                   top: mud.dy * h - CapyWander.mudAnchorY,
-                  child: MudPuddle(
-                    key: ValueKey(
-                      '${mud.dx.toStringAsFixed(3)}:'
-                      '${mud.dy.toStringAsFixed(3)}',
+                  child: RepaintBoundary(
+                    child: MudPuddle(
+                      key: ValueKey(
+                        '${mud.dx.toStringAsFixed(3)}:'
+                        '${mud.dy.toStringAsFixed(3)}',
+                      ),
+                      isWallowing: view.wallowing != null,
+                      boostActive: view.mudBoost,
                     ),
-                    isWallowing: view.wallowing != null,
-                    boostActive: view.mudBoost,
                   ),
                 ),
               // Cozy places (пень / камень / тент)
@@ -267,14 +280,16 @@ class _MeadowLayerState extends State<MeadowLayer> {
                 Positioned(
                   left: props.places[kind]!.dx * w - 36,
                   top: props.places[kind]!.dy * h - 32,
-                  child: _PlaceSlot(
-                    controller: _controller,
-                    kind: kind,
-                    onTap: () {
-                      unawaited(_audio.noteUserGesture());
-                      final ok = _controller.tryActivatePlace(kind);
-                      if (ok) widget.onFloat(kind.emoji, Offset.zero);
-                    },
+                  child: RepaintBoundary(
+                    child: _PlaceSlot(
+                      controller: _controller,
+                      kind: kind,
+                      onTap: () {
+                        unawaited(_audio.noteUserGesture());
+                        final ok = _controller.tryActivatePlace(kind);
+                        if (ok) widget.onFloat(kind.emoji, Offset.zero);
+                      },
+                    ),
                   ),
                 ),
               ...List.generate(props.flowers.length, (i) {
@@ -282,10 +297,12 @@ class _MeadowLayerState extends State<MeadowLayer> {
                 return Positioned(
                   left: flower.dx * w - FlowerDot.hitSize / 2,
                   top: flower.dy * h - FlowerDot.hitSize / 2,
-                  child: FlowerDot(
-                    color: _flowerColors[i % _flowerColors.length],
-                    swayPhase: i / props.flowers.length,
-                    onTap: _onFlowerTap,
+                  child: RepaintBoundary(
+                    child: FlowerDot(
+                      color: _flowerColors[i % _flowerColors.length],
+                      swayPhase: i / props.flowers.length,
+                      onTap: _onFlowerTap,
+                    ),
                   ),
                 );
               }),
@@ -293,9 +310,11 @@ class _MeadowLayerState extends State<MeadowLayer> {
                 Positioned(
                   left: BalanceV0.berryPosX * w - 60,
                   top: BalanceV0.berryPosY * h - 44,
-                  child: BerryBasket(
-                    onTap: _onBerryTap,
-                    showHint: !_berryHintSeen,
+                  child: RepaintBoundary(
+                    child: BerryBasket(
+                      onTap: _onBerryTap,
+                      showHint: !_berryHintSeen,
+                    ),
                   ),
                 ),
               if (_mergePair(herd, Size(w, h)) case final pair?)

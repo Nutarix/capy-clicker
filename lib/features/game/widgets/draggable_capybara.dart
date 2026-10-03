@@ -656,72 +656,75 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
     return Positioned(
       left: left,
       top: top,
-      child: GestureDetector(
-        onLongPress: widget.onLongPress,
-        child: DragTarget<String>(
-          onWillAcceptWithDetails: (details) =>
-              details.data != widget.capybara.id,
-          onAcceptWithDetails: (details) {
-            final ok = widget.onMerge(details.data, widget.capybara.id);
-            if (ok) HapticFeedback.mediumImpact();
-          },
-          builder: (context, candidate, _) {
-            final highlight = candidate.isNotEmpty || magnetHighlight;
-            return Draggable<String>(
-              data: widget.capybara.id,
-              feedback: Transform.translate(
-                offset: _pullOffset,
-                child: Material(
-                  color: Colors.transparent,
-                  child: Opacity(
-                    opacity: 0.92,
-                    child: CapybaraPlaceholder(
-                      level: widget.capybara.level,
-                      role: widget.capybara.role,
-                      walkFrame: 0,
-                      compactLabel: false,
+      // Bob and walk repaint this capy only (spec 002, Т8).
+      child: RepaintBoundary(
+        child: GestureDetector(
+          onLongPress: widget.onLongPress,
+          child: DragTarget<String>(
+            onWillAcceptWithDetails: (details) =>
+                details.data != widget.capybara.id,
+            onAcceptWithDetails: (details) {
+              final ok = widget.onMerge(details.data, widget.capybara.id);
+              if (ok) HapticFeedback.mediumImpact();
+            },
+            builder: (context, candidate, _) {
+              final highlight = candidate.isNotEmpty || magnetHighlight;
+              return Draggable<String>(
+                data: widget.capybara.id,
+                feedback: Transform.translate(
+                  offset: _pullOffset,
+                  child: Material(
+                    color: Colors.transparent,
+                    child: Opacity(
+                      opacity: 0.92,
+                      child: CapybaraPlaceholder(
+                        level: widget.capybara.level,
+                        role: widget.capybara.role,
+                        walkFrame: 0,
+                        compactLabel: false,
+                      ),
                     ),
                   ),
                 ),
-              ),
-              childWhenDragging: Opacity(
-                opacity: 0.22,
-                child: CapybaraPlaceholder(
-                  level: widget.capybara.level,
-                  role: widget.capybara.role,
-                  walkFrame: 0,
-                  compactLabel: true,
+                childWhenDragging: Opacity(
+                  opacity: 0.22,
+                  child: CapybaraPlaceholder(
+                    level: widget.capybara.level,
+                    role: widget.capybara.role,
+                    walkFrame: 0,
+                    compactLabel: true,
+                  ),
                 ),
-              ),
-              onDragStarted: _onDragStarted,
-              onDragUpdate: _onDragUpdate,
-              onDragEnd: _onDragEnd,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 120),
-                decoration: highlight
-                    ? BoxDecoration(
-                        borderRadius: BorderRadius.circular(20),
-                        border: magnetHighlight
-                            ? Border.all(
-                                color: const Color(0xFFFFD54F),
-                                width: 2.5,
-                              )
-                            : null,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.amber.withValues(
-                              alpha: magnetHighlight ? 0.85 : 0.55,
+                onDragStarted: _onDragStarted,
+                onDragUpdate: _onDragUpdate,
+                onDragEnd: _onDragEnd,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 120),
+                  decoration: highlight
+                      ? BoxDecoration(
+                          borderRadius: BorderRadius.circular(20),
+                          border: magnetHighlight
+                              ? Border.all(
+                                  color: const Color(0xFFFFD54F),
+                                  width: 2.5,
+                                )
+                              : null,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.amber.withValues(
+                                alpha: magnetHighlight ? 0.85 : 0.55,
+                              ),
+                              blurRadius: magnetHighlight ? 26 : 16,
+                              spreadRadius: magnetHighlight ? 5 : 2,
                             ),
-                            blurRadius: magnetHighlight ? 26 : 16,
-                            spreadRadius: magnetHighlight ? 5 : 2,
-                          ),
-                        ],
-                      )
-                    : null,
-                child: visual,
-              ),
-            );
-          },
+                          ],
+                        )
+                      : null,
+                  child: visual,
+                ),
+              );
+            },
+          ),
         ),
       ),
     );
