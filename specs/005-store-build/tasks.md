@@ -15,14 +15,14 @@
 
 - [x] **Ш4. Подпись ключом загрузки (Т4, Т6).** `build.gradle.kts`: `key.properties` → `signingConfigs.release`; без файла `bundleRelease`/`assembleRelease` падают с текстом; без TODO. Проверка: debug-сборка без ключа, release без ключа — ошибка, release с временным ключом — подписан.
 - [x] **Ш5. Память Gradle (Т7).** `-Xmx4G`.
-- [ ] **Ш6. Инструкция (Т5).** `store/RELEASE.md`.
+- [x] **Ш6. Инструкция (Т5).** `store/RELEASE.md`.
 
 ## Репозиторий
 
 - [x] **Ш7. Сборки вне git (Т11).** `.gitignore`: `*.apk`, `*.aab`, `*.ipa`; удалить `.apk.sha256`.
 - [x] **Ш8. CI (Т10).** `.github/workflows/ci.yml`.
 - [ ] **Ш9. Веб (Т13).** Цвета `manifest.json`, `favicon.png`, `web/icons/*` из иконки игры.
-- [ ] **Ш10. Политика (Т14).** `site/index.html`, `.github/workflows/pages.yml`, ссылка в `RELEASE.md`.
+- [x] **Ш10. Политика (Т14).** `site/index.html`, `.github/workflows/pages.yml`, ссылка в `RELEASE.md`.
 - [x] **Ш11. Лицензия (Т15).** `LICENSE`.
 
 ## Сдача
