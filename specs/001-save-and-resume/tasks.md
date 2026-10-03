@@ -4,7 +4,7 @@
 
 ## Опора для тестов
 
-- [ ] **Ш1. Шрифты без сети (Т12).** Тест: флаг `allowRuntimeFetching` выключен. Код: `test/flutter_test_config.dart`.
+- [x] **Ш1. Шрифты без сети (Т12).** Тест: флаг `allowRuntimeFetching` выключен. Код: `test/flutter_test_config.dart`.
 - [ ] **Ш2. Съёмка макетов вне прогона (Т14).** Перенос в `tool/`, пути от проекта и `CAPY_FONTS_DIR`. Проверка: `flutter test` без падения `setUpAll`.
 - [ ] **Ш3. Общий тик (Т15, основа).** Тест: `debugAdvance` поднимает «Лужа!» так же, как тик. Код: `_advanceClock(dt, now)` для `_onTick` и `debugAdvance`.
 - [ ] **Ш4. Тестовый контроллер (Т10, Т11).** Код: `GameController(autoTick:)`, `test/support/test_game.dart`. Тесты контроллера — через `testController()` или с явным `random:` и `autoTick: false`. Балансные симуляции — те же числа.
