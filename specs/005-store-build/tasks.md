@@ -27,4 +27,10 @@
 
 ## Сдача
 
-- [ ] **Ш12.** `flutter analyze` чисто, `flutter test` дважды зелёный, сборки: debug, release без ключа, release с временным ключом; размер `.aab` до/после.
+- [x] **Ш12.** `flutter analyze` чисто, `flutter test` дважды зелёный, сборки: debug, release без ключа, release с временным ключом; размер `.aab` до/после.
+  - `flutter test` (без съёмки макетов): 142 зелёных, дважды; без запросов за шрифтами.
+  - `flutter build apk --debug` без ключа — собирается.
+  - `flutter build appbundle --release` без ключа — падает за ~40 с с `Release signing key not found: android/key.properties is missing…`.
+  - С временным ключом вне репозитория — `.aab` подписан им (`keytool -printcert`). Ключ и `key.properties` удалены.
+  - `.aab`: 71 640 117 → 66 610 154 байт (−5,0 МБ, шрифты +0,55 МБ уже учтены).
+  - `flutter build web` — собирается, цвета манифеста новые.
