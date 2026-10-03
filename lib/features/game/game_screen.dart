@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' show AppExitResponse;
 
 import 'package:flutter/material.dart';
 
@@ -69,7 +70,10 @@ class _GameScreenState extends State<GameScreen> {
   late final GameAudio _audio;
   late final bool _ownsAudio;
   final GlobalKey _meadowKey = GlobalKey();
-  bool _offlineWelcomeShown = false;
+
+  /// Save on the way out, pause in background, greet on return.
+  late final AppLifecycleListener _lifecycle;
+
   bool _dailyPromptShown = false;
   bool _dailySheetOpen = false;
 
@@ -115,6 +119,31 @@ class _GameScreenState extends State<GameScreen> {
     _controller.addListener(_onControllerChanged);
     _controller.init();
     _audio.init();
+    _lifecycle = AppLifecycleListener(
+      onInactive: () => unawaited(_controller.flushSave()),
+      onHide: _onAppHidden,
+      onShow: _onAppShown,
+      onDetach: () => unawaited(_controller.flushSave()),
+      onExitRequested: _onExitRequested,
+    );
+  }
+
+  /// Swiped away, tab hidden, window minimized: write now, stop the clock.
+  void _onAppHidden() {
+    unawaited(_controller.suspend());
+    // The app silences shared sound itself; only own audio is ours to pause.
+    if (_ownsAudio) unawaited(_audio.setInBackground(true));
+  }
+
+  void _onAppShown() {
+    _controller.resumeFromBackground();
+    if (_ownsAudio) unawaited(_audio.setInBackground(false));
+  }
+
+  /// Desktop window close: the exit waits for the save.
+  Future<AppExitResponse> _onExitRequested() async {
+    await _controller.flushSave();
+    return AppExitResponse.exit;
   }
 
   void _onAudioChanged() {
@@ -223,10 +252,9 @@ class _GameScreenState extends State<GameScreen> {
     });
   }
 
+  /// Cold start and every return from background (acknowledge = once).
   void _maybeShowOfflineWelcome() {
-    if (_offlineWelcomeShown) return;
     if (!_controller.isReady || !_controller.hasOfflineWelcome) return;
-    _offlineWelcomeShown = true;
     final seconds = _controller.offlineSecondsApplied;
     final progress = _controller.offlineProgressGranted;
     _controller.acknowledgeOfflineWelcome();
@@ -257,6 +285,7 @@ class _GameScreenState extends State<GameScreen> {
 
   @override
   void dispose() {
+    _lifecycle.dispose();
     _badgeClearTimer?.cancel();
     _controller.removeListener(_onControllerChanged);
     _audio.removeListener(_onAudioChanged);

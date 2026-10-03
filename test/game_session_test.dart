@@ -149,4 +149,30 @@ void main() {
       c.dispose();
     });
   });
+
+  testWidgets('hidden while loading: no live clock until shown', (
+    tester,
+  ) async {
+    final now = tester.binding.clock.now;
+    SharedPreferences.setMockInitialValues({key: family(now())});
+    final c = GameController(
+      persistence: GamePersistence(),
+      random: Random(6),
+      now: now,
+    );
+    final loading = c.init();
+    await c.suspend(); // swiped away during the splash
+    await loading;
+    expect(c.isReady, isTrue);
+    expect(c.isSuspended, isTrue);
+    final still = c.state.toJson();
+    await tester.pump(const Duration(seconds: 5));
+    expect(c.state.toJson(), still);
+
+    c.resumeFromBackground();
+    expect(c.hasOfflineWelcome, isFalse, reason: '5 s is not «away»');
+    await tester.pump(const Duration(seconds: 1));
+    expect(c.state.herdProgress, greaterThan(still['herdProgress'] as num));
+    c.dispose();
+  });
 }

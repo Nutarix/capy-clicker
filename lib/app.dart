@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'features/game/audio/game_audio.dart';
@@ -9,17 +11,23 @@ import 'widgets/portrait_phone_frame.dart';
 
 /// Root widget for Grow! Capy! — menu ↔ game via simple root state.
 class CapyClickerApp extends StatefulWidget {
-  const CapyClickerApp({super.key, this.now});
+  const CapyClickerApp({super.key, this.now, this.audio});
 
   /// Game clock (tests pin it; null = wall clock).
   final DateTime Function()? now;
+
+  /// Shared sound (tests pass a silent one; null = app-owned).
+  final GameAudio? audio;
 
   @override
   State<CapyClickerApp> createState() => _CapyClickerAppState();
 }
 
 class _CapyClickerAppState extends State<CapyClickerApp> {
-  final GameAudio _audio = GameAudio();
+  late final GameAudio _audio = widget.audio ?? GameAudio();
+
+  /// Sound is quiet in background on the menu and in the game alike.
+  late final AppLifecycleListener _lifecycle;
 
   /// One save store for menu and game: its writes run in call order.
   final GamePersistence _persistence = GamePersistence();
@@ -31,11 +39,18 @@ class _CapyClickerAppState extends State<CapyClickerApp> {
   void initState() {
     super.initState();
     _audio.init();
+    _lifecycle = AppLifecycleListener(
+      onHide: () => unawaited(_audio.setInBackground(true)),
+      onShow: () => unawaited(_audio.setInBackground(false)),
+    );
   }
 
   @override
   void dispose() {
-    _audio.dispose();
+    _lifecycle.dispose();
+    if (widget.audio == null) {
+      _audio.dispose();
+    }
     super.dispose();
   }
 

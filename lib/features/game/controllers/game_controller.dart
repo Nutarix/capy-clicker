@@ -586,7 +586,12 @@ class GameController extends ChangeNotifier {
     _ready = true;
     _lastTick = _now();
     _twinRerollIn = BalanceV0.twinRerollSeconds.toDouble() * 0.4;
-    _startTicker();
+    if (_suspendedAt != null) {
+      // Hidden while loading: away from now on; the clock waits for «shown».
+      _suspendedAt = _now();
+    } else {
+      _startTicker();
+    }
     _scheduleFirstBerry();
     _beginMudPresence();
     notifyListeners();
@@ -615,7 +620,7 @@ class GameController extends ChangeNotifier {
   /// App hidden (swiped away, tab hidden, window minimized): stop the game
   /// clock and write the save with this moment as «left at».
   Future<void> suspend() async {
-    if (!_ready || _disposed || _suspendedAt != null) return;
+    if (_disposed || _suspendedAt != null) return;
     _tickTimer?.cancel();
     _tickTimer = null;
     _suspendedAt = _now();
@@ -628,6 +633,8 @@ class GameController extends ChangeNotifier {
     final since = _suspendedAt;
     if (since == null || _disposed) return;
     _suspendedAt = null;
+    // Shown again before load finished: [init] starts the clock itself.
+    if (!_ready) return;
     _applyOfflineProgress(since);
     _lastTick = _now();
     _startTicker();
