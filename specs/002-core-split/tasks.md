@@ -9,7 +9,7 @@
 - [x] 5. Т4: `GameMessages`, поток `events`; уход `lastRoleToast`, `acknowledgeRoleToast`, `isAnyBoostActive`, `activeBoostRemainingSeconds`, `placeAt`, `isOverPlace`, сеттеров `lastTapGrass` / `lastDroppedFood`.
 - [x] 6. Т5: запись сейва без `jsonDecode`.
 - [x] 7. Т9: стили шрифтов один раз.
-- [ ] 8. `GameSelector`. Т10/Т6: `GameScreen` → HUD, луг, сообщения, оверлеи; экран слушает части; сообщения — событиями.
+- [x] 8. `GameSelector`. Т10/Т6: `GameScreen` → HUD, луг, сообщения, оверлеи; экран слушает части; сообщения — событиями.
 - [ ] 9. Т11: таблица позиций бродящих капи у `MeadowLayer`.
 - [ ] 10. Т7: «Уют» по вкладкам.
 - [ ] 11. Т8: `RepaintBoundary` вокруг непрерывных анимаций.

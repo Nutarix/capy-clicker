@@ -46,7 +46,9 @@ class MeadowDraggableCapybara extends StatefulWidget {
   final Capybara capybara;
   final List<Capybara> herd;
   final Size meadowSize;
-  final Offset meadowOriginGlobal;
+
+  /// Meadow top-left in global coordinates, read when a drag needs it.
+  final Offset Function() meadowOriginGlobal;
   final bool Function(String draggedId, String targetId) onMerge;
   final void Function(String id, Offset normalized) onDropPosition;
   final bool Function(String id) onMudDrop;
@@ -436,14 +438,14 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
 
   Offset _normalizedFromFeedbackTopLeft(Offset feedbackTopLeft) {
     final footprint = _footprint;
-    final local = feedbackTopLeft - widget.meadowOriginGlobal;
+    final local = feedbackTopLeft - widget.meadowOriginGlobal();
     final nx = (local.dx + footprint.width / 2) / widget.meadowSize.width;
     final ny = (local.dy + footprint.height / 2) / widget.meadowSize.height;
     return Offset(nx, ny);
   }
 
   Offset _normalizedFromPointer(Offset globalPointer) {
-    final local = globalPointer - widget.meadowOriginGlobal;
+    final local = globalPointer - widget.meadowOriginGlobal();
     return Offset(
       local.dx / widget.meadowSize.width,
       local.dy / widget.meadowSize.height,
