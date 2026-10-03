@@ -1234,10 +1234,12 @@ class GameController extends ChangeNotifier {
     _schedulePersist();
   }
 
+  /// Write soon. Ticks change the state every 50 ms, so the pending write is
+  /// never pushed back — otherwise live play would never be saved.
   void _schedulePersist() {
-    _persistTimer?.cancel();
+    if (_persistTimer?.isActive ?? false) return;
     _persistTimer = Timer(
-      const Duration(milliseconds: BalanceV0.persistDebounceMs),
+      const Duration(milliseconds: BalanceV0.persistIntervalMs),
       () => _persistence.save(_withSavedAt(_state)),
     );
   }

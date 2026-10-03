@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -51,5 +52,42 @@ void main() {
     expect(twin.puddleToast, live.puddleToast);
     live.dispose();
     twin.dispose();
+  });
+
+  testWidgets('live play writes the save at least every 5 s', (tester) async {
+    final clock = tester.binding.clock;
+    const key = 'capy_clicker_game_state_v1';
+    SharedPreferences.setMockInitialValues({
+      key:
+          '{"herdProgress":0.2,"nextId":3,'
+          '"savedAtMs":${clock.now().millisecondsSinceEpoch},'
+          '"herd":[{"id":"c1","level":1,"x":0.5,"y":0.5},'
+          '{"id":"c2","level":1,"x":0.6,"y":0.55}]}',
+    });
+    final c = GameController(
+      persistence: GamePersistence(),
+      random: Random(5),
+      now: clock.now,
+    );
+    await c.init();
+    final prefs = await SharedPreferences.getInstance();
+    Map<String, dynamic> saved() =>
+        jsonDecode(prefs.getString(key)!) as Map<String, dynamic>;
+
+    // Ticks change the state every 50 ms; the write must not wait them out.
+    for (var window = 0; window < 4; window++) {
+      await tester.pump(const Duration(seconds: 5));
+      final savedAt = saved()['savedAtMs'] as int;
+      final age = clock.now().millisecondsSinceEpoch - savedAt;
+      expect(age, lessThanOrEqualTo(5000), reason: 'window $window');
+    }
+    final json = saved();
+    final herd = json['herd'] as List;
+    expect(
+      herd.length > 2 || (json['herdProgress'] as num) > 0.2,
+      isTrue,
+      reason: 'saved state carries the live progress',
+    );
+    c.dispose();
   });
 }
