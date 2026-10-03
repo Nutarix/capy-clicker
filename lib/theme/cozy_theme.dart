@@ -35,7 +35,11 @@ class CozyTheme {
     systemNavigationBarContrastEnforced: false,
   );
 
-  static ThemeData build() {
+  /// One theme per app: text styles inside are font lookups, done once.
+  static ThemeData build() => _theme ??= _buildTheme();
+  static ThemeData? _theme;
+
+  static ThemeData _buildTheme() {
     final colorScheme = ColorScheme.fromSeed(
       seedColor: meadowGreen,
       brightness: Brightness.light,
@@ -102,7 +106,18 @@ class CozyTheme {
 
   /// Large stylized main-menu title: warm cream/gold fill + soft brown outline.
   /// Sized for top wordmark (Stardew-adjacent dominating logo).
-  static TextStyle menuTitleStyle({double fontSize = 52}) {
+  static TextStyle menuTitleStyle({double fontSize = 52}) =>
+      _menuTitle.putIfAbsent(fontSize, () => _menuTitleStyle(fontSize));
+
+  // Font styles are made once per size, not on every rebuild (spec 002, Т9).
+  static final _menuTitle = <double, TextStyle>{};
+  static final _menuCta = <double, TextStyle>{};
+  static final _primaryButton = <double, TextStyle>{};
+  static final _secondaryButton = <double, TextStyle>{};
+  static final _hudChip = <double, TextStyle>{};
+  static final _hudChipMuted = <double, TextStyle>{};
+
+  static TextStyle _menuTitleStyle(double fontSize) {
     final outline = warmBrown;
     return GoogleFonts.pixelifySans(
       fontSize: fontSize,
@@ -132,7 +147,10 @@ class CozyTheme {
 
   /// Primary menu CTA — same Pixelify family as title; readable cozy size.
   /// Nunito is listed as fallback for Cyrillic glyphs Pixelify lacks.
-  static TextStyle menuPrimaryCtaStyle({double fontSize = 22}) {
+  static TextStyle menuPrimaryCtaStyle({double fontSize = 22}) =>
+      _menuCta.putIfAbsent(fontSize, () => _menuPrimaryCtaStyle(fontSize));
+
+  static TextStyle _menuPrimaryCtaStyle(double fontSize) {
     final pixel = GoogleFonts.pixelifySans(
       fontSize: fontSize,
       fontWeight: FontWeight.w700,
@@ -145,35 +163,47 @@ class CozyTheme {
   }
 
   static TextStyle primaryButtonStyle({double fontSize = 20}) {
-    return GoogleFonts.nunito(
-      fontSize: fontSize,
-      fontWeight: FontWeight.w800,
-      color: cream,
-      letterSpacing: 0.4,
+    return _primaryButton.putIfAbsent(
+      fontSize,
+      () => GoogleFonts.nunito(
+        fontSize: fontSize,
+        fontWeight: FontWeight.w800,
+        color: cream,
+        letterSpacing: 0.4,
+      ),
     );
   }
 
   static TextStyle secondaryButtonStyle({double fontSize = 15}) {
-    return GoogleFonts.nunito(
-      fontSize: fontSize,
-      fontWeight: FontWeight.w700,
-      color: warmBrown,
+    return _secondaryButton.putIfAbsent(
+      fontSize,
+      () => GoogleFonts.nunito(
+        fontSize: fontSize,
+        fontWeight: FontWeight.w700,
+        color: warmBrown,
+      ),
     );
   }
 
   static TextStyle hudChipStyle({double fontSize = 12}) {
-    return GoogleFonts.nunito(
-      fontSize: fontSize,
-      fontWeight: FontWeight.w700,
-      color: warmBrown,
+    return _hudChip.putIfAbsent(
+      fontSize,
+      () => GoogleFonts.nunito(
+        fontSize: fontSize,
+        fontWeight: FontWeight.w700,
+        color: warmBrown,
+      ),
     );
   }
 
   static TextStyle hudChipMutedStyle({double fontSize = 11}) {
-    return GoogleFonts.nunito(
-      fontSize: fontSize,
-      fontWeight: FontWeight.w600,
-      color: warmBrown,
+    return _hudChipMuted.putIfAbsent(
+      fontSize,
+      () => GoogleFonts.nunito(
+        fontSize: fontSize,
+        fontWeight: FontWeight.w600,
+        color: warmBrown,
+      ),
     );
   }
 }

@@ -86,7 +86,8 @@ class GamePersistence {
 
   Future<void> _save(GameState state) async {
     final prefs = await _ensurePrefs();
-    final raw = jsonEncode(state.toJson());
+    final map = state.toJson();
+    final raw = jsonEncode(map);
     var prev = _lastGoodRaw;
     if (prev == null) {
       final current = _readRaw(prefs, _key);
@@ -97,7 +98,19 @@ class GamePersistence {
       await prefs.setString(_prevKey, prev);
     }
     await prefs.setString(_key, raw);
-    if (_decode(raw) != null) _lastGoodRaw = raw;
+    if (_readsBack(map)) _lastGoodRaw = raw;
+  }
+
+  /// Whether the string encoded from [map] reads back, without parsing it:
+  /// `jsonDecode(jsonEncode(map))` gives this same structure, so reading it
+  /// back is [GameState.fromJson] of [map] itself.
+  static bool _readsBack(Map<String, dynamic> map) {
+    try {
+      GameState.fromJson(map);
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   /// «Заново»: drop main and copy. Set-aside blobs stay.

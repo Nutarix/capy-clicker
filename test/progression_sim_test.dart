@@ -7,6 +7,8 @@ import 'package:capy_clicker/features/game/controllers/game_controller.dart';
 import 'package:capy_clicker/features/game/models/balance.dart';
 import 'package:capy_clicker/features/game/persistence/game_persistence.dart';
 
+import 'support/fingerprint.dart';
+
 /// Headless ~10–15 min cozy-session simulation for loop v1.1.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -25,6 +27,7 @@ void main() {
       autoTick: false,
     );
     await c.init();
+    final fp = Fingerprint('sim_cozy_session')..mark('init', c);
 
     var simSeconds = 0.0;
     var flowerCooldown = 0.0;
@@ -54,6 +57,7 @@ void main() {
     // ~12 min equivalent active cozy play.
     while (simSeconds < 720) {
       step(0.25);
+      if ((simSeconds * 4).round() % 480 == 0) fp.mark('t=$simSeconds', c);
 
       // Track twin mark windows (start of a new pair).
       final tA = c.state.twinIdA;
@@ -158,6 +162,23 @@ void main() {
         c.acknowledgeGladeUnlock();
       }
     }
+
+    fp
+      ..mark(
+        'end',
+        c,
+        extra: {
+          'firstGladeAt': firstGladeAt,
+          'firstSpendAt': firstSpendAt,
+          'twinBonusAt': twinBonusAt,
+          'merges': mergesDone,
+          'twinMerges': twinMerges,
+          'calls': calls,
+          'boosts': boosts,
+          'twinMarks': twinMarkWindows,
+        },
+      )
+      ..verify();
 
     // ignore: avoid_print
     print(

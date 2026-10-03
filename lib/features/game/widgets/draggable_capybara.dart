@@ -41,12 +41,15 @@ class MeadowDraggableCapybara extends StatefulWidget {
     this.placeAt,
     this.onLongPress,
     this.mudCenter,
+    this.livePositions,
   });
 
   final Capybara capybara;
   final List<Capybara> herd;
   final Size meadowSize;
-  final Offset meadowOriginGlobal;
+
+  /// Meadow top-left in global coordinates, read when a drag needs it.
+  final Offset Function() meadowOriginGlobal;
   final bool Function(String draggedId, String targetId) onMerge;
   final void Function(String id, Offset normalized) onDropPosition;
   final bool Function(String id) onMudDrop;
@@ -88,6 +91,11 @@ class MeadowDraggableCapybara extends StatefulWidget {
   /// Live puddle center, so wander does not park a body on the stump-top.
   final Offset? mudCenter;
 
+  /// Latest displayed anchor per capy, shared by the meadow's family, so a
+  /// walk does not cut through a peer that has not persisted its destination
+  /// yet. Owned by the meadow (one per game screen). Null: this capy only.
+  final Map<String, Offset>? livePositions;
+
   @override
   State<MeadowDraggableCapybara> createState() =>
       _MeadowDraggableCapybaraState();
@@ -125,6 +133,10 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
   Timer? _wanderTimer;
   bool _escapeScheduled = false;
 
+  final Map<String, Offset> _ownLivePositions = {};
+
+  Map<String, Offset> get _live => widget.livePositions ?? _ownLivePositions;
+
   double get _bodyWidth => BalanceV0.capySizeForLevel(widget.capybara.level);
 
   Size get _footprint {
@@ -149,7 +161,7 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
   void initState() {
     super.initState();
     _displayPos = widget.capybara.position;
-    CapyWander.livePositions[widget.capybara.id] = _displayPos;
+    _live[widget.capybara.id] = _displayPos;
     _idleBob = AnimationController(
       vsync: this,
       duration: CapyWalk.idlePeriod(_sheet, widget.capybara.id),
@@ -174,12 +186,12 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
           _walkCycle.value = 0;
           _walkFrom = null;
           _walkTo = null;
-          CapyWander.livePositions[widget.capybara.id] = _displayPos;
+          _live[widget.capybara.id] = _displayPos;
           widget.onDropPosition(widget.capybara.id, _displayPos);
           _scheduleWander(CapyWander.pauseBetweenWalks(_rng.nextDouble));
           return;
         }
-        CapyWander.livePositions[widget.capybara.id] = next;
+        _live[widget.capybara.id] = next;
         if (mounted) setState(() => _displayPos = next);
       })
       ..addStatusListener((status) {
@@ -200,7 +212,7 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
     if (widget.isWallowing && !oldWidget.isWallowing) {
       _cancelWalk(commit: false);
       _displayPos = widget.capybara.position;
-      CapyWander.livePositions[widget.capybara.id] = _displayPos;
+      _live[widget.capybara.id] = _displayPos;
     }
     if (widget.mergeFlash && !oldWidget.mergeFlash) {
       _cancelWalk(commit: false);
@@ -223,7 +235,7 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
     final posMoved = widget.capybara.position != oldWidget.capybara.position;
     if (!_walking && !_dragging && posMoved) {
       _displayPos = widget.capybara.position;
-      CapyWander.livePositions[widget.capybara.id] = _displayPos;
+      _live[widget.capybara.id] = _displayPos;
     }
     final wallowEnded = oldWidget.isWallowing && !widget.isWallowing;
     final mudMoved = widget.mudCenter != oldWidget.mudCenter;
@@ -247,8 +259,8 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
   }
 
   /// Snap off the painted wood ring and the hint chip. Peers already in
-  /// [CapyWander.livePositions] keep the grass gap, so a herd leaving the
-  /// same disc does not restack.
+  /// [MeadowDraggableCapybara.livePositions] keep the grass gap, so a herd
+  /// leaving the same disc does not restack.
   void _escapeForbiddenGround() {
     if (!mounted || _dragging || widget.isWallowing || widget.mergeFlash) {
       return;
@@ -291,14 +303,14 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
     }
     if (blocked(dest) || (dest - _displayPos).distance < 0.008) return;
     _displayPos = dest;
-    CapyWander.livePositions[widget.capybara.id] = dest;
+    _live[widget.capybara.id] = dest;
     widget.onDropPosition(widget.capybara.id, dest);
     if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
-    CapyWander.livePositions.remove(widget.capybara.id);
+    _live.remove(widget.capybara.id);
     _wanderTimer?.cancel();
     _idleBob.dispose();
     _walkCycle.dispose();
@@ -343,7 +355,7 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
     final widths = <double>[];
     for (final c in widget.herd) {
       if (c.id == widget.capybara.id) continue;
-      positions.add(CapyWander.livePositions[c.id] ?? c.position);
+      positions.add(_live[c.id] ?? c.position);
       widths.add(BalanceV0.capySizeForLevel(c.level));
     }
     return (positions: positions, widths: widths);
@@ -407,7 +419,7 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
     _walkFrom = null;
     _walkTo = null;
     _displayPos = dest;
-    CapyWander.livePositions[widget.capybara.id] = dest;
+    _live[widget.capybara.id] = dest;
     // Persist like drag-end (clamped inside controller).
     widget.onDropPosition(widget.capybara.id, dest);
     _scheduleWander(CapyWander.pauseBetweenWalks(_rng.nextDouble));
@@ -424,7 +436,7 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
         widget.onDropPosition(widget.capybara.id, _displayPos);
       } else {
         _displayPos = widget.capybara.position;
-        CapyWander.livePositions[widget.capybara.id] = _displayPos;
+        _live[widget.capybara.id] = _displayPos;
       }
       _walkFrom = null;
       _walkTo = null;
@@ -436,14 +448,14 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
 
   Offset _normalizedFromFeedbackTopLeft(Offset feedbackTopLeft) {
     final footprint = _footprint;
-    final local = feedbackTopLeft - widget.meadowOriginGlobal;
+    final local = feedbackTopLeft - widget.meadowOriginGlobal();
     final nx = (local.dx + footprint.width / 2) / widget.meadowSize.width;
     final ny = (local.dy + footprint.height / 2) / widget.meadowSize.height;
     return Offset(nx, ny);
   }
 
   Offset _normalizedFromPointer(Offset globalPointer) {
-    final local = globalPointer - widget.meadowOriginGlobal;
+    final local = globalPointer - widget.meadowOriginGlobal();
     return Offset(
       local.dx / widget.meadowSize.width,
       local.dy / widget.meadowSize.height,
@@ -571,7 +583,7 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
       }
     }
     _displayPos = normalized;
-    CapyWander.livePositions[widget.capybara.id] = normalized;
+    _live[widget.capybara.id] = normalized;
     widget.onDropPosition(widget.capybara.id, normalized);
     _scheduleWander(CapyWander.pauseBetweenWalks(_rng.nextDouble));
   }
@@ -644,72 +656,75 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
     return Positioned(
       left: left,
       top: top,
-      child: GestureDetector(
-        onLongPress: widget.onLongPress,
-        child: DragTarget<String>(
-          onWillAcceptWithDetails: (details) =>
-              details.data != widget.capybara.id,
-          onAcceptWithDetails: (details) {
-            final ok = widget.onMerge(details.data, widget.capybara.id);
-            if (ok) HapticFeedback.mediumImpact();
-          },
-          builder: (context, candidate, _) {
-            final highlight = candidate.isNotEmpty || magnetHighlight;
-            return Draggable<String>(
-              data: widget.capybara.id,
-              feedback: Transform.translate(
-                offset: _pullOffset,
-                child: Material(
-                  color: Colors.transparent,
-                  child: Opacity(
-                    opacity: 0.92,
-                    child: CapybaraPlaceholder(
-                      level: widget.capybara.level,
-                      role: widget.capybara.role,
-                      walkFrame: 0,
-                      compactLabel: false,
+      // Bob and walk repaint this capy only (spec 002, Т8).
+      child: RepaintBoundary(
+        child: GestureDetector(
+          onLongPress: widget.onLongPress,
+          child: DragTarget<String>(
+            onWillAcceptWithDetails: (details) =>
+                details.data != widget.capybara.id,
+            onAcceptWithDetails: (details) {
+              final ok = widget.onMerge(details.data, widget.capybara.id);
+              if (ok) HapticFeedback.mediumImpact();
+            },
+            builder: (context, candidate, _) {
+              final highlight = candidate.isNotEmpty || magnetHighlight;
+              return Draggable<String>(
+                data: widget.capybara.id,
+                feedback: Transform.translate(
+                  offset: _pullOffset,
+                  child: Material(
+                    color: Colors.transparent,
+                    child: Opacity(
+                      opacity: 0.92,
+                      child: CapybaraPlaceholder(
+                        level: widget.capybara.level,
+                        role: widget.capybara.role,
+                        walkFrame: 0,
+                        compactLabel: false,
+                      ),
                     ),
                   ),
                 ),
-              ),
-              childWhenDragging: Opacity(
-                opacity: 0.22,
-                child: CapybaraPlaceholder(
-                  level: widget.capybara.level,
-                  role: widget.capybara.role,
-                  walkFrame: 0,
-                  compactLabel: true,
+                childWhenDragging: Opacity(
+                  opacity: 0.22,
+                  child: CapybaraPlaceholder(
+                    level: widget.capybara.level,
+                    role: widget.capybara.role,
+                    walkFrame: 0,
+                    compactLabel: true,
+                  ),
                 ),
-              ),
-              onDragStarted: _onDragStarted,
-              onDragUpdate: _onDragUpdate,
-              onDragEnd: _onDragEnd,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 120),
-                decoration: highlight
-                    ? BoxDecoration(
-                        borderRadius: BorderRadius.circular(20),
-                        border: magnetHighlight
-                            ? Border.all(
-                                color: const Color(0xFFFFD54F),
-                                width: 2.5,
-                              )
-                            : null,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.amber.withValues(
-                              alpha: magnetHighlight ? 0.85 : 0.55,
+                onDragStarted: _onDragStarted,
+                onDragUpdate: _onDragUpdate,
+                onDragEnd: _onDragEnd,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 120),
+                  decoration: highlight
+                      ? BoxDecoration(
+                          borderRadius: BorderRadius.circular(20),
+                          border: magnetHighlight
+                              ? Border.all(
+                                  color: const Color(0xFFFFD54F),
+                                  width: 2.5,
+                                )
+                              : null,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.amber.withValues(
+                                alpha: magnetHighlight ? 0.85 : 0.55,
+                              ),
+                              blurRadius: magnetHighlight ? 26 : 16,
+                              spreadRadius: magnetHighlight ? 5 : 2,
                             ),
-                            blurRadius: magnetHighlight ? 26 : 16,
-                            spreadRadius: magnetHighlight ? 5 : 2,
-                          ),
-                        ],
-                      )
-                    : null,
-                child: visual,
-              ),
-            );
-          },
+                          ],
+                        )
+                      : null,
+                  child: visual,
+                ),
+              );
+            },
+          ),
         ),
       ),
     );

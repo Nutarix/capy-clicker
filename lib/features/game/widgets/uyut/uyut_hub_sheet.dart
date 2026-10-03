@@ -6,10 +6,14 @@ import '../../../../widgets/cozy_pixel_button.dart';
 import '../../controllers/game_controller.dart';
 import '../../models/balance.dart';
 import '../../models/multipliers/multipliers.dart';
+import '../game_selector.dart';
 import 'multiplier_icon.dart';
 import '../home_meadow_scene.dart';
 
 /// Bottom sheet «Уют» with tabs: Еда / Роли / Дом / Исследования.
+///
+/// The sheet rebuilds on a tab switch. Each tab listens to what it shows
+/// and rebuilds only when that changes, not on every game tick (spec 002, Т7).
 class UyutHubSheet extends StatefulWidget {
   const UyutHubSheet({
     super.key,
@@ -59,7 +63,6 @@ class _UyutHubSheetState extends State<UyutHubSheet>
       initialIndex: widget.initialTab.clamp(0, 3),
     );
     _tabs.addListener(_onChanged);
-    c.addListener(_onChanged);
   }
 
   void _onChanged() {
@@ -67,18 +70,17 @@ class _UyutHubSheetState extends State<UyutHubSheet>
   }
 
   /// Only the selected tab is built, so Еда cannot sit under Дом.
-  Widget _tabBody(bool permanentUnlocked) {
+  Widget _tabBody() {
     return switch (_tabs.index) {
       0 => _FoodTab(controller: c),
       1 => _RolesTab(controller: c, focusCapyId: widget.focusCapyId),
-      2 => _DecorTab(controller: c, softLocked: !permanentUnlocked),
-      _ => _ResearchTab(controller: c, softLocked: !permanentUnlocked),
+      2 => _DecorTab(controller: c),
+      _ => _ResearchTab(controller: c),
     };
   }
 
   @override
   void dispose() {
-    c.removeListener(_onChanged);
     _tabs.removeListener(_onChanged);
     _tabs.dispose();
     super.dispose();
@@ -86,9 +88,6 @@ class _UyutHubSheetState extends State<UyutHubSheet>
 
   @override
   Widget build(BuildContext context) {
-    final state = c.state;
-    // Soft-gate permanent layers until Ягодная поляна (announced ≥ 1).
-    final permanentUnlocked = state.sunnyGladeAnnounced >= 1;
     final height = MediaQuery.sizeOf(context).height * 0.72;
     return SafeArea(
       child: Padding(
@@ -132,7 +131,7 @@ class _UyutHubSheetState extends State<UyutHubSheet>
                     const Tab(height: 48, child: _HubTabLabel('Наука')),
                   ],
                 ),
-                Expanded(child: _tabBody(permanentUnlocked)),
+                Expanded(child: _tabBody()),
               ],
             ),
           ),
@@ -174,6 +173,14 @@ class _FoodTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return GameSelector<bool>(
+      listenable: controller,
+      select: () => controller.canFeedSelected,
+      builder: (context, canFeed) => _list(canFeed),
+    );
+  }
+
+  Widget _list(bool canFeed) {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
       children: [
@@ -192,7 +199,7 @@ class _FoodTab extends StatelessWidget {
         CozyPixelButton(
           label: 'Покормить семью',
           expand: true,
-          onPressed: controller.canFeedSelected
+          onPressed: canFeed
               ? () {
                   HapticFeedback.mediumImpact();
                   controller.feedFamily();
@@ -276,6 +283,18 @@ class _RolesTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return GameSelector<(bool, bool, bool)>(
+      listenable: controller,
+      select: () => (
+        _held(CapyRole.nanya),
+        _held(CapyRole.sobiratel),
+        _held(CapyRole.storozh),
+      ),
+      builder: (context, _) => _list(),
+    );
+  }
+
+  Widget _list() {
     final any = CapyRole.values.any(_held);
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
@@ -366,13 +385,32 @@ class _RoleCard extends StatelessWidget {
 }
 
 class _DecorTab extends StatelessWidget {
-  const _DecorTab({required this.controller, this.softLocked = false});
+  const _DecorTab({required this.controller});
   final GameController controller;
-  final bool softLocked;
 
   @override
   Widget build(BuildContext context) {
+    return GameSelector<(Set<String>, Set<String>, Set<String>, int, int, int)>(
+      listenable: controller,
+      select: () {
+        final state = controller.state;
+        return (
+          state.ownedDecor,
+          state.placedDecor,
+          state.researched,
+          state.grass,
+          state.uyut,
+          state.sunnyGladeAnnounced,
+        );
+      },
+      builder: (context, _) => _scene(),
+    );
+  }
+
+  Widget _scene() {
     final state = controller.state;
+    // Soft-gate permanent layers until Ягодная поляна (announced ≥ 1).
+    final softLocked = state.sunnyGladeAnnounced < 1;
     // One next buy, on the spot it will occupy. Empty places stay grass.
     final open = [
       for (final decor in HomeDecor.values)
@@ -435,9 +473,8 @@ class _DecorTab extends StatelessWidget {
 }
 
 class _ResearchTab extends StatelessWidget {
-  const _ResearchTab({required this.controller, this.softLocked = false});
+  const _ResearchTab({required this.controller});
   final GameController controller;
-  final bool softLocked;
 
   static const _icons = <String, String>{
     'more_flowers': 'assets/images/ui/icon_science_flowers.png',
@@ -452,6 +489,24 @@ class _ResearchTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return GameSelector<(Set<String>, int, int, int)>(
+      listenable: controller,
+      select: () {
+        final state = controller.state;
+        return (
+          state.researched,
+          state.grass,
+          state.uyut,
+          state.sunnyGladeAnnounced,
+        );
+      },
+      builder: (context, _) => _grid(),
+    );
+  }
+
+  Widget _grid() {
+    // Soft-gate permanent layers until Ягодная поляна (announced ≥ 1).
+    final softLocked = controller.state.sunnyGladeAnnounced < 1;
     final nodes = UyutResearch.all;
     return Column(
       children: [

@@ -13,6 +13,8 @@ import 'package:capy_clicker/features/game/models/session_goals.dart';
 import 'package:capy_clicker/features/game/models/world_zones.dart';
 import 'package:capy_clicker/features/game/persistence/game_persistence.dart';
 
+import 'support/fingerprint.dart';
+
 /// Headless player-perspective session for Game Lead playtest report.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -33,6 +35,7 @@ void main() {
         autoTick: false,
       );
       await c.init();
+      final fp = Fingerprint('sim_player_session')..mark('init', c);
 
       var simSeconds = 0.0;
       var flowerCd = 0.0;
@@ -85,6 +88,7 @@ void main() {
       // ~25 min active play probing full horizon.
       while (simSeconds < 1500) {
         step(0.25);
+        if ((simSeconds * 4).round() % 480 == 0) fp.mark('t=$simSeconds', c);
 
         if (c.goalCompleteToast != null) {
           final g = SessionGoals.at(c.state.sessionGoalIndex);
@@ -222,6 +226,27 @@ void main() {
       }
 
       snap('end');
+      fp
+        ..mark(
+          'end',
+          c,
+          extra: {
+            'milestones': milestones,
+            'goalHits': goalHits,
+            'snapshots': snapshots,
+            'counts': [
+              feeds,
+              placeActs,
+              roles,
+              decorBuys,
+              researchUnlocks,
+              calls,
+              boosts,
+              merges,
+            ],
+          },
+        )
+        ..verify();
 
       // ignore: avoid_print
       print('PLAYER_SIM milestones=$milestones');

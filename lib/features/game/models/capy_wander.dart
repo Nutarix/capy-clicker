@@ -56,10 +56,6 @@ abstract final class CapyWander {
   static const double sheetPixelWidth = 256;
   static const double sheetPixelHeight = 188;
 
-  /// Latest displayed anchor per capy so a walk does not cut through a peer
-  /// that has not persisted its destination yet.
-  static final Map<String, Offset> livePositions = {};
-
   /// Пень — center disc kept for callers; the body test uses the card rect.
   static const double stumpRadius = 0.078;
 
