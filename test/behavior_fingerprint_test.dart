@@ -35,7 +35,8 @@ void main() {
 
   testWidgets('scripted session', (tester) async {
     final fp = Fingerprint('session');
-    var clock = DateTime(2026, 9, 22, 9, 0, 0);
+    // UTC: the golden was taken at 09:00 UTC+3; same instant on any machine.
+    var clock = DateTime.utc(2026, 9, 22, 6, 0, 0);
     DateTime now() => clock;
     final persistence = GamePersistence();
 
@@ -376,7 +377,8 @@ void main() {
 
   testWidgets('save store: legacy, broken, copy', (tester) async {
     final fp = Fingerprint('save_store');
-    var clock = DateTime(2026, 9, 23, 8, 0, 0);
+    // UTC: the golden was taken at 08:00 UTC+3; same instant on any machine.
+    var clock = DateTime.utc(2026, 9, 23, 5, 0, 0);
     DateTime now() => clock;
     SharedPreferences.setMockInitialValues({
       key:
@@ -432,7 +434,8 @@ void main() {
   testWidgets('live tick on fake time', (tester) async {
     final fp = Fingerprint('live_tick');
     final start = tester.binding.clock.now();
-    final base = DateTime(2026, 9, 22, 12);
+    // UTC: the golden was taken at 12:00 UTC+3; same instant on any machine.
+    final base = DateTime.utc(2026, 9, 22, 9);
     DateTime now() => base.add(tester.binding.clock.now().difference(start));
     final c = GameController(
       persistence: GamePersistence(),
