@@ -88,7 +88,7 @@ glade chip is enough for orientation.
 | `sunny_clearing` | `bg_sunny_clearing.png` | Солнечный прогал |
 | `great_meadow` | `bg_great_meadow.png` | Большой луг |
 | `mist_edge` | `bg_misty_woods.png` | Туманный бор |
-| *(unknown)* | `bg_forest.png` | legacy fallback only |
+| *(unknown)* | `bg_warm_edge.png` | запасной фон (fallback) |
 
 API: `WorldZones.backgroundAssetForMeadow(id)`.
 `MeadowBackground(meadowId: …)` берёт активный id из `GameState.activeMeadowId`

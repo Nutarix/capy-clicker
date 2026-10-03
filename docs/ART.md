@@ -49,7 +49,7 @@ fallback для float-текста / снекбаров.
 | `bg_sunny_clearing.png` | Солнечный прогал (`sunny_clearing`) |
 | `bg_great_meadow.png` | Большой луг (`great_meadow`) |
 | `bg_misty_woods.png` | Туманный бор / `mist_edge` |
-| `bg_forest.png` | **только fallback** (ошибка загрузки / неизвестный id) |
+| — | запасной фон (ошибка загрузки / неизвестный id) — `bg_warm_edge.png`; отдельного `bg_forest.png` больше нет |
 
 Выбор ассета: `WorldZones.backgroundAssetForMeadow(meadowId)` → `MeadowBackground`
 (crossfade ~400 ms).

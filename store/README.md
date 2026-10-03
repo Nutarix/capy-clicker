@@ -10,7 +10,6 @@ captures before store submit.
 |---|---|
 | Status | **Finalized** — approved source wired in |
 | Canonical file | `store/icon/app_icon.png` (1024×1024 PNG) |
-| In-app asset | `assets/images/app_icon.png` (same bytes) |
 | Shape | Soft rounded meadow / cream frame |
 | Hero | Friendly pixel-ish capybara face |
 | Accent | Tiny flowers on grass |
@@ -26,7 +25,7 @@ dart run flutter_launcher_icons
 ```
 
 That refreshes Android mipmaps / adaptive icons and iOS `AppIcon.appiconset`.
-Replace `store/icon/app_icon.png` (and copy to `assets/images/app_icon.png`) before re-running if the art changes.
+Replace `store/icon/app_icon.png` before re-running if the art changes. The game itself does not bundle the icon as an asset.
 
 ## Screenshots (v1 placeholders)
 

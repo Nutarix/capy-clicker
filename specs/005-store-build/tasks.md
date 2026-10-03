@@ -4,8 +4,8 @@
 
 ## Размер
 
-- [ ] **Ш1. Запасной фон (Т9).** Тест: запасной фон — `bg_warm_edge.png` и он есть в ассетах. Код: `WorldZones.fallbackBackgroundAsset`; `bg_forest.png` из ассетов и `pubspec`; документы.
-- [ ] **Ш2. Иконка вне ассетов (Т8).** Удалить `assets/images/app_icon.png` и строку в `pubspec`; `store/README.md`.
+- [x] **Ш1. Запасной фон (Т9).** Тест: запасной фон — `bg_warm_edge.png` и он есть в ассетах. Код: `WorldZones.fallbackBackgroundAsset`; `bg_forest.png` из ассетов и `pubspec`; документы.
+- [x] **Ш2. Иконка вне ассетов (Т8).** Удалить `assets/images/app_icon.png` и строку в `pubspec`; `store/README.md`.
 
 ## Шрифты
 
@@ -19,11 +19,11 @@
 
 ## Репозиторий
 
-- [ ] **Ш7. Сборки вне git (Т11).** `.gitignore`: `*.apk`, `*.aab`, `*.ipa`; удалить `.apk.sha256`.
-- [ ] **Ш8. CI (Т10).** `.github/workflows/ci.yml`.
+- [x] **Ш7. Сборки вне git (Т11).** `.gitignore`: `*.apk`, `*.aab`, `*.ipa`; удалить `.apk.sha256`.
+- [x] **Ш8. CI (Т10).** `.github/workflows/ci.yml`.
 - [ ] **Ш9. Веб (Т13).** Цвета `manifest.json`, `favicon.png`, `web/icons/*` из иконки игры.
 - [ ] **Ш10. Политика (Т14).** `site/index.html`, `.github/workflows/pages.yml`, ссылка в `RELEASE.md`.
-- [ ] **Ш11. Лицензия (Т15).** `LICENSE`.
+- [x] **Ш11. Лицензия (Т15).** `LICENSE`.
 
 ## Сдача
 

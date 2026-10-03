@@ -31,7 +31,7 @@
 7. **Без footer** — credit «сделано с теплом · Nutarix» скрыт / убран с title screen.
 8. **Мягкие scrim/gradient** — subtle darkening за title (читаемость) и в нижней
    трети (ground anchor); не тяжёлый vignette.
-9. **Атмосферный forest BG** — `bg_forest` на весь экран; на desktop/web UI живёт в
+9. **Атмосферный BG** — фон поляны (`bg_warm_edge`) на весь экран; на desktop/web UI живёт в
    full-height **9:16** колонке по центру; боковые поля — forest blur + soft green wash
    (не тёмный letterbox и не phone bezel).
 10. **Без phone chrome на меню** — никакого толстого phone frame / тёмного letterbox на

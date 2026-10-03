@@ -8,7 +8,7 @@
 - Portrait PNG скопированы в `assets/images/` и зарегистрированы в `pubspec.yaml`.
 - `WorldZones.backgroundAssetForMeadow` возвращает верный ключ для всех 4 Sunny
   Glades + `mist_edge` → `bg_misty_woods.png`.
-- Неизвестный id → только `bg_forest.png` (fallback).
+- Неизвестный id → запасной фон `bg_warm_edge.png` (до 005 — `bg_forest.png`).
 - `MeadowBackground` получает `meadowId` из `GameState.activeMeadowId` на
   игровом экране; меню/лоадер — `warm_edge` по умолчанию.
 - Crossfade `AnimatedSwitcher` ~400 ms при смене id.
@@ -38,7 +38,7 @@
 
 - Spend-pill accent-цвета убраны в пользу единого secondary cozy-стиля (без
   Material InkWell).
-- При ошибке загрузки zone-PNG `MeadowBackground` пробует `bg_forest`, затем
+- При ошибке загрузки zone-PNG `MeadowBackground` пробует запасной `bg_warm_edge`, затем
   градиент-fallback — старый лес не ломает старт.
 
 ## Вне скоупа

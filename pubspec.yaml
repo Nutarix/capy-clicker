@@ -62,7 +62,6 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/images/bg_forest.png
     - assets/images/bg_warm_edge.png
     - assets/images/bg_berry_glade.png
     - assets/images/bg_sunny_clearing.png
@@ -73,7 +72,6 @@ flutter:
     - assets/images/flower.png
     - assets/images/mud.png
     - assets/images/berry_basket.png
-    - assets/images/app_icon.png
     - assets/images/role_nanny.png
     - assets/images/role_gatherer.png
     - assets/images/role_guard.png
