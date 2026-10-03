@@ -19,8 +19,8 @@ import '../meadow_decor.dart';
 import '../mud_puddle.dart';
 import '../placed_home_decor.dart';
 import '../quiet_merge_arc.dart';
-import '../uyut/cozy_place_marker.dart';
 import '../uyut/uyut_hub_sheet.dart';
+import 'place_slot.dart';
 
 /// What the meadow shows. Rebuilt only when one of these changes (spec 002,
 /// Т6): not on a tick that moved the bar alone.
@@ -285,7 +285,7 @@ class _MeadowLayerState extends State<MeadowLayer> {
                   left: props.places[kind]!.dx * w - 36,
                   top: props.places[kind]!.dy * h - 32,
                   child: RepaintBoundary(
-                    child: _PlaceSlot(
+                    child: PlaceSlot(
                       controller: _controller,
                       kind: kind,
                       onTap: () {
@@ -321,7 +321,7 @@ class _MeadowLayerState extends State<MeadowLayer> {
                     ),
                   ),
                 ),
-              if (_mergePair(herd, Size(w, h)) case final pair?)
+              if (QuietMergeArc.pairFor(herd, Size(w, h)) case final pair?)
                 QuietMergeArc(from: pair.$1, to: pair.$2),
               for (final capy in herd)
                 _capy(capy, view, meadowKey, Size(w, h), props),
@@ -398,75 +398,6 @@ class _MeadowLayerState extends State<MeadowLayer> {
         if (_magnetAttractedId == id) return;
         setState(() => _magnetAttractedId = id);
       },
-    );
-  }
-
-  /// Dotted arc for a same-level pair that is close, but not stacked.
-  ///
-  /// Magnet snap stays at [GameController.effectiveMagnetRadius]. The arc
-  /// uses sprite pixels so a grass gap still reads, and a pile does not.
-  static (Offset, Offset)? _mergePair(List<Capybara> herd, Size meadow) {
-    (Offset, Offset)? best;
-    var bestDist = double.infinity;
-    final minPx = BalanceV0.baseCapySize * 0.95;
-    final maxPx = BalanceV0.baseCapySize * 2.6;
-    final min2 = minPx * minPx;
-    final max2 = maxPx * maxPx;
-    for (var i = 0; i < herd.length; i++) {
-      for (var j = i + 1; j < herd.length; j++) {
-        final a = herd[i];
-        final b = herd[j];
-        if (a.level != b.level) continue;
-        final dx = (a.position.dx - b.position.dx) * meadow.width;
-        final dy = (a.position.dy - b.position.dy) * meadow.height;
-        final dist2 = dx * dx + dy * dy;
-        if (dist2 < min2 || dist2 > max2) continue;
-        if (dist2 < bestDist) {
-          bestDist = dist2;
-          best = (a.position, b.position);
-        }
-      }
-    }
-    return best;
-  }
-}
-
-/// One cozy place marker. Rebuilds when it turns on or off, its cooldown
-/// starts or ends, or the seconds on it change — not every tick.
-class _PlaceSlot extends StatelessWidget {
-  const _PlaceSlot({
-    required this.controller,
-    required this.kind,
-    required this.onTap,
-  });
-
-  final GameController controller;
-  final CozyPlaceKind kind;
-  final VoidCallback onTap;
-
-  /// The marker shows `ceil()` seconds above 0.4 s; below it, nothing.
-  (bool, bool, int) _view() {
-    final cooling = controller.isPlaceOnCooldown(kind);
-    final left = controller.placeCooldownRemaining(kind);
-    return (
-      controller.activePlaceBoost == kind,
-      cooling,
-      cooling && left > 0.4 ? left.ceil() : 0,
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return GameSelector<(bool, bool, int)>(
-      listenable: controller,
-      select: _view,
-      builder: (context, view) => CozyPlaceMarker(
-        kind: kind,
-        active: view.$1,
-        onCooldown: view.$2,
-        cooldownSeconds: controller.placeCooldownRemaining(kind),
-        onTap: onTap,
-      ),
     );
   }
 }
