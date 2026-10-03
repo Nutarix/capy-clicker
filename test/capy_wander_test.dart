@@ -182,6 +182,49 @@ void main() {
       expect(WorldZones.clampToMeadow(p, herdCount: 3), p);
     });
 
+    testWidgets('live positions live in the table the meadow hands over', (
+      tester,
+    ) async {
+      // Spec 002, Т11: no global table; a new screen starts with a new one.
+      final live = <String, Offset>{};
+      final capy = Capybara(
+        id: 'live-c',
+        level: 1,
+        position: const Offset(0.5, 0.7),
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 360,
+              height: 640,
+              child: Stack(
+                children: [
+                  MeadowDraggableCapybara(
+                    capybara: capy,
+                    herd: [capy],
+                    herdCount: 1,
+                    meadowSize: const Size(360, 640),
+                    meadowOriginGlobal: () => Offset.zero,
+                    onMerge: (a, b) => false,
+                    onDropPosition: (id, p) {},
+                    onMudDrop: (_) => false,
+                    isOverMud: (_) => false,
+                    livePositions: live,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      expect(live.keys, ['live-c']);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+      expect(live, isEmpty, reason: 'a capy leaving the meadow drops out');
+    });
+
     testWidgets('FlowerDot and CozyPlaceMarker dispose idle controllers', (
       tester,
     ) async {

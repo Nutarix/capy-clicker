@@ -41,6 +41,7 @@ class MeadowDraggableCapybara extends StatefulWidget {
     this.placeAt,
     this.onLongPress,
     this.mudCenter,
+    this.livePositions,
   });
 
   final Capybara capybara;
@@ -90,6 +91,11 @@ class MeadowDraggableCapybara extends StatefulWidget {
   /// Live puddle center, so wander does not park a body on the stump-top.
   final Offset? mudCenter;
 
+  /// Latest displayed anchor per capy, shared by the meadow's family, so a
+  /// walk does not cut through a peer that has not persisted its destination
+  /// yet. Owned by the meadow (one per game screen). Null: this capy only.
+  final Map<String, Offset>? livePositions;
+
   @override
   State<MeadowDraggableCapybara> createState() =>
       _MeadowDraggableCapybaraState();
@@ -127,6 +133,10 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
   Timer? _wanderTimer;
   bool _escapeScheduled = false;
 
+  final Map<String, Offset> _ownLivePositions = {};
+
+  Map<String, Offset> get _live => widget.livePositions ?? _ownLivePositions;
+
   double get _bodyWidth => BalanceV0.capySizeForLevel(widget.capybara.level);
 
   Size get _footprint {
@@ -151,7 +161,7 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
   void initState() {
     super.initState();
     _displayPos = widget.capybara.position;
-    CapyWander.livePositions[widget.capybara.id] = _displayPos;
+    _live[widget.capybara.id] = _displayPos;
     _idleBob = AnimationController(
       vsync: this,
       duration: CapyWalk.idlePeriod(_sheet, widget.capybara.id),
@@ -176,12 +186,12 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
           _walkCycle.value = 0;
           _walkFrom = null;
           _walkTo = null;
-          CapyWander.livePositions[widget.capybara.id] = _displayPos;
+          _live[widget.capybara.id] = _displayPos;
           widget.onDropPosition(widget.capybara.id, _displayPos);
           _scheduleWander(CapyWander.pauseBetweenWalks(_rng.nextDouble));
           return;
         }
-        CapyWander.livePositions[widget.capybara.id] = next;
+        _live[widget.capybara.id] = next;
         if (mounted) setState(() => _displayPos = next);
       })
       ..addStatusListener((status) {
@@ -202,7 +212,7 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
     if (widget.isWallowing && !oldWidget.isWallowing) {
       _cancelWalk(commit: false);
       _displayPos = widget.capybara.position;
-      CapyWander.livePositions[widget.capybara.id] = _displayPos;
+      _live[widget.capybara.id] = _displayPos;
     }
     if (widget.mergeFlash && !oldWidget.mergeFlash) {
       _cancelWalk(commit: false);
@@ -225,7 +235,7 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
     final posMoved = widget.capybara.position != oldWidget.capybara.position;
     if (!_walking && !_dragging && posMoved) {
       _displayPos = widget.capybara.position;
-      CapyWander.livePositions[widget.capybara.id] = _displayPos;
+      _live[widget.capybara.id] = _displayPos;
     }
     final wallowEnded = oldWidget.isWallowing && !widget.isWallowing;
     final mudMoved = widget.mudCenter != oldWidget.mudCenter;
@@ -249,8 +259,8 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
   }
 
   /// Snap off the painted wood ring and the hint chip. Peers already in
-  /// [CapyWander.livePositions] keep the grass gap, so a herd leaving the
-  /// same disc does not restack.
+  /// [MeadowDraggableCapybara.livePositions] keep the grass gap, so a herd
+  /// leaving the same disc does not restack.
   void _escapeForbiddenGround() {
     if (!mounted || _dragging || widget.isWallowing || widget.mergeFlash) {
       return;
@@ -293,14 +303,14 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
     }
     if (blocked(dest) || (dest - _displayPos).distance < 0.008) return;
     _displayPos = dest;
-    CapyWander.livePositions[widget.capybara.id] = dest;
+    _live[widget.capybara.id] = dest;
     widget.onDropPosition(widget.capybara.id, dest);
     if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
-    CapyWander.livePositions.remove(widget.capybara.id);
+    _live.remove(widget.capybara.id);
     _wanderTimer?.cancel();
     _idleBob.dispose();
     _walkCycle.dispose();
@@ -345,7 +355,7 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
     final widths = <double>[];
     for (final c in widget.herd) {
       if (c.id == widget.capybara.id) continue;
-      positions.add(CapyWander.livePositions[c.id] ?? c.position);
+      positions.add(_live[c.id] ?? c.position);
       widths.add(BalanceV0.capySizeForLevel(c.level));
     }
     return (positions: positions, widths: widths);
@@ -409,7 +419,7 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
     _walkFrom = null;
     _walkTo = null;
     _displayPos = dest;
-    CapyWander.livePositions[widget.capybara.id] = dest;
+    _live[widget.capybara.id] = dest;
     // Persist like drag-end (clamped inside controller).
     widget.onDropPosition(widget.capybara.id, dest);
     _scheduleWander(CapyWander.pauseBetweenWalks(_rng.nextDouble));
@@ -426,7 +436,7 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
         widget.onDropPosition(widget.capybara.id, _displayPos);
       } else {
         _displayPos = widget.capybara.position;
-        CapyWander.livePositions[widget.capybara.id] = _displayPos;
+        _live[widget.capybara.id] = _displayPos;
       }
       _walkFrom = null;
       _walkTo = null;
@@ -573,7 +583,7 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
       }
     }
     _displayPos = normalized;
-    CapyWander.livePositions[widget.capybara.id] = normalized;
+    _live[widget.capybara.id] = normalized;
     widget.onDropPosition(widget.capybara.id, normalized);
     _scheduleWander(CapyWander.pauseBetweenWalks(_rng.nextDouble));
   }

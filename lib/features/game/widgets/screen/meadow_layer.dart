@@ -73,6 +73,10 @@ class _MeadowLayerState extends State<MeadowLayer> {
   /// Soft first-appearance hint on berry basket (session).
   bool _berryHintSeen = false;
 
+  /// Where each capy is drawn right now (mid-walk too). Belongs to this
+  /// meadow: a new game screen starts with an empty one (spec 002, Т11).
+  final Map<String, Offset> _livePositions = {};
+
   /// Colors paired with [WorldZones.flowerPositions] (meadow grass only).
   static const _flowerColors = <Color>[
     Color(0xFFE87AA0),
@@ -345,6 +349,7 @@ class _MeadowLayerState extends State<MeadowLayer> {
         return null;
       },
       mudCenter: view.mud,
+      livePositions: _livePositions,
       onPlaceDrop: (id, kind) {
         unawaited(_audio.noteUserGesture());
         final ok = _controller.tryActivatePlace(
