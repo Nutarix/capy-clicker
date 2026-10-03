@@ -21,7 +21,7 @@
 
 - [x] **Ш7. Сборки вне git (Т11).** `.gitignore`: `*.apk`, `*.aab`, `*.ipa`; удалить `.apk.sha256`.
 - [x] **Ш8. CI (Т10).** `.github/workflows/ci.yml`.
-- [ ] **Ш9. Веб (Т13).** Цвета `manifest.json`, `favicon.png`, `web/icons/*` из иконки игры.
+- [x] **Ш9. Веб (Т13).** Цвета `manifest.json`, `favicon.png`, `web/icons/*` из иконки игры.
 - [x] **Ш10. Политика (Т14).** `site/index.html`, `.github/workflows/pages.yml`, ссылка в `RELEASE.md`.
 - [x] **Ш11. Лицензия (Т15).** `LICENSE`.
 
