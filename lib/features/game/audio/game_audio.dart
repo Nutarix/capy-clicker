@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Uses [audioplayers]. On Flutter **web**, browsers block autoplay until a
 /// user gesture — call [noteUserGesture] after the first tap/drag so BGM can
 /// start. Mute preference is persisted and silences both BGM and SFX.
+/// In background ([setInBackground]) everything is quiet regardless of mute.
 class GameAudio extends ChangeNotifier {
   GameAudio({this.silent = false, this._prefs, this._bgm, this._sfx});
 
@@ -41,9 +42,11 @@ class GameAudio extends ChangeNotifier {
   bool _bgmStarted = false;
   bool _userGestureSeen = false;
   bool _available = true;
+  bool _inBackground = false;
 
   bool get isReady => _ready;
   bool get isMuted => _muted;
+  bool get isInBackground => _inBackground;
   bool get isAvailable => _available && !silent;
 
   /// Load mute preference and prepare players (no autoplay on web).
@@ -83,7 +86,9 @@ class GameAudio extends ChangeNotifier {
 
   /// Call after any player interaction (tap / drag). Required for web BGM.
   Future<void> noteUserGesture() async {
-    if (silent || forceSilent || !_available || !_ready) return;
+    if (silent || forceSilent || !_available || !_ready || _inBackground) {
+      return;
+    }
     _userGestureSeen = true;
     if (_muted || _bgmStarted) return;
     await _startBgm();
@@ -91,6 +96,7 @@ class GameAudio extends ChangeNotifier {
 
   Future<void> _startBgm() async {
     if (silent || forceSilent || !_available || _bgm == null || _muted) return;
+    if (_inBackground) return;
     try {
       await _bgm!.setVolume(defaultBgmVolume);
       // resume if already setSource; else play
@@ -143,6 +149,24 @@ class GameAudio extends ChangeNotifier {
 
   Future<void> toggleMute() => setMuted(!_muted);
 
+  /// App hidden / shown. Hidden: music paused, effects silent. Shown: music
+  /// goes on unless muted (on web — only after the first gesture, as before).
+  Future<void> setInBackground(bool value) async {
+    if (_inBackground == value) return;
+    _inBackground = value;
+    if (silent || forceSilent || !_available) return;
+    try {
+      if (value) {
+        await _bgm?.pause();
+        await _sfx?.stop();
+      } else if (!_muted && (_userGestureSeen || !kIsWeb)) {
+        await _startBgm();
+      }
+    } catch (e) {
+      debugPrint('GameAudio.setInBackground failed: $e');
+    }
+  }
+
   void playFlower() => _playSfx(_flowerAsset);
   void playBerry() => _playSfx(_berryAsset);
   void playMerge() => _playSfx(_mergeAsset);
@@ -151,6 +175,7 @@ class GameAudio extends ChangeNotifier {
 
   void _playSfx(String asset) {
     if (silent || forceSilent || !_available || !_ready || _muted) return;
+    if (_inBackground) return;
     unawaited(_playSfxAsync(asset));
   }
 
