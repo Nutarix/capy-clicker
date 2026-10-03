@@ -74,7 +74,7 @@
 
 ### Т14. Политика
 
-`site/index.html` — одна статичная страница, RU и EN, без скриптов и внешних ресурсов. Ссылка: `https://nutarix.github.io/capy-clicker/`. Контакт — заглушка `CONTACT_EMAIL_TBD`, адрес даёт Никита.
+`site/privacy/index.html` — одна статичная страница, RU и EN, без скриптов и внешних ресурсов; `site/index.html` ведёт на неё. Ссылка: `https://nutarix.github.io/capy-clicker/privacy/`. Контакт — `nk.kiselev.work@gmail.com`.
 
 `.github/workflows/pages.yml`: `push` в `main` с `paths: site/**` и `workflow_dispatch`; `actions/configure-pages`, `actions/upload-pages-artifact` (`path: site`), `actions/deploy-pages`.
 
