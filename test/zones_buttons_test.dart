@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:capy_clicker/features/game/models/world_zones.dart';
@@ -34,12 +35,24 @@ void main() {
       expect(WorldZones.isMistyMeadow(WorldZones.mistEdgeMeadowId), isTrue);
     });
 
-    test('unknown id falls back to legacy bg_forest only', () {
+    test('unknown id falls back to the starter meadow plate', () {
       expect(
         WorldZones.backgroundAssetForMeadow('no_such_meadow'),
         WorldZones.fallbackBackgroundAsset,
       );
-      expect(WorldZones.fallbackBackgroundAsset, 'assets/images/bg_forest.png');
+      expect(
+        WorldZones.fallbackBackgroundAsset,
+        'assets/images/bg_warm_edge.png',
+      );
+    });
+
+    test('fallback plate is bundled, unused heavy images are not', () async {
+      TestWidgetsFlutterBinding.ensureInitialized();
+      final manifest = await AssetManifest.loadFromAssetBundle(rootBundle);
+      final assets = manifest.listAssets();
+      expect(assets, contains(WorldZones.fallbackBackgroundAsset));
+      expect(assets, isNot(contains('assets/images/bg_forest.png')));
+      expect(assets, isNot(contains('assets/images/app_icon.png')));
     });
 
     test('gladeForHerd ids stay aligned with background map', () {

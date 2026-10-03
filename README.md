@@ -92,10 +92,13 @@ docs/
   V1_CHECKLIST.md    # что в v1, как запускать, пробелы, next
 store/
   README.md          # icon + screenshot captions
+  RELEASE.md         # ключ загрузки, сборка .aab, Google Play
   icon/app_icon.png
   screenshots/       # 01–03 portrait 1080×1920 (placeholders)
 assets/images/       # chroma-keyed PNG sprites
 assets/audio/        # original procedural WAV (tool/gen_audio.py)
+assets/google_fonts/ # Nunito + Pixelify Sans (OFL), без скачивания
+site/                # политика конфиденциальности (GitHub Pages)
 ```
 
 ## Audio

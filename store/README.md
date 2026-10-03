@@ -4,13 +4,14 @@ Portrait-only casual idle about capybaras. Listing copy + **placeholder**
 portrait store shots (key art + captions) live here. Replace with device
 captures before store submit.
 
+Как собрать и выложить в Google Play: [`RELEASE.md`](RELEASE.md).
+
 ## Icon (finalized)
 
 | Item | Value |
 |---|---|
 | Status | **Finalized** — approved source wired in |
 | Canonical file | `store/icon/app_icon.png` (1024×1024 PNG) |
-| In-app asset | `assets/images/app_icon.png` (same bytes) |
 | Shape | Soft rounded meadow / cream frame |
 | Hero | Friendly pixel-ish capybara face |
 | Accent | Tiny flowers on grass |
@@ -25,8 +26,8 @@ Uses [`flutter_launcher_icons`](https://pub.dev/packages/flutter_launcher_icons)
 dart run flutter_launcher_icons
 ```
 
-That refreshes Android mipmaps / adaptive icons and iOS `AppIcon.appiconset`.
-Replace `store/icon/app_icon.png` (and copy to `assets/images/app_icon.png`) before re-running if the art changes.
+That refreshes Android mipmaps / adaptive icons, iOS `AppIcon.appiconset` and web `favicon.png` / `web/icons/` (+ `web/manifest.json` colors).
+Replace `store/icon/app_icon.png` before re-running if the art changes. The game itself does not bundle the icon as an asset.
 
 ## Screenshots (v1 placeholders)
 

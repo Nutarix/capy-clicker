@@ -285,7 +285,7 @@ abstract final class WorldZones {
   /// Portrait meadow background asset for [meadowId].
   ///
   /// Mist biome (`mist_edge`) uses `bg_misty_woods.png`. Unknown ids fall back
-  /// to legacy `bg_forest.png` only.
+  /// to [fallbackBackgroundAsset].
   static String backgroundAssetForMeadow(String meadowId) {
     switch (meadowId) {
       case 'warm_edge':
@@ -303,6 +303,8 @@ abstract final class WorldZones {
     }
   }
 
-  /// Legacy single-forest plate — fallback only.
-  static const String fallbackBackgroundAsset = 'assets/images/bg_forest.png';
+  /// Fallback plate (unknown id or a plate that failed to load): the starter
+  /// meadow, always bundled — no separate heavy image just for errors.
+  static const String fallbackBackgroundAsset =
+      'assets/images/bg_warm_edge.png';
 }

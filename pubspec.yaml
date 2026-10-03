@@ -62,7 +62,6 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/images/bg_forest.png
     - assets/images/bg_warm_edge.png
     - assets/images/bg_berry_glade.png
     - assets/images/bg_sunny_clearing.png
@@ -73,7 +72,6 @@ flutter:
     - assets/images/flower.png
     - assets/images/mud.png
     - assets/images/berry_basket.png
-    - assets/images/app_icon.png
     - assets/images/role_nanny.png
     - assets/images/role_gatherer.png
     - assets/images/role_guard.png
@@ -100,6 +98,9 @@ flutter:
     - assets/audio/sfx_merge.wav
     - assets/audio/sfx_wallow.wav
     - assets/audio/sfx_glade.wav
+    # Nunito + Pixelify Sans, static weights used by CozyTheme. google_fonts
+    # picks them up by file name; runtime fetching is off (see main.dart).
+    - assets/google_fonts/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
@@ -134,3 +135,8 @@ flutter_launcher_icons:
   adaptive_icon_background: "#FFF8EC"
   adaptive_icon_foreground: store/icon/app_icon.png
   remove_alpha_ios: true
+  web:
+    generate: true
+    image_path: store/icon/app_icon.png
+    background_color: "#FFF8EC"
+    theme_color: "#6B9B4A"
