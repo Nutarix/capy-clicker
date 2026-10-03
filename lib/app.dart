@@ -9,7 +9,10 @@ import 'widgets/portrait_phone_frame.dart';
 
 /// Root widget for Grow! Capy! — menu ↔ game via simple root state.
 class CapyClickerApp extends StatefulWidget {
-  const CapyClickerApp({super.key});
+  const CapyClickerApp({super.key, this.now});
+
+  /// Game clock (tests pin it; null = wall clock).
+  final DateTime Function()? now;
 
   @override
   State<CapyClickerApp> createState() => _CapyClickerAppState();
@@ -58,7 +61,11 @@ class _CapyClickerAppState extends State<CapyClickerApp> {
       // Game keeps PortraitPhoneFrame on desktop/web for playtest.
       home: _inGame
           ? PortraitPhoneFrame(
-              child: GameScreen(audio: _audio, onBackToMenu: _backToMenu),
+              child: GameScreen(
+                audio: _audio,
+                now: widget.now,
+                onBackToMenu: _backToMenu,
+              ),
             )
           : MainMenuScreen(
               audio: _audio,

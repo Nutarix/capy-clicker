@@ -7,7 +7,11 @@ import 'package:capy_clicker/features/game/audio/game_audio.dart';
 import 'package:capy_clicker/features/game/controllers/game_controller.dart';
 import 'package:capy_clicker/features/game/models/balance.dart';
 
-String _todayYmd() => GameController.calendarDayKey(DateTime.now());
+/// Still game clock: «daily already claimed» holds even across midnight.
+final DateTime _testNow = DateTime(2026, 9, 21, 12);
+DateTime _clock() => _testNow;
+
+String _todayYmd() => GameController.calendarDayKey(_testNow);
 
 /// Prefs that skip tips and already claimed today's soft daily (stable pumps).
 Map<String, Object> _quietPrefs({bool tipsSeen = true, bool withSave = true}) {
@@ -54,7 +58,7 @@ void main() {
   });
 
   testWidgets('main menu shows title before game', (WidgetTester tester) async {
-    await tester.pumpWidget(const CapyClickerApp());
+    await tester.pumpWidget(CapyClickerApp(now: _clock));
     await _pumpReady(tester);
 
     expect(find.text('Grow! Capy!'), findsOneWidget);
@@ -67,7 +71,7 @@ void main() {
     WidgetTester tester,
   ) async {
     SharedPreferences.setMockInitialValues(_quietPrefs(withSave: false));
-    await tester.pumpWidget(const CapyClickerApp());
+    await tester.pumpWidget(CapyClickerApp(now: _clock));
     await _pumpReady(tester);
 
     final title = tester.getCenter(find.text('Grow! Capy!'));
@@ -89,7 +93,7 @@ void main() {
 
   testWidgets('Играть on empty save opens game', (WidgetTester tester) async {
     SharedPreferences.setMockInitialValues(_quietPrefs(withSave: false));
-    await tester.pumpWidget(const CapyClickerApp());
+    await tester.pumpWidget(CapyClickerApp(now: _clock));
     await _pumpReady(tester);
 
     expect(find.text('Играть'), findsOneWidget);
@@ -113,7 +117,7 @@ void main() {
   testWidgets('GameScreen shows progress label after init', (
     WidgetTester tester,
   ) async {
-    await tester.pumpWidget(const CapyClickerApp());
+    await tester.pumpWidget(CapyClickerApp(now: _clock));
     await _enterGameFromMenu(tester);
 
     expect(find.text('Лес'), findsOneWidget);
@@ -126,7 +130,7 @@ void main() {
   testWidgets('меню chip returns to main menu without wiping save', (
     WidgetTester tester,
   ) async {
-    await tester.pumpWidget(const CapyClickerApp());
+    await tester.pumpWidget(CapyClickerApp(now: _clock));
     await _enterGameFromMenu(tester);
     expect(find.text('Лес'), findsOneWidget);
 
@@ -142,7 +146,7 @@ void main() {
     WidgetTester tester,
   ) async {
     SharedPreferences.setMockInitialValues(_quietPrefs(tipsSeen: false));
-    await tester.pumpWidget(const CapyClickerApp());
+    await tester.pumpWidget(CapyClickerApp(now: _clock));
     await _enterGameFromMenu(tester);
 
     expect(

@@ -33,13 +33,22 @@ import 'models/multipliers/multipliers.dart';
 
 /// Live game screen: auto progress, flowers, herd, merge, mud, berries, zoom.
 class GameScreen extends StatefulWidget {
-  const GameScreen({super.key, this.controller, this.audio, this.onBackToMenu});
+  const GameScreen({
+    super.key,
+    this.controller,
+    this.audio,
+    this.now,
+    this.onBackToMenu,
+  });
 
   /// Optional injected controller (tests / DI).
   final GameController? controller;
 
   /// Optional audio (pass [GameAudio.silent] / `silent: true` in tests).
   final GameAudio? audio;
+
+  /// Game clock for the owned controller (tests pin it; null = wall clock).
+  final DateTime Function()? now;
 
   /// Soft pause / return to main menu (save is flushed on dispose).
   final VoidCallback? onBackToMenu;
@@ -91,7 +100,7 @@ class _GameScreenState extends State<GameScreen> {
   void initState() {
     super.initState();
     _ownsController = widget.controller == null;
-    _controller = widget.controller ?? GameController();
+    _controller = widget.controller ?? GameController(now: widget.now);
     _ownsAudio = widget.audio == null;
     _audio = widget.audio ?? GameAudio();
     _audio.addListener(_onAudioChanged);
