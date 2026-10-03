@@ -14,6 +14,8 @@ import 'package:capy_clicker/features/game/models/session_goals.dart';
 import 'package:capy_clicker/features/game/models/world_zones.dart';
 import 'package:capy_clicker/features/game/persistence/game_persistence.dart';
 
+import 'support/fingerprint.dart';
+
 /// Showable cozy session (~12–15′) — balance gates for Game Lead demo.
 ///
 /// Casual priority after berry: first permanent (Дом или Наука), then food/call.
@@ -35,6 +37,7 @@ void main() {
       autoTick: false,
     );
     await c.init();
+    final fp = Fingerprint('sim_showable_cozy14')..mark('init', c);
 
     var simSeconds = 0.0;
     var flowerCd = 0.0;
@@ -72,6 +75,7 @@ void main() {
     // ~14 min cozy showable session.
     while (simSeconds < 840) {
       step(0.25);
+      if ((simSeconds * 4).round() % 480 == 0) fp.mark('t=$simSeconds', c);
 
       if (c.goalCompleteToast != null) c.acknowledgeGoalComplete();
       if (c.gladeUnlockToast != null) c.acknowledgeGladeUnlock();
@@ -255,6 +259,28 @@ void main() {
     final midAvg = midGrassSamples == 0 ? 0.0 : midGrassSum / midGrassSamples;
     final zeroFrac = grassSamples == 0 ? 1.0 : grassZeroSamples / grassSamples;
 
+    fp
+      ..mark(
+        'end',
+        c,
+        extra: {
+          'firstGladeAt': firstGladeAt,
+          'firstPermanentAt': firstPermanentAt,
+          'twinBonusAt': twinBonusAt,
+          'calls': calls,
+          'boosts': boosts,
+          'twinMerges': twinMerges,
+          'merges': merges,
+          'feeds': feeds,
+          'decorBuys': decorBuys,
+          'researchUnlocks': researchUnlocks,
+          'twinMarks': twinMarks,
+          'grass': [grassSamples, grassSum, grassZeroSamples],
+          'midGrass': [midGrassSamples, midGrassSum],
+        },
+      )
+      ..verify();
+
     // ignore: avoid_print
     print(
       'SHOWABLE cozy14 firstGlade=${firstGladeAt?.toStringAsFixed(0)}s '
@@ -325,6 +351,7 @@ void main() {
       autoTick: false,
     );
     await c.init();
+    final fp = Fingerprint('sim_showable_goal18')..mark('init', c);
 
     var t = 0.0;
     var flowerCd = 0.0, mudCd = 0.0, placeCd = 0.0, spendCd = 0.0;
@@ -342,6 +369,7 @@ void main() {
       spendCd -= 0.25;
       uyutCd -= 0.25;
       berryCheck -= 0.25;
+      if ((t * 4).round() % 480 == 0) fp.mark('t=$t', c);
 
       if (c.goalCompleteToast != null) c.acknowledgeGoalComplete();
       if (c.gladeUnlockToast != null) c.acknowledgeGladeUnlock();
@@ -452,6 +480,10 @@ void main() {
         c.switchToMeadow(WorldZones.mistEdgeMeadowId);
       }
     }
+
+    fp
+      ..mark('end', c, extra: {'milestones': ms})
+      ..verify();
 
     // ignore: avoid_print
     print(
