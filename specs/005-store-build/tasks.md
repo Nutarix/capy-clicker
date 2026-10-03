@@ -14,7 +14,7 @@
 ## Android
 
 - [x] **Ш4. Подпись ключом загрузки (Т4, Т6).** `build.gradle.kts`: `key.properties` → `signingConfigs.release`; без файла `bundleRelease`/`assembleRelease` падают с текстом; без TODO. Проверка: debug-сборка без ключа, release без ключа — ошибка, release с временным ключом — подписан.
-- [ ] **Ш5. Память Gradle (Т7).** `-Xmx4G`.
+- [x] **Ш5. Память Gradle (Т7).** `-Xmx4G`.
 - [ ] **Ш6. Инструкция (Т5).** `store/RELEASE.md`.
 
 ## Репозиторий
