@@ -208,13 +208,17 @@ class _MeadowLayerState extends State<MeadowLayer> {
   @override
   Widget build(BuildContext context) {
     // Meadow animations repaint the meadow, never the bars around it.
-    return RepaintBoundary(
-      child: GameSelector<_MeadowView>(
-        listenable: _controller,
-        select: _view,
-        builder: (context, view) => LayoutBuilder(
-          builder: (context, constraints) =>
-              _meadow(view, constraints.maxWidth, constraints.maxHeight),
+    // Tight size: a looping child re-lays out the LayoutBuilder every frame,
+    // and that layout must stop at this boundary, not reach the screen.
+    return SizedBox.expand(
+      child: RepaintBoundary(
+        child: GameSelector<_MeadowView>(
+          listenable: _controller,
+          select: _view,
+          builder: (context, view) => LayoutBuilder(
+            builder: (context, constraints) =>
+                _meadow(view, constraints.maxWidth, constraints.maxHeight),
+          ),
         ),
       ),
     );
