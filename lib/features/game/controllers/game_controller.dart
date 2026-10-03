@@ -45,6 +45,9 @@ class GameController extends ChangeNotifier {
 
   /// Screen closed. A late [init] must not start timers or write the save.
   bool _disposed = false;
+
+  /// When the app went to background; null while on screen.
+  DateTime? _suspendedAt;
   DateTime _lastTick = DateTime.now();
 
   /// Active mud boost ends at this instant (null = inactive).
@@ -570,7 +573,10 @@ class GameController extends ChangeNotifier {
       _state = _maybeUnlockMistyBiome(_state, announce: false);
       _state = _fillEmptyUnlockedMeadows(_state);
       _state = _advanceGoalsQuiet(_state);
-      _applyOfflineProgress();
+      final savedMs = _state.savedAtMs;
+      if (savedMs != null) {
+        _applyOfflineProgress(DateTime.fromMillisecondsSinceEpoch(savedMs));
+      }
     } else {
       _state = _bootstrap();
       _state = _syncGladeAnnounced(_state, announce: false);
@@ -580,21 +586,58 @@ class GameController extends ChangeNotifier {
     _ready = true;
     _lastTick = _now();
     _twinRerollIn = BalanceV0.twinRerollSeconds.toDouble() * 0.4;
-    _tickTimer?.cancel();
-    if (autoTick) {
-      _tickTimer = Timer.periodic(const Duration(milliseconds: 50), _onTick);
-    }
+    _startTicker();
     _scheduleFirstBerry();
     _beginMudPresence();
     notifyListeners();
   }
 
-  void _applyOfflineProgress() {
-    final savedMs = _state.savedAtMs;
-    if (savedMs == null) return;
-    final elapsed = _now().difference(
-      DateTime.fromMillisecondsSinceEpoch(savedMs),
-    );
+  void _startTicker() {
+    _tickTimer?.cancel();
+    _tickTimer = null;
+    if (autoTick) {
+      _tickTimer = Timer.periodic(const Duration(milliseconds: 50), _onTick);
+    }
+  }
+
+  /// True while the app is in background (see [suspend]).
+  bool get isSuspended => _suspendedAt != null;
+
+  /// Write the save now instead of on the next [BalanceV0.persistIntervalMs].
+  /// Nothing before load finished or after [dispose].
+  Future<void> flushSave() async {
+    _persistTimer?.cancel();
+    _persistTimer = null;
+    if (!_ready || _disposed) return;
+    await _persistence.save(_withSavedAt(_state));
+  }
+
+  /// App hidden (swiped away, tab hidden, window minimized): stop the game
+  /// clock and write the save with this moment as «left at».
+  Future<void> suspend() async {
+    if (!_ready || _disposed || _suspendedAt != null) return;
+    _tickTimer?.cancel();
+    _tickTimer = null;
+    _suspendedAt = _now();
+    await flushSave();
+  }
+
+  /// App back on screen: offline grant by the cold-start rules, then the
+  /// live clock resumes from now (no catch-up jump).
+  void resumeFromBackground() {
+    final since = _suspendedAt;
+    if (since == null || _disposed) return;
+    _suspendedAt = null;
+    _applyOfflineProgress(since);
+    _lastTick = _now();
+    _startTicker();
+    notifyListeners();
+  }
+
+  /// Capped auto progress for the time away since [since] (cold start uses
+  /// the save's `savedAtMs`, a return from background — the hide moment).
+  void _applyOfflineProgress(DateTime since) {
+    final elapsed = _now().difference(since);
     var seconds = elapsed.inSeconds;
     if (seconds < BalanceV0.offlineMinSeconds) return;
     if (seconds > BalanceV0.offlineCapSeconds) {
