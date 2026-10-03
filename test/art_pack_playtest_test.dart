@@ -17,6 +17,8 @@ import 'package:capy_clicker/features/game/widgets/uyut/cozy_place_marker.dart';
 import 'package:capy_clicker/features/game/widgets/uyut/multiplier_icon.dart';
 import 'package:capy_clicker/features/game/widgets/uyut/uyut_hub_sheet.dart';
 
+import 'support/test_game.dart';
+
 /// All soft-pixel paths wired in the multipliers art sew-in (SHA 7c81af6).
 List<String> get _allArtPaths => [
   for (final r in CapyRole.values) r.assetPath,
@@ -193,7 +195,7 @@ void main() {
           },
         }),
       });
-      final c = GameController(random: _FixedRandom(0.5));
+      final c = testController(random: _FixedRandom(0.5));
       await c.init();
       return c;
     }

@@ -22,6 +22,7 @@ void main() {
       persistence: GamePersistence(),
       random: rng,
       now: () => clock,
+      autoTick: false,
     );
     await c.init();
 

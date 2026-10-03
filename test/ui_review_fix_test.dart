@@ -5,18 +5,18 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:capy_clicker/features/game/controllers/game_controller.dart';
 import 'package:capy_clicker/features/game/models/balance.dart';
 import 'package:capy_clicker/features/game/models/capy_wander.dart';
 import 'package:capy_clicker/features/game/models/multipliers/capy_role.dart';
 import 'package:capy_clicker/features/game/models/multipliers/uyut_research.dart';
 import 'package:capy_clicker/features/game/models/world_zones.dart';
-import 'package:capy_clicker/features/game/persistence/game_persistence.dart';
 import 'package:capy_clicker/features/game/widgets/berry_basket.dart';
 import 'package:capy_clicker/features/game/widgets/grass_spend_panel.dart';
 import 'package:capy_clicker/features/game/widgets/meadow_hint_chip.dart';
 import 'package:capy_clicker/features/game/widgets/mud_puddle.dart';
 import 'package:capy_clicker/features/game/widgets/uyut/uyut_hub_sheet.dart';
+
+import 'support/test_game.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -402,7 +402,7 @@ void main() {
 
     test('empty role line goes away once a role is assigned', () async {
       SharedPreferences.setMockInitialValues({});
-      final c = GameController(persistence: GamePersistence());
+      final c = testController();
       await c.init();
       expect(c.activeRoleBonusesRu, 'Роли пока не назначены');
       final id = c.state.herd.first.id;
@@ -417,14 +417,14 @@ void main() {
   group('Позвать капи reason', () {
     test('low grass vs full семья', () async {
       SharedPreferences.setMockInitialValues({});
-      final broke = GameController(persistence: GamePersistence());
+      final broke = testController();
       await broke.init();
       expect(broke.canCallCapy, isFalse);
       expect(broke.callCapyBlockedReason, 'Не хватает травы');
       broke.dispose();
 
       SharedPreferences.setMockInitialValues({});
-      final full = GameController(persistence: GamePersistence());
+      final full = testController();
       await full.init();
       for (var i = 0; i < 20; i++) {
         full.addProgress(1.0, fromTap: true);
@@ -439,7 +439,7 @@ void main() {
       full.dispose();
 
       SharedPreferences.setMockInitialValues({});
-      final ready = GameController(persistence: GamePersistence());
+      final ready = testController();
       await ready.init();
       while (ready.state.grass < BalanceV0.callCapyGrassCost) {
         ready.onFlowerTap();
@@ -579,7 +579,7 @@ void main() {
       tester,
     ) async {
       SharedPreferences.setMockInitialValues({});
-      final c = GameController(persistence: GamePersistence());
+      final c = testController();
       await c.init();
       await tester.pumpWidget(
         MaterialApp(

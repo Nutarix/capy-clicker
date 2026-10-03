@@ -7,7 +7,7 @@
 - [x] **Ш1. Шрифты без сети (Т12).** Тест: флаг `allowRuntimeFetching` выключен. Код: `test/flutter_test_config.dart`.
 - [x] **Ш2. Съёмка макетов вне прогона (Т14).** Перенос в `tool/`, пути от проекта и `CAPY_FONTS_DIR`. Проверка: `flutter test` без падения `setUpAll`.
 - [x] **Ш3. Общий тик (Т15, основа).** Тест: настоящий тик и `debugAdvance` на одних часах дают одно состояние. Код: `_advanceClock(dt, now)` для `_onTick` и `debugAdvance`, `GameController(autoTick:)`.
-- [ ] **Ш4. Тестовый контроллер (Т10, Т11).** Код: `test/support/test_game.dart`. Тесты контроллера — через `testController()` или с явным `random:` и `autoTick: false`. Балансные симуляции — те же числа.
+- [x] **Ш4. Тестовый контроллер (Т10, Т11).** Код: `test/support/test_game.dart`. Тесты контроллера — через `testController()` или с явным `random:` и `autoTick: false`. Балансные симуляции — те же числа.
 - [ ] **Ш5. Полночь (Т13).** Тест `widget_test` на неподвижных часах. Код: `now` в `CapyClickerApp` и `GameScreen`.
 
 ## Сейв

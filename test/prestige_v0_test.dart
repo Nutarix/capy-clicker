@@ -3,14 +3,14 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:capy_clicker/features/game/controllers/game_controller.dart';
 import 'package:capy_clicker/features/game/models/balance.dart';
 import 'package:capy_clicker/features/game/models/capybara.dart';
 import 'package:capy_clicker/features/game/models/game_state.dart';
 import 'package:capy_clicker/features/game/models/meadow_snapshot.dart';
 import 'package:capy_clicker/features/game/models/session_goals.dart';
 import 'package:capy_clicker/features/game/models/world_zones.dart';
-import 'package:capy_clicker/features/game/persistence/game_persistence.dart';
+
+import 'support/test_game.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -118,7 +118,7 @@ void main() {
         }),
       });
 
-      final c = GameController(persistence: GamePersistence());
+      final c = testController();
       await c.init();
 
       expect(c.state.mistyBiomeUnlocked, isTrue);
@@ -184,7 +184,7 @@ void main() {
         },
       }),
     });
-    final c = GameController(persistence: GamePersistence());
+    final c = testController();
     await c.init();
     expect(c.state.uyut, 2);
     expect(
@@ -196,7 +196,7 @@ void main() {
   });
 
   test('misty stays locked before prestige trigger', () async {
-    final c = GameController(persistence: GamePersistence());
+    final c = testController();
     await c.init();
     expect(c.state.mistyBiomeUnlocked, isFalse);
     expect(c.switchToMeadow(WorldZones.mistEdgeMeadowId), isFalse);
@@ -259,7 +259,7 @@ void main() {
         },
       }),
     });
-    final c = GameController(persistence: GamePersistence());
+    final c = testController();
     await c.init();
     expect(c.switchToMeadow('warm_edge'), isTrue);
     expect(c.state.herdCount, greaterThanOrEqualTo(1));

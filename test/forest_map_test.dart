@@ -3,13 +3,14 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:capy_clicker/features/game/controllers/game_controller.dart';
 import 'package:capy_clicker/features/game/models/balance.dart';
 import 'package:capy_clicker/features/game/models/capybara.dart';
 import 'package:capy_clicker/features/game/models/game_state.dart';
 import 'package:capy_clicker/features/game/models/meadow_snapshot.dart';
 import 'package:capy_clicker/features/game/models/world_zones.dart';
 import 'package:capy_clicker/features/game/persistence/game_persistence.dart';
+
+import 'support/test_game.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -69,7 +70,7 @@ void main() {
   });
 
   test('switch meadow restores each herd; grass stays shared', () async {
-    final c = GameController(persistence: GamePersistence());
+    final c = testController();
     await c.init();
 
     // Grow warm herd to 5 → unlock berry with starter.
@@ -107,7 +108,7 @@ void main() {
   });
 
   test('unlock adds meadow with starter herd', () async {
-    final c = GameController(persistence: GamePersistence());
+    final c = testController();
     await c.init();
     expect(c.unlockedMeadowIds, ['warm_edge']);
 
@@ -132,7 +133,7 @@ void main() {
   test('persistence save/load keeps multi-meadow herds', () async {
     SharedPreferences.setMockInitialValues({});
     final persistence = GamePersistence();
-    final c = GameController(persistence: persistence);
+    final c = testController(persistence: persistence);
     await c.init();
     for (var i = 0; i < 4; i++) {
       c.addProgress(1.0, fromTap: true);
@@ -144,7 +145,7 @@ void main() {
     await persistence.save(c.state.withActiveSynced());
     c.dispose();
 
-    final c2 = GameController(persistence: GamePersistence());
+    final c2 = testController();
     await c2.init();
     expect(c2.state.activeMeadowId, 'berry_glade');
     expect(c2.state.herdCount, berryCount);
@@ -167,7 +168,7 @@ void main() {
         ],
       }),
     });
-    final c = GameController(persistence: GamePersistence());
+    final c = testController();
     await c.init();
     expect(c.state.activeMeadowId, 'warm_edge');
     expect(c.state.herdCount, 3);
@@ -181,7 +182,7 @@ void main() {
   });
 
   test('grass never goes negative when switching meadows', () async {
-    final c = GameController(persistence: GamePersistence());
+    final c = testController();
     await c.init();
     for (var i = 0; i < 4; i++) {
       c.addProgress(1.0, fromTap: true);
@@ -199,7 +200,7 @@ void main() {
   });
 
   test('unlock thresholds by family power 5 / 10 / 16', () async {
-    final c = GameController(persistence: GamePersistence());
+    final c = testController();
     await c.init();
     expect(c.state.sunnyGladeAnnounced, 0);
     expect(c.unlockedMeadowIds, ['warm_edge']);
@@ -274,7 +275,7 @@ void main() {
   });
 
   test('no soft-lock with only warm_edge unlocked', () async {
-    final c = GameController(persistence: GamePersistence());
+    final c = testController();
     await c.init();
     expect(c.unlockedMeadowIds, ['warm_edge']);
     expect(c.state.herdCount, greaterThanOrEqualTo(1));
@@ -298,7 +299,7 @@ void main() {
   });
 
   test('shared grass spend visible after meadow switch', () async {
-    final c = GameController(persistence: GamePersistence());
+    final c = testController();
     await c.init();
     for (var i = 0; i < 4; i++) {
       c.addProgress(1.0, fromTap: true);
@@ -325,7 +326,7 @@ void main() {
   });
 
   test('multi-meadow scripted flow: grow / switch / return / unlock chain', () async {
-    final c = GameController(persistence: GamePersistence());
+    final c = testController();
     await c.init();
 
     // Unlock berry on warm.

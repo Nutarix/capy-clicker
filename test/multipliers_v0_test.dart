@@ -4,7 +4,6 @@ import 'dart:math';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:capy_clicker/features/game/controllers/game_controller.dart';
 import 'package:capy_clicker/features/game/models/balance.dart';
 import 'package:capy_clicker/features/game/models/capybara.dart';
 import 'package:capy_clicker/features/game/models/game_state.dart';
@@ -12,6 +11,8 @@ import 'package:capy_clicker/features/game/models/meadow_snapshot.dart';
 import 'package:capy_clicker/features/game/models/multipliers/multipliers.dart';
 import 'package:capy_clicker/features/game/models/world_zones.dart';
 import 'package:capy_clicker/features/game/persistence/game_persistence.dart';
+
+import 'support/test_game.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -86,7 +87,7 @@ void main() {
         },
       ),
     );
-    final c = GameController(random: _FixedRandom(0.99));
+    final c = testController(random: _FixedRandom(0.99));
     await c.init();
     final base = c.autoRatePerSecond;
     expect(c.feedFamily(FamilyFood.travka), isTrue);
@@ -118,7 +119,7 @@ void main() {
         },
       }),
     });
-    final c = GameController(random: _FixedRandom(0.5));
+    final c = testController(random: _FixedRandom(0.5));
     await c.init();
     final before = c.autoRatePerSecond;
     expect(c.tryActivatePlace(CozyPlaceKind.warmStone, capyId: 'c1'), isTrue);
@@ -153,7 +154,7 @@ void main() {
         },
       }),
     });
-    final c = GameController(random: _FixedRandom(0.5));
+    final c = testController(random: _FixedRandom(0.5));
     await c.init();
     final base = c.autoRatePerSecond;
     expect(c.assignRole('c1', CapyRole.nanya), isTrue);
@@ -184,7 +185,7 @@ void main() {
         },
       }),
     });
-    final c = GameController(random: _FixedRandom(0.5));
+    final c = testController(random: _FixedRandom(0.5));
     await c.init();
     final base = c.autoRatePerSecond;
     expect(c.buyDecor(HomeDecor.fonarik), isTrue);
@@ -218,7 +219,7 @@ void main() {
           },
         }),
       });
-      final c = GameController(random: _FixedRandom(0.5));
+      final c = testController(random: _FixedRandom(0.5));
       await c.init();
       expect(c.unlockResearch('longer_mud'), isFalse);
       expect(c.unlockResearch('more_flowers'), isTrue);
@@ -253,7 +254,7 @@ void main() {
         },
       }),
     });
-    final c = GameController(random: _FixedRandom(0.5));
+    final c = testController(random: _FixedRandom(0.5));
     await c.init();
     final expected =
         BalanceV0.autoProgressPerSecond *
@@ -287,7 +288,7 @@ void main() {
         },
       }),
     });
-    final c = GameController(random: _FixedRandom(0.5));
+    final c = testController(random: _FixedRandom(0.5));
     await c.init();
     expect(c.buyFood(FamilyFood.oreshki), isFalse);
     expect(c.buyDecor(HomeDecor.fonarik), isFalse);

@@ -7,6 +7,8 @@ import 'package:capy_clicker/features/game/models/world_zones.dart';
 import 'package:capy_clicker/features/game/models/game_state.dart';
 import 'package:capy_clicker/features/game/persistence/game_persistence.dart';
 
+import 'support/test_game.dart';
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -15,7 +17,7 @@ void main() {
   });
 
   test('bootstrap spawns starting herd and auto-ticks progress', () async {
-    final c = GameController(persistence: GamePersistence());
+    final c = testController();
     await c.init();
     expect(c.state.herdCount, BalanceV0.startingHerdSize);
     expect(c.state.herdProgress, 0);
@@ -30,7 +32,7 @@ void main() {
   });
 
   test('progress at threshold spawns another capybara', () async {
-    final c = GameController(persistence: GamePersistence());
+    final c = testController();
     await c.init();
     c.addProgress(1.0, fromTap: true);
     expect(c.state.herdCount, 2);
@@ -39,7 +41,7 @@ void main() {
   });
 
   test('merge same level yields level+1 with flash id', () async {
-    final c = GameController(persistence: GamePersistence());
+    final c = testController();
     await c.init();
     c.addProgress(1.0, fromTap: true); // now 2 capys Lv.1
     expect(c.state.herdCount, 2);
@@ -53,7 +55,7 @@ void main() {
   });
 
   test('chain merge reaches higher visual levels', () async {
-    final c = GameController(persistence: GamePersistence());
+    final c = testController();
     await c.init();
     // Spawn enough Lv.1 to merge up toward Lv.3+
     for (var i = 0; i < 3; i++) {
@@ -88,7 +90,7 @@ void main() {
 
   test('herd soft-cap is 12', () async {
     expect(BalanceV0.maxHerdSize, 12);
-    final c = GameController(persistence: GamePersistence());
+    final c = testController();
     await c.init();
     for (var i = 0; i < 20; i++) {
       c.addProgress(1.0, fromTap: true);
@@ -98,7 +100,7 @@ void main() {
   });
 
   test('mud wallow activates boost', () async {
-    final c = GameController(persistence: GamePersistence());
+    final c = testController();
     await c.init();
     final id = c.state.herd.single.id;
     expect(c.tryMudWallow(id), isTrue);
@@ -108,7 +110,7 @@ void main() {
   });
 
   test('isOverMud detects the live puddle, not a fixed corner', () async {
-    final c = GameController(persistence: GamePersistence());
+    final c = testController();
     await c.init();
     expect(c.mudVisible, isTrue);
     final center = c.mudCenter!;
@@ -120,7 +122,7 @@ void main() {
   test(
     'mud puddle despawns, cooldown, respawns elsewhere, not saved',
     () async {
-      final c = GameController(persistence: GamePersistence());
+      final c = testController();
       await c.init();
       c.debugPlaceMud(const Offset(0.30, 0.70), seconds: 0.4);
       final id = c.state.herd.first.id;
@@ -156,7 +158,7 @@ void main() {
   });
 
   test('glade unlock toast fires once when Berry Glade opens', () async {
-    final c = GameController(persistence: GamePersistence());
+    final c = testController();
     await c.init();
     expect(c.currentGlade.id, 'warm_edge');
     expect(c.gladeUnlockToast, isNull);
@@ -196,7 +198,7 @@ void main() {
     });
 
     var clock = now;
-    final c = GameController(persistence: GamePersistence(), now: () => clock);
+    final c = testController(now: () => clock);
     await c.init();
 
     // Cap = 180s * autoProgressPerSecond → progress 0.1 + grant
@@ -223,7 +225,7 @@ void main() {
           '"herd":[{"id":"c1","level":1,"x":0.5,"y":0.5}]}',
     });
 
-    final c = GameController(persistence: GamePersistence(), now: () => now);
+    final c = testController(now: () => now);
     await c.init();
     expect(c.hasOfflineWelcome, isFalse);
     expect(c.state.herdProgress, closeTo(0.2, 0.001));
@@ -252,7 +254,7 @@ void main() {
   test('daily bonus available once per local calendar day', () async {
     final day = DateTime(2026, 9, 21, 10, 0, 0);
     var clock = day;
-    final c = GameController(persistence: GamePersistence(), now: () => clock);
+    final c = testController(now: () => clock);
     await c.init();
     expect(c.isDailyBonusAvailable, isTrue);
     final before = c.state.herdProgress;
@@ -292,7 +294,7 @@ void main() {
   });
 
   test('spawn and drag-end clamp into active named meadow', () async {
-    final c = GameController(persistence: GamePersistence());
+    final c = testController();
     await c.init();
     final warmKey = WorldZones.gladeById('warm_edge').minHerd;
     for (final capy in c.state.herd) {
@@ -356,7 +358,7 @@ void main() {
           '{"herdProgress":0.0,"nextId":2,'
           '"herd":[{"id":"c1","level":1,"x":0.02,"y":0.10}]}',
     });
-    final c = GameController(persistence: GamePersistence());
+    final c = testController();
     await c.init();
     expect(c.state.herd.single.position.dx, WorldZones.meadowLeft);
     expect(c.state.herd.single.position.dy, WorldZones.meadowTop);
@@ -364,7 +366,7 @@ void main() {
   });
 
   test('cameraZoom respects named meadow baseline and fit', () async {
-    final c = GameController(persistence: GamePersistence());
+    final c = testController();
     await c.init();
     expect(c.cameraZoom, BalanceV0.zoomClose);
     for (var i = 0; i < 11; i++) {
@@ -399,7 +401,7 @@ void main() {
   });
 
   test('unlocked meadow stays on map after merge shrinks herd', () async {
-    final c = GameController(persistence: GamePersistence());
+    final c = testController();
     await c.init();
     // Grow to 5 → Berry unlocks on forest map; stay on warm_edge.
     c.addProgress(1.0, fromTap: true);
@@ -424,7 +426,7 @@ void main() {
   });
 
   test('flower tap grants grass and spendCallCapy spawns under cap', () async {
-    final c = GameController(persistence: GamePersistence());
+    final c = testController();
     await c.init();
     expect(c.state.grass, 0);
     c.onFlowerTap();
@@ -447,7 +449,7 @@ void main() {
   });
 
   test('spendGrassBoost refuses without grass then activates', () async {
-    final c = GameController(persistence: GamePersistence());
+    final c = testController();
     await c.init();
     expect(c.spendGrassBoost(), isFalse);
     expect(c.isGrassBoostActive, isFalse);
@@ -461,7 +463,7 @@ void main() {
   });
 
   test('session goal advances on Berry Glade unlock', () async {
-    final c = GameController(persistence: GamePersistence());
+    final c = testController();
     await c.init();
     expect(c.currentSessionGoal?.id, 'berry_glade');
     expect(c.sessionGoalProgress, lessThan(1.0));
@@ -482,7 +484,7 @@ void main() {
   });
 
   test('twin merge grants bonus grass', () async {
-    final c = GameController(persistence: GamePersistence());
+    final c = testController();
     await c.init();
     c.addProgress(1.0, fromTap: true);
     expect(c.state.herdCount, 2);
@@ -518,7 +520,7 @@ void main() {
   });
 
   test('spendCallCapy respects soft herd cap', () async {
-    final c = GameController(persistence: GamePersistence());
+    final c = testController();
     await c.init();
     for (var i = 0; i < 20; i++) {
       c.addProgress(1.0, fromTap: true);
@@ -536,7 +538,7 @@ void main() {
   });
 
   test('spend refuses when broke; grass never negative', () async {
-    final c = GameController(persistence: GamePersistence());
+    final c = testController();
     await c.init();
     expect(c.state.grass, 0);
     expect(c.canCallCapy, isFalse);
@@ -549,7 +551,7 @@ void main() {
 
   test('save/load keeps grass and session goals', () async {
     SharedPreferences.setMockInitialValues({});
-    final c1 = GameController(persistence: GamePersistence());
+    final c1 = testController();
     await c1.init();
     c1.addProgress(1.0, fromTap: true);
     c1.addProgress(1.0, fromTap: true);
@@ -565,7 +567,7 @@ void main() {
     await GamePersistence().save(c1.state);
     c1.dispose();
 
-    final c2 = GameController(persistence: GamePersistence());
+    final c2 = testController();
     await c2.init();
     expect(c2.state.grass, grass);
     expect(c2.state.sessionGoalIndex, goalIdx);
