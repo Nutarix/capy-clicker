@@ -103,6 +103,18 @@ void main() {
       expect(state.otherLands.single.mistyBiomeUnlocked, isTrue);
     });
 
+    test('the written map reads back as its JSON string does (002, Т5)', () {
+      // The save checks readability on the map it encodes, not on a parse
+      // of the string. Both must read the same family.
+      final map = GameState.fromJson(_snapshot()).toJson();
+      final viaMap = GameState.fromJson(map).toJson();
+      final viaString = GameState.fromJson(
+        jsonDecode(jsonEncode(map)) as Map<String, dynamic>,
+      ).toJson();
+      expect(jsonEncode(viaMap), jsonEncode(viaString));
+      expect(jsonEncode(viaMap), jsonEncode(map));
+    });
+
     test('controller continues the same family from the snapshot', () async {
       final snap = _snapshot();
       SharedPreferences.setMockInitialValues({_key: jsonEncode(snap)});
