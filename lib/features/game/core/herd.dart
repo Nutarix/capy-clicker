@@ -26,12 +26,16 @@ class GameHerd extends GamePart {
 
     final cap = core.rates;
     var progress = state.herdProgress + amount;
-    var herd = List<Capybara>.from(state.herd);
+    // Lists are never changed in place: no copy, so an unchanged family
+    // keeps its list (screen parts compare it by identity).
+    var herd = state.herd;
     var nextId = state.nextId;
     var next = state;
+    var spawned = false;
 
     while (progress >= BalanceV0.spawnThreshold &&
         herd.length < cap.effectiveMaxHerdSize) {
+      spawned = true;
       progress -= BalanceV0.spawnThreshold;
       next = spawnCapybara(
         next.copyWith(herd: herd, nextId: nextId, herdProgress: progress),
@@ -45,6 +49,11 @@ class GameHerd extends GamePart {
       progress = progress.clamp(0.0, BalanceV0.spawnThreshold);
     }
 
+    // Only the bar moved: skip the check chain (spec 002, Т3).
+    if (!spawned && core.checked) {
+      core.commitProgress(progress);
+      return;
+    }
     core.commit(
       next.copyWith(herdProgress: progress, herd: herd, nextId: nextId),
     );
@@ -104,15 +113,18 @@ class GameHerd extends GamePart {
   }
 
   /// Re-seat positions onto the active named meadow rect (trees stay blocked).
+  /// Nobody moved: the same list and the same capys come back.
   GameState clampHerdToMeadow(GameState state) {
     final key = WorldZones.gladeById(state.activeMeadowId).minHerd;
-    final herd = [
-      for (final c in state.herd)
-        c.copyWith(
-          position: WorldZones.clampToMeadow(c.position, herdCount: key),
-        ),
-    ];
-    return state.copyWith(herd: herd);
+    List<Capybara>? moved;
+    for (var i = 0; i < state.herd.length; i++) {
+      final c = state.herd[i];
+      final p = WorldZones.clampToMeadow(c.position, herdCount: key);
+      if (moved == null && p == c.position) continue;
+      moved ??= state.herd.sublist(0, i);
+      moved.add(p == c.position ? c : c.copyWith(position: p));
+    }
+    return state.copyWith(herd: moved ?? state.herd);
   }
 
   ({List<Capybara> herd, int nextId}) buildStarterHerd({

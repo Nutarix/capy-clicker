@@ -74,9 +74,23 @@ class GameCore {
   /// Screen closed. A late [init] must not start timers or write the save.
   bool disposed = false;
 
-  /// The live state. Direct writes skip the check chain (load, auto grass,
-  /// twins, taps); rule changes go through [commit].
-  GameState state = GameState.initial();
+  GameState _state = GameState.initial();
+
+  /// [_state] came out of [commit], and since then only the bar moved.
+  bool _checked = false;
+
+  GameState get state => _state;
+
+  /// Direct write, past the check chain (load, auto grass, twins, taps).
+  /// The next change runs the full chain again.
+  set state(GameState next) {
+    _state = next;
+    _checked = false;
+  }
+
+  /// True while the state is a fixed point of the [commit] chain: running
+  /// the chain again would change nothing (see [commitProgress]).
+  bool get checked => _checked;
 
   void notify() => _onNotify();
 
@@ -106,7 +120,19 @@ class GameCore {
     state = meadows.syncGladeAnnounced(state, announce: true);
     state = meadows.maybeUnlockMistyBiome(state, announce: true);
     state = goals.checkGoals(state, celebrate: true);
-    this.state = state;
+    _state = state;
+    _checked = true;
+    notify();
+    save.schedule();
+  }
+
+  /// Fast path of [commit] when only the bar moved on a [checked] state.
+  ///
+  /// Every link of the chain reads fields other than `herdProgress`, and a
+  /// checked state is its fixed point: the full chain would return the same
+  /// value. No randomness, no toasts — the result is identical.
+  void commitProgress(double progress) {
+    _state = _state.copyWith(herdProgress: progress);
     notify();
     save.schedule();
   }
