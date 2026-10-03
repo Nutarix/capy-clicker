@@ -4,6 +4,9 @@
 //   flutter test tool/playtest_mockup_shots_test.dart --update-goldens
 // PNGs land in store/playtest-mockup/. Real fonts: set CAPY_FONTS_DIR to a
 // folder with nunito.ttf and pixelify.ttf; without it shots use the test font.
+//
+// Test-only hooks are fine here: this file is a test, just outside test/.
+// ignore_for_file: invalid_use_of_visible_for_testing_member
 import 'dart:io';
 
 import 'package:flutter/material.dart';
