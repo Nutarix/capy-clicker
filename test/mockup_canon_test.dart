@@ -1,7 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:capy_clicker/features/game/controllers/game_controller.dart';
 import 'package:capy_clicker/features/game/models/capybara.dart';
 import 'package:capy_clicker/features/game/models/game_state.dart';
 import 'package:capy_clicker/features/game/models/meadow_snapshot.dart';
@@ -9,6 +8,8 @@ import 'package:capy_clicker/features/game/models/multipliers/home_decor.dart';
 import 'package:capy_clicker/features/game/models/world_zones.dart';
 import 'package:capy_clicker/features/game/persistence/game_persistence.dart';
 import 'package:capy_clicker/features/game/widgets/home_meadow_scene.dart';
+
+import 'support/test_game.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -74,7 +75,7 @@ void main() {
       },
     );
     await persistence.save(before);
-    final c = GameController(persistence: persistence);
+    final c = testController(persistence: persistence);
     await c.init();
     expect(c.rocketUnlocked, isTrue);
     final oldCount = c.state.totalHerdAcrossMeadows;

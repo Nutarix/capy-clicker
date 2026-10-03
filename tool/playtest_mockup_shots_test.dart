@@ -1,3 +1,12 @@
+// Playtest mockup shots: not part of `flutter test` (lives in tool/).
+//
+// Run from the project root:
+//   flutter test tool/playtest_mockup_shots_test.dart --update-goldens
+// PNGs land in store/playtest-mockup/. Real fonts: set CAPY_FONTS_DIR to a
+// folder with nunito.ttf and pixelify.ttf; without it shots use the test font.
+//
+// Test-only hooks are fine here: this file is a test, just outside test/.
+// ignore_for_file: invalid_use_of_visible_for_testing_member
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -19,7 +28,10 @@ import 'package:capy_clicker/theme/cozy_theme.dart';
 
 String _today() => GameController.calendarDayKey(DateTime.now());
 
-const _out = '/workspace/capy-clicker/store/playtest-mockup';
+/// Output folder, relative to the project root (flutter test cwd).
+final Uri _out = Uri.directory(
+  Directory.current.path,
+).resolve('store/playtest-mockup/');
 
 final _kill = <GameController, void Function()>{};
 
@@ -102,15 +114,22 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUpAll(() async {
-    final out = Directory(_out);
+    final out = Directory.fromUri(_out);
     await out.create(recursive: true);
     goldenFileComparator = _TolerantGolden(
-      Uri.parse('${out.path}/playtest_mockup_shots_test.dart'),
+      _out.resolve('playtest_mockup_shots_test.dart'),
     );
 
     GoogleFonts.config.allowRuntimeFetching = false;
-    const nunito = '/tmp/capy-fonts/nunito.ttf';
-    const pixel = '/tmp/capy-fonts/pixelify.ttf';
+    final fontsDir = Platform.environment['CAPY_FONTS_DIR'];
+    final nunito = File('${fontsDir ?? ''}/nunito.ttf');
+    final pixel = File('${fontsDir ?? ''}/pixelify.ttf');
+    if (fontsDir == null || !nunito.existsSync() || !pixel.existsSync()) {
+      debugPrint(
+        'CAPY_FONTS_DIR not set or fonts missing — shots use the test font.',
+      );
+      return;
+    }
     for (final family in [
       'Nunito_regular',
       'Nunito_500',
@@ -119,10 +138,10 @@ void main() {
       'Nunito_800',
       'Nunito_w700',
     ]) {
-      await _loadFamily(family, nunito);
+      await _loadFamily(family, nunito.path);
     }
-    await _loadFamily('PixelifySans_700', pixel);
-    await _loadFamily('PixelifySans_regular', pixel);
+    await _loadFamily('PixelifySans_700', pixel.path);
+    await _loadFamily('PixelifySans_regular', pixel.path);
   });
 
   setUp(() {

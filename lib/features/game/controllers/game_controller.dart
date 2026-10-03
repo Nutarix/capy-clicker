@@ -23,6 +23,7 @@ class GameController extends ChangeNotifier {
     GamePersistence? persistence,
     Random? random,
     DateTime Function()? now,
+    this.autoTick = true,
   }) : _persistence = persistence ?? GamePersistence(),
        _random = random ?? Random(),
        // Separate stream so food/loot drops do not desync core progression RNG.
@@ -34,10 +35,19 @@ class GameController extends ChangeNotifier {
   final Random _lootRandom;
   final DateTime Function() _now;
 
+  /// False: no periodic tick — tests drive the game clock via [debugAdvance].
+  final bool autoTick;
+
   GameState _state = GameState.initial();
   Timer? _tickTimer;
   Timer? _persistTimer;
   bool _ready = false;
+
+  /// Screen closed. A late [init] must not start timers or write the save.
+  bool _disposed = false;
+
+  /// When the app went to background; null while on screen.
+  DateTime? _suspendedAt;
   DateTime _lastTick = DateTime.now();
 
   /// Active mud boost ends at this instant (null = inactive).
@@ -551,6 +561,8 @@ class GameController extends ChangeNotifier {
   /// Load save (or bootstrap), grant capped offline progress, start ticker.
   Future<void> init() async {
     final loaded = await _persistence.load();
+    // Left before the save loaded: keep it as is, no ticker on a dead screen.
+    if (_disposed) return;
     if (loaded != null && loaded.totalHerdAcrossMeadows > 0) {
       _state = _clampHerdToMeadow(loaded.withActiveSynced());
       // Fill legacy empty unlocked meadows with cozy starters (no toast).
@@ -561,28 +573,82 @@ class GameController extends ChangeNotifier {
       _state = _maybeUnlockMistyBiome(_state, announce: false);
       _state = _fillEmptyUnlockedMeadows(_state);
       _state = _advanceGoalsQuiet(_state);
-      _applyOfflineProgress();
+      final savedMs = _state.savedAtMs;
+      if (savedMs != null) {
+        _applyOfflineProgress(DateTime.fromMillisecondsSinceEpoch(savedMs));
+      }
     } else {
       _state = _bootstrap();
       _state = _syncGladeAnnounced(_state, announce: false);
       await _persistence.save(_withSavedAt(_state));
+      if (_disposed) return;
     }
     _ready = true;
     _lastTick = _now();
     _twinRerollIn = BalanceV0.twinRerollSeconds.toDouble() * 0.4;
-    _tickTimer?.cancel();
-    _tickTimer = Timer.periodic(const Duration(milliseconds: 50), _onTick);
+    if (_suspendedAt != null) {
+      // Hidden while loading: away from now on; the clock waits for «shown».
+      _suspendedAt = _now();
+    } else {
+      _startTicker();
+    }
     _scheduleFirstBerry();
     _beginMudPresence();
     notifyListeners();
   }
 
-  void _applyOfflineProgress() {
-    final savedMs = _state.savedAtMs;
-    if (savedMs == null) return;
-    final elapsed = _now().difference(
-      DateTime.fromMillisecondsSinceEpoch(savedMs),
-    );
+  void _startTicker() {
+    _tickTimer?.cancel();
+    _tickTimer = null;
+    if (autoTick) {
+      _tickTimer = Timer.periodic(const Duration(milliseconds: 50), _onTick);
+    }
+  }
+
+  /// True while the app is in background (see [suspend]).
+  bool get isSuspended => _suspendedAt != null;
+
+  /// Write the save now instead of on the next [BalanceV0.persistIntervalMs].
+  /// Nothing before load finished or after [dispose].
+  Future<void> flushSave() async {
+    _persistTimer?.cancel();
+    _persistTimer = null;
+    if (!_ready || _disposed) return;
+    await _persistence.save(_withSavedAt(_state));
+  }
+
+  /// App hidden (swiped away, tab hidden, window minimized): stop the game
+  /// clock and write the save with this moment as «left at».
+  Future<void> suspend() async {
+    if (_disposed || _suspendedAt != null) return;
+    _tickTimer?.cancel();
+    _tickTimer = null;
+    _suspendedAt = _now();
+    await flushSave();
+  }
+
+  /// App back on screen: offline grant by the cold-start rules, then the
+  /// live clock resumes from now (no catch-up jump).
+  void resumeFromBackground() {
+    final since = _suspendedAt;
+    if (since == null || _disposed) return;
+    _suspendedAt = null;
+    // Shown again before load finished: [init] starts the clock itself.
+    if (!_ready) return;
+    // As on a relaunch: glades / goals the grant reaches open quietly, with
+    // no toasts or celebration grass (those check [_ready]).
+    _ready = false;
+    _applyOfflineProgress(since);
+    _ready = true;
+    _lastTick = _now();
+    _startTicker();
+    notifyListeners();
+  }
+
+  /// Capped auto progress for the time away since [since] (cold start uses
+  /// the save's `savedAtMs`, a return from background — the hide moment).
+  void _applyOfflineProgress(DateTime since) {
+    final elapsed = _now().difference(since);
     var seconds = elapsed.inSeconds;
     if (seconds < BalanceV0.offlineMinSeconds) return;
     if (seconds > BalanceV0.offlineCapSeconds) {
@@ -617,7 +683,12 @@ class GameController extends ChangeNotifier {
     final dt = now.difference(_lastTick).inMilliseconds / 1000.0;
     _lastTick = now;
     if (dt <= 0 || dt > 1.0) return;
+    _advanceClock(dt, now);
+  }
 
+  /// One step of the game clock: mud, boosts, auto grass, twins, auto bar.
+  /// Shared by the live tick and [debugAdvance], so tests run the real thing.
+  void _advanceClock(double dt, DateTime now) {
     var dirty = false;
     final mudBefore = _mudPresent;
     final mudCenterBefore = _mudCenter;
@@ -1223,10 +1294,12 @@ class GameController extends ChangeNotifier {
     _schedulePersist();
   }
 
+  /// Write soon. Ticks change the state every 50 ms, so the pending write is
+  /// never pushed back — otherwise live play would never be saved.
   void _schedulePersist() {
-    _persistTimer?.cancel();
+    if (_persistTimer?.isActive ?? false) return;
     _persistTimer = Timer(
-      const Duration(milliseconds: BalanceV0.persistDebounceMs),
+      const Duration(milliseconds: BalanceV0.persistIntervalMs),
       () => _persistence.save(_withSavedAt(_state)),
     );
   }
@@ -1527,7 +1600,7 @@ class GameController extends ChangeNotifier {
     _setState(_state.copyWith(twinIdA: a, twinIdB: b));
   }
 
-  /// Headless tick for progression sims (grass auto + twin reroll + auto bar).
+  /// Headless tick for progression sims: the live tick body, any [dt].
   @visibleForTesting
   void debugAdvance(double dt) {
     if (dt <= 0) return;
@@ -1541,51 +1614,7 @@ class GameController extends ChangeNotifier {
       }
       return;
     }
-    final now = _now();
-    var dirty = false;
-    final mudBefore = _mudPresent;
-    final mudCenterBefore = _mudCenter;
-    _advanceMud(dt);
-    if (_mudPresent != mudBefore || _mudCenter != mudCenterBefore) {
-      dirty = true;
-    }
-    if (_mudBoostUntil != null && now.isAfter(_mudBoostUntil!)) {
-      _mudBoostUntil = null;
-      dirty = true;
-    }
-    if (_grassBoostUntil != null && now.isAfter(_grassBoostUntil!)) {
-      _grassBoostUntil = null;
-      dirty = true;
-    }
-    if (_foodBoostUntil != null && now.isAfter(_foodBoostUntil!)) {
-      _foodBoostUntil = null;
-      _foodBoostKind = null;
-      dirty = true;
-    }
-    if (_placeBoostUntil != null && now.isAfter(_placeBoostUntil!)) {
-      _placeBoostUntil = null;
-      _placeBoostKind = null;
-      dirty = true;
-    }
-    _grassAcc += BalanceV0.autoGrassPerSecond * _grassAutoMultiplier * dt;
-    if (_grassAcc >= 1.0) {
-      final granted = _grassAcc.floor();
-      _grassAcc -= granted;
-      _state = _state.copyWith(grass: _state.grass + granted);
-      dirty = true;
-    }
-    _twinRerollIn -= dt;
-    if (_twinRerollIn <= 0) {
-      _twinRerollIn = BalanceV0.twinRerollSeconds.toDouble();
-      final next = _maybeMarkTwins(_state);
-      if (next != _state) {
-        _state = next;
-        dirty = true;
-        _schedulePersist();
-      }
-    }
-    if (dirty) notifyListeners();
-    addProgress(autoRatePerSecond * dt, fromTap: false);
+    _advanceClock(dt, _now());
   }
 
   /// Newest chapter (not a visit back to an older land).
@@ -1774,7 +1803,11 @@ class GameController extends ChangeNotifier {
     _wallowTimer?.cancel();
     _berryTimer?.cancel();
     _mergeFlashTimer?.cancel();
-    unawaited(_persistence.save(_withSavedAt(_state)));
+    _disposed = true;
+    // Before load finished [_state] is the empty placeholder — never write it.
+    if (_ready) {
+      unawaited(_persistence.save(_withSavedAt(_state)));
+    }
     super.dispose();
   }
 }

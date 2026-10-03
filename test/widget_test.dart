@@ -6,8 +6,13 @@ import 'package:capy_clicker/app.dart';
 import 'package:capy_clicker/features/game/audio/game_audio.dart';
 import 'package:capy_clicker/features/game/controllers/game_controller.dart';
 import 'package:capy_clicker/features/game/models/balance.dart';
+import 'package:capy_clicker/features/game/persistence/game_persistence.dart';
 
-String _todayYmd() => GameController.calendarDayKey(DateTime.now());
+/// Still game clock: «daily already claimed» holds even across midnight.
+final DateTime _testNow = DateTime(2026, 9, 21, 12);
+DateTime _clock() => _testNow;
+
+String _todayYmd() => GameController.calendarDayKey(_testNow);
 
 /// Prefs that skip tips and already claimed today's soft daily (stable pumps).
 Map<String, Object> _quietPrefs({bool tipsSeen = true, bool withSave = true}) {
@@ -54,7 +59,7 @@ void main() {
   });
 
   testWidgets('main menu shows title before game', (WidgetTester tester) async {
-    await tester.pumpWidget(const CapyClickerApp());
+    await tester.pumpWidget(CapyClickerApp(now: _clock));
     await _pumpReady(tester);
 
     expect(find.text('Grow! Capy!'), findsOneWidget);
@@ -67,7 +72,7 @@ void main() {
     WidgetTester tester,
   ) async {
     SharedPreferences.setMockInitialValues(_quietPrefs(withSave: false));
-    await tester.pumpWidget(const CapyClickerApp());
+    await tester.pumpWidget(CapyClickerApp(now: _clock));
     await _pumpReady(tester);
 
     final title = tester.getCenter(find.text('Grow! Capy!'));
@@ -89,7 +94,7 @@ void main() {
 
   testWidgets('Играть on empty save opens game', (WidgetTester tester) async {
     SharedPreferences.setMockInitialValues(_quietPrefs(withSave: false));
-    await tester.pumpWidget(const CapyClickerApp());
+    await tester.pumpWidget(CapyClickerApp(now: _clock));
     await _pumpReady(tester);
 
     expect(find.text('Играть'), findsOneWidget);
@@ -113,7 +118,7 @@ void main() {
   testWidgets('GameScreen shows progress label after init', (
     WidgetTester tester,
   ) async {
-    await tester.pumpWidget(const CapyClickerApp());
+    await tester.pumpWidget(CapyClickerApp(now: _clock));
     await _enterGameFromMenu(tester);
 
     expect(find.text('Лес'), findsOneWidget);
@@ -126,7 +131,7 @@ void main() {
   testWidgets('меню chip returns to main menu without wiping save', (
     WidgetTester tester,
   ) async {
-    await tester.pumpWidget(const CapyClickerApp());
+    await tester.pumpWidget(CapyClickerApp(now: _clock));
     await _enterGameFromMenu(tester);
     expect(find.text('Лес'), findsOneWidget);
 
@@ -142,7 +147,7 @@ void main() {
     WidgetTester tester,
   ) async {
     SharedPreferences.setMockInitialValues(_quietPrefs(tipsSeen: false));
-    await tester.pumpWidget(const CapyClickerApp());
+    await tester.pumpWidget(CapyClickerApp(now: _clock));
     await _enterGameFromMenu(tester);
 
     expect(
@@ -167,5 +172,43 @@ void main() {
     await tester.tap(find.text('Понятно'));
     await tester.pump(const Duration(milliseconds: 50));
     expect(find.textContaining('Карта других полян'), findsNothing);
+  });
+
+  testWidgets('Заново right after leaving the game starts a new family (С6)', (
+    WidgetTester tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({
+      BalanceV0.tipsSeenKey: true,
+      'capy_clicker_game_state_v1':
+          '{"herdProgress":0.4,"nextId":5,"grass":40,'
+          '"lastDailyClaimYmd":"${_todayYmd()}","herd":['
+          '{"id":"c1","level":2,"x":0.4,"y":0.7},'
+          '{"id":"c2","level":2,"x":0.5,"y":0.7},'
+          '{"id":"c3","level":1,"x":0.6,"y":0.7},'
+          '{"id":"c4","level":1,"x":0.7,"y":0.7}]}',
+    });
+    await tester.pumpWidget(CapyClickerApp(now: _clock));
+    await _enterGameFromMenu(tester);
+    expect(find.text('Лес'), findsOneWidget);
+
+    // Leave and press «Заново» without waiting for anything.
+    await tester.tap(find.byIcon(Icons.pause_rounded));
+    await tester.pump();
+    await tester.pump();
+    await tester.tap(find.text('Заново'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.text('Заново').last);
+    await _pumpReady(tester);
+    expect(find.text('Лес'), findsOneWidget);
+
+    // Back to the menu: the save is the new family, not the old one.
+    await tester.tap(find.byIcon(Icons.pause_rounded));
+    await _pumpReady(tester);
+    await tester.pump(const Duration(milliseconds: 800));
+    final saved = await GamePersistence().load();
+    expect(saved, isNotNull);
+    expect(saved!.grass, 0);
+    expect(saved.herdCount, BalanceV0.startingHerdSize);
   });
 }

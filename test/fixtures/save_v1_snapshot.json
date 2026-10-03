@@ -1,0 +1,285 @@
+{
+  "herdProgress": 0.5700602177918059,
+  "nextId": 91,
+  "herd": [
+    {
+      "id": "c80",
+      "level": 1,
+      "x": 0.3,
+      "y": 0.72,
+      "role": "nanya"
+    },
+    {
+      "id": "c85",
+      "level": 1,
+      "x": 0.68,
+      "y": 0.74
+    },
+    {
+      "id": "c86",
+      "level": 1,
+      "x": 0.6043258666666667,
+      "y": 0.52
+    },
+    {
+      "id": "c87",
+      "level": 1,
+      "x": 0.1002888,
+      "y": 0.52
+    },
+    {
+      "id": "c88",
+      "level": 1,
+      "x": 0.86,
+      "y": 0.52
+    }
+  ],
+  "savedAtMs": 1790000000000,
+  "lastDailyClaimYmd": "2026-09-21",
+  "sunnyGladeAnnounced": 1,
+  "grass": 175,
+  "sessionGoalIndex": 1,
+  "activeMeadowId": "warm_edge",
+  "meadows": {
+    "warm_edge": {
+      "herdProgress": 0.5700602177918059,
+      "herd": [
+        {
+          "id": "c80",
+          "level": 1,
+          "x": 0.3,
+          "y": 0.72,
+          "role": "nanya"
+        },
+        {
+          "id": "c85",
+          "level": 1,
+          "x": 0.68,
+          "y": 0.74
+        },
+        {
+          "id": "c86",
+          "level": 1,
+          "x": 0.6043258666666667,
+          "y": 0.52
+        },
+        {
+          "id": "c87",
+          "level": 1,
+          "x": 0.1002888,
+          "y": 0.52
+        },
+        {
+          "id": "c88",
+          "level": 1,
+          "x": 0.86,
+          "y": 0.52
+        }
+      ]
+    },
+    "berry_glade": {
+      "herdProgress": 0.0,
+      "herd": [
+        {
+          "id": "c89",
+          "level": 1,
+          "x": 0.6136,
+          "y": 0.5
+        },
+        {
+          "id": "c90",
+          "level": 1,
+          "x": 0.47450640000000005,
+          "y": 0.93
+        }
+      ]
+    }
+  },
+  "uyut": 1,
+  "mistyBiomeUnlocked": false,
+  "food": {
+    "travka": 9,
+    "yagody": 4,
+    "oreshki": 3
+  },
+  "ownedDecor": [
+    "fonarik"
+  ],
+  "placedDecor": [],
+  "researched": [
+    "more_flowers"
+  ],
+  "roleSlots": 1,
+  "tentUnlocked": false,
+  "visitedMist": false,
+  "landChapter": 1,
+  "otherLands": [
+    {
+      "chapter": 0,
+      "activeMeadowId": "mist_edge",
+      "sunnyGladeAnnounced": 3,
+      "mistyBiomeUnlocked": true,
+      "sessionGoalIndex": 6,
+      "placedDecor": [
+        "fonarik"
+      ],
+      "visitedMist": true,
+      "herdProgress": 0.0,
+      "herd": [
+        {
+          "id": "c82",
+          "level": 1,
+          "x": 0.6210666666666667,
+          "y": 0.52
+        },
+        {
+          "id": "c83",
+          "level": 1,
+          "x": 0.47502960000000005,
+          "y": 0.92
+        }
+      ],
+      "meadows": {
+        "warm_edge": {
+          "herdProgress": 1.0,
+          "herd": [
+            {
+              "id": "c49",
+              "level": 3,
+              "x": 0.5275,
+              "y": 0.5927272727272728
+            },
+            {
+              "id": "c53",
+              "level": 3,
+              "x": 0.86,
+              "y": 0.52
+            },
+            {
+              "id": "c57",
+              "level": 3,
+              "x": 0.10137165000862777,
+              "y": 0.7451453328402805
+            },
+            {
+              "id": "c61",
+              "level": 3,
+              "x": 0.575,
+              "y": 0.92
+            },
+            {
+              "id": "c65",
+              "level": 3,
+              "x": 0.1061256,
+              "y": 0.52
+            },
+            {
+              "id": "c69",
+              "level": 3,
+              "x": 0.7175,
+              "y": 0.6290909090909091
+            },
+            {
+              "id": "c73",
+              "level": 3,
+              "x": 0.86,
+              "y": 0.6290909090909091
+            },
+            {
+              "id": "c77",
+              "level": 3,
+              "x": 0.7175,
+              "y": 0.52
+            },
+            {
+              "id": "c79",
+              "level": 2,
+              "x": 0.6066758157833825,
+              "y": 0.807011121445733
+            },
+            {
+              "id": "c81",
+              "level": 4,
+              "x": 0.32233087355489326,
+              "y": 0.7312981770833331
+            },
+            {
+              "id": "c84",
+              "level": 1,
+              "x": 0.5275,
+              "y": 0.7018181818181819
+            }
+          ]
+        },
+        "berry_glade": {
+          "herdProgress": 0.0,
+          "herd": [
+            {
+              "id": "c6",
+              "level": 1,
+              "x": 0.6136,
+              "y": 0.5
+            },
+            {
+              "id": "c7",
+              "level": 1,
+              "x": 0.47450640000000005,
+              "y": 0.93
+            }
+          ]
+        },
+        "sunny_clearing": {
+          "herdProgress": 0.0,
+          "herd": [
+            {
+              "id": "c13",
+              "level": 1,
+              "x": 0.9014,
+              "y": 0.4
+            },
+            {
+              "id": "c14",
+              "level": 1,
+              "x": 0.6177089333333333,
+              "y": 0.4
+            }
+          ]
+        },
+        "great_meadow": {
+          "herdProgress": 0.0,
+          "herd": [
+            {
+              "id": "c25",
+              "level": 1,
+              "x": 0.9309,
+              "y": 0.34
+            },
+            {
+              "id": "c26",
+              "level": 1,
+              "x": 0.6307152666666667,
+              "y": 0.4175
+            }
+          ]
+        },
+        "mist_edge": {
+          "herdProgress": 0.0,
+          "herd": [
+            {
+              "id": "c82",
+              "level": 1,
+              "x": 0.6210666666666667,
+              "y": 0.52
+            },
+            {
+              "id": "c83",
+              "level": 1,
+              "x": 0.47502960000000005,
+              "y": 0.92
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' show AppExitResponse;
 
 import 'package:flutter/material.dart';
 
@@ -13,6 +14,7 @@ import 'models/capy_wander.dart';
 import 'models/meadow_occupancy.dart';
 import 'models/session_goals.dart';
 import 'models/world_zones.dart';
+import 'persistence/game_persistence.dart';
 import 'widgets/berry_basket.dart';
 import 'widgets/draggable_capybara.dart';
 import 'widgets/flower_dot.dart';
@@ -33,13 +35,27 @@ import 'models/multipliers/multipliers.dart';
 
 /// Live game screen: auto progress, flowers, herd, merge, mud, berries, zoom.
 class GameScreen extends StatefulWidget {
-  const GameScreen({super.key, this.controller, this.audio, this.onBackToMenu});
+  const GameScreen({
+    super.key,
+    this.controller,
+    this.audio,
+    this.persistence,
+    this.now,
+    this.onBackToMenu,
+  });
 
   /// Optional injected controller (tests / DI).
   final GameController? controller;
 
   /// Optional audio (pass [GameAudio.silent] / `silent: true` in tests).
   final GameAudio? audio;
+
+  /// Save store for the owned controller. The app shares its own with the
+  /// menu, so a save on the way out lands before «Заново» clears it.
+  final GamePersistence? persistence;
+
+  /// Game clock for the owned controller (tests pin it; null = wall clock).
+  final DateTime Function()? now;
 
   /// Soft pause / return to main menu (save is flushed on dispose).
   final VoidCallback? onBackToMenu;
@@ -54,7 +70,10 @@ class _GameScreenState extends State<GameScreen> {
   late final GameAudio _audio;
   late final bool _ownsAudio;
   final GlobalKey _meadowKey = GlobalKey();
-  bool _offlineWelcomeShown = false;
+
+  /// Save on the way out, pause in background, greet on return.
+  late final AppLifecycleListener _lifecycle;
+
   bool _dailyPromptShown = false;
   bool _dailySheetOpen = false;
 
@@ -91,13 +110,40 @@ class _GameScreenState extends State<GameScreen> {
   void initState() {
     super.initState();
     _ownsController = widget.controller == null;
-    _controller = widget.controller ?? GameController();
+    _controller =
+        widget.controller ??
+        GameController(persistence: widget.persistence, now: widget.now);
     _ownsAudio = widget.audio == null;
     _audio = widget.audio ?? GameAudio();
     _audio.addListener(_onAudioChanged);
     _controller.addListener(_onControllerChanged);
     _controller.init();
     _audio.init();
+    _lifecycle = AppLifecycleListener(
+      onInactive: () => unawaited(_controller.flushSave()),
+      onHide: _onAppHidden,
+      onShow: _onAppShown,
+      onDetach: () => unawaited(_controller.flushSave()),
+      onExitRequested: _onExitRequested,
+    );
+  }
+
+  /// Swiped away, tab hidden, window minimized: write now, stop the clock.
+  void _onAppHidden() {
+    unawaited(_controller.suspend());
+    // The app silences shared sound itself; only own audio is ours to pause.
+    if (_ownsAudio) unawaited(_audio.setInBackground(true));
+  }
+
+  void _onAppShown() {
+    _controller.resumeFromBackground();
+    if (_ownsAudio) unawaited(_audio.setInBackground(false));
+  }
+
+  /// Desktop window close: the exit waits for the save.
+  Future<AppExitResponse> _onExitRequested() async {
+    await _controller.flushSave();
+    return AppExitResponse.exit;
   }
 
   void _onAudioChanged() {
@@ -206,10 +252,9 @@ class _GameScreenState extends State<GameScreen> {
     });
   }
 
+  /// Cold start and every return from background (acknowledge = once).
   void _maybeShowOfflineWelcome() {
-    if (_offlineWelcomeShown) return;
     if (!_controller.isReady || !_controller.hasOfflineWelcome) return;
-    _offlineWelcomeShown = true;
     final seconds = _controller.offlineSecondsApplied;
     final progress = _controller.offlineProgressGranted;
     _controller.acknowledgeOfflineWelcome();
@@ -240,6 +285,7 @@ class _GameScreenState extends State<GameScreen> {
 
   @override
   void dispose() {
+    _lifecycle.dispose();
     _badgeClearTimer?.cancel();
     _controller.removeListener(_onControllerChanged);
     _audio.removeListener(_onAudioChanged);

@@ -108,8 +108,9 @@ abstract final class BalanceV0 {
   /// Minimum normalized distance between spawn positions (0–1 meadow space).
   static const double minSpawnSeparation = 0.14;
 
-  /// How often to debounce-persist to disk (ms).
-  static const int persistDebounceMs = 400;
+  /// A change is written at most this long after it happened (ms). Not reset
+  /// by later changes, so live play writes about this often, idle — never.
+  static const int persistIntervalMs = 2000;
 
   // --- Offline progress (Phase 2) ---
 
