@@ -26,4 +26,4 @@
 
 ## Сдача
 
-- [ ] **Ш14.** `flutter analyze` чисто, `flutter test` дважды зелёный. Статус в `specs/README.md`.
+- [x] **Ш14.** `flutter analyze` чисто, `flutter test` дважды зелёный. Статус в `specs/README.md`.
