@@ -4,7 +4,7 @@
 
 - [x] 1. Отпечаток поведения на старом коде (`test/support/fingerprint.dart`, `test/behavior_fingerprint_test.dart`, строки в симуляциях, `test/fixtures/fingerprint/`). Отдельный коммит.
 - [x] 2. `plan.md`, `tasks.md`. Замер перестроек на старом коде.
-- [ ] 3. Ядро: `GameCore` и части в `lib/features/game/core/`, `GameController` — фасад. Перенос без изменения логики. Отпечаток тот же.
+- [x] 3. Ядро: `GameCore` и части в `lib/features/game/core/`, `GameController` — фасад. Перенос без изменения логики. Отпечаток тот же.
 - [ ] 4. Т3: быстрый путь шкалы (`normalized`), список семьи сохраняет тождество, если не менялся.
 - [ ] 5. Т4: `GameMessages`, поток `events`; уход `lastRoleToast`, `acknowledgeRoleToast`, `isAnyBoostActive`, `activeBoostRemainingSeconds`, `placeAt`, `isOverPlace`, сеттеров `lastTapGrass` / `lastDroppedFood`.
 - [ ] 6. Т5: запись сейва без `jsonDecode`.

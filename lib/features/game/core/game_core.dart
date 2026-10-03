@@ -1,0 +1,165 @@
+import 'dart:async';
+import 'dart:math';
+
+import '../models/balance.dart';
+import '../models/game_state.dart';
+import '../models/world_zones.dart';
+import '../persistence/game_persistence.dart';
+import 'boosts.dart';
+import 'clock.dart';
+import 'family_roles.dart';
+import 'finds.dart';
+import 'goals.dart';
+import 'herd.dart';
+import 'lands.dart';
+import 'meadows.dart';
+import 'merge.dart';
+import 'messages.dart';
+import 'puddle.dart';
+import 'rates.dart';
+import 'save.dart';
+import 'shop.dart';
+
+/// One slice of the game rules. Reads [GameState] and commits it via [core].
+abstract class GamePart {
+  GamePart(this.core);
+
+  final GameCore core;
+
+  GameState get state => core.state;
+}
+
+/// Shared heart of [GameController]: the state, the clock and the seed, and
+/// the check chain every change runs through. Parts hang off it.
+class GameCore {
+  GameCore({
+    required this.persistence,
+    required this.random,
+    required this.lootRandom,
+    required this.now,
+    required this.autoTick,
+    required this._onNotify,
+  });
+
+  final GamePersistence persistence;
+  final Random random;
+
+  /// Separate stream so food/loot drops do not desync core progression RNG.
+  final Random lootRandom;
+  final DateTime Function() now;
+
+  /// False: no periodic tick — tests drive the game clock via debugAdvance.
+  final bool autoTick;
+
+  final void Function() _onNotify;
+
+  late final GameClock clock = GameClock(this);
+  late final GameSave save = GameSave(this);
+  late final GameRates rates = GameRates(this);
+  late final GameBoosts boosts = GameBoosts(this);
+  late final GamePuddle puddle = GamePuddle(this);
+  late final GameFinds finds = GameFinds(this);
+  late final GameHerd herd = GameHerd(this);
+  late final GameMerge merge = GameMerge(this);
+  late final GameMeadows meadows = GameMeadows(this);
+  late final GameShop shop = GameShop(this);
+  late final FamilyRoles roles = FamilyRoles(this);
+  late final GameGoals goals = GameGoals(this);
+  late final GameMessages messages = GameMessages(this);
+  late final GameLands lands = GameLands(this);
+
+  /// Save loaded and the game running (toasts and rewards only when true).
+  bool ready = false;
+
+  /// Screen closed. A late [init] must not start timers or write the save.
+  bool disposed = false;
+
+  /// The live state. Direct writes skip the check chain (load, auto grass,
+  /// twins, taps); rule changes go through [commit].
+  GameState state = GameState.initial();
+
+  void notify() => _onNotify();
+
+  /// Every rule change lands here: reclamp to the active glade, keep the
+  /// research flags in sync, open glades and goals, notify, save soon.
+  void commit(GameState next) {
+    // Reclamp to active Sunny Glade; soft-announce when a new glade opens.
+    var state = herd.clampHerdToMeadow(next);
+    if (state.grass < 0) {
+      state = state.copyWith(grass: 0);
+    }
+    if (state.uyut < 0) {
+      state = state.copyWith(uyut: 0);
+    }
+    if (state.activeMeadowId == WorldZones.mistEdgeMeadowId &&
+        !state.visitedMist) {
+      state = state.copyWith(visitedMist: true);
+    }
+    // Keep roleSlots in sync with research.
+    if (state.hasResearch('role_slot_2') && state.roleSlots < 2) {
+      state = state.copyWith(roleSlots: 2);
+    }
+    if (state.hasResearch('unlock_tent') && !state.tentUnlocked) {
+      state = state.copyWith(tentUnlocked: true);
+    }
+    state = merge.sanitizeTwins(state);
+    state = meadows.syncGladeAnnounced(state, announce: true);
+    state = meadows.maybeUnlockMistyBiome(state, announce: true);
+    state = goals.checkGoals(state, celebrate: true);
+    this.state = state;
+    notify();
+    save.schedule();
+  }
+
+  /// Load save (or bootstrap), grant capped offline progress, start ticker.
+  Future<void> init() async {
+    final loaded = await persistence.load();
+    // Left before the save loaded: keep it as is, no ticker on a dead screen.
+    if (disposed) return;
+    if (loaded != null && loaded.totalHerdAcrossMeadows > 0) {
+      state = herd.clampHerdToMeadow(loaded.withActiveSynced());
+      // Fill legacy empty unlocked meadows with cozy starters (no toast).
+      state = meadows.fillEmptyUnlockedMeadows(state);
+      // Sync announced index quietly — no FOMO toast on relaunch.
+      state = meadows.syncGladeAnnounced(state, announce: false);
+      state = merge.sanitizeTwins(state);
+      state = meadows.maybeUnlockMistyBiome(state, announce: false);
+      state = meadows.fillEmptyUnlockedMeadows(state);
+      state = goals.advanceGoalsQuiet(state);
+      final savedMs = state.savedAtMs;
+      if (savedMs != null) {
+        clock.applyOfflineProgress(DateTime.fromMillisecondsSinceEpoch(savedMs));
+      }
+    } else {
+      state = herd.bootstrap();
+      state = meadows.syncGladeAnnounced(state, announce: false);
+      await persistence.save(save.withSavedAt(state));
+      if (disposed) return;
+    }
+    ready = true;
+    clock.lastTick = now();
+    merge.twinRerollIn = BalanceV0.twinRerollSeconds.toDouble() * 0.4;
+    if (clock.suspendedAt != null) {
+      // Hidden while loading: away from now on; the clock waits for «shown».
+      clock.suspendedAt = now();
+    } else {
+      clock.startTicker();
+    }
+    finds.scheduleFirstBerry();
+    puddle.beginPresence();
+    notify();
+  }
+
+  void dispose() {
+    clock.dispose();
+    save.dispose();
+    puddle.dispose();
+    finds.dispose();
+    merge.dispose();
+    disposed = true;
+    // Before load finished [state] is the empty placeholder — never write it.
+    if (ready) {
+      unawaited(persistence.save(save.withSavedAt(state)));
+    }
+  }
+}
