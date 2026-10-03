@@ -13,6 +13,7 @@ import 'models/capy_wander.dart';
 import 'models/meadow_occupancy.dart';
 import 'models/session_goals.dart';
 import 'models/world_zones.dart';
+import 'persistence/game_persistence.dart';
 import 'widgets/berry_basket.dart';
 import 'widgets/draggable_capybara.dart';
 import 'widgets/flower_dot.dart';
@@ -37,6 +38,7 @@ class GameScreen extends StatefulWidget {
     super.key,
     this.controller,
     this.audio,
+    this.persistence,
     this.now,
     this.onBackToMenu,
   });
@@ -46,6 +48,10 @@ class GameScreen extends StatefulWidget {
 
   /// Optional audio (pass [GameAudio.silent] / `silent: true` in tests).
   final GameAudio? audio;
+
+  /// Save store for the owned controller. The app shares its own with the
+  /// menu, so a save on the way out lands before «Заново» clears it.
+  final GamePersistence? persistence;
 
   /// Game clock for the owned controller (tests pin it; null = wall clock).
   final DateTime Function()? now;
@@ -100,7 +106,9 @@ class _GameScreenState extends State<GameScreen> {
   void initState() {
     super.initState();
     _ownsController = widget.controller == null;
-    _controller = widget.controller ?? GameController(now: widget.now);
+    _controller =
+        widget.controller ??
+        GameController(persistence: widget.persistence, now: widget.now);
     _ownsAudio = widget.audio == null;
     _audio = widget.audio ?? GameAudio();
     _audio.addListener(_onAudioChanged);

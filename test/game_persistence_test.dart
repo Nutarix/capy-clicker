@@ -31,6 +31,36 @@ GameState _family(int grass, {int capys = 2}) => GameState(
 
 String _raw(GameState s) => jsonEncode(s.toJson());
 
+/// Prefs like on a phone: the value is visible at once, the disk write
+/// takes a moment (a removal less than a big write). Lets two operations
+/// overlap the way they do on device.
+class _SlowPrefs extends Fake implements SharedPreferences {
+  final Map<String, Object> values = {};
+
+  Future<bool> _disk(int ms) async {
+    await Future<void>.delayed(Duration(milliseconds: ms));
+    return true;
+  }
+
+  @override
+  Object? get(String key) => values[key];
+
+  @override
+  String? getString(String key) => values[key] as String?;
+
+  @override
+  Future<bool> setString(String key, String value) {
+    values[key] = value;
+    return _disk(6);
+  }
+
+  @override
+  Future<bool> remove(String key) {
+    values.remove(key);
+    return _disk(1);
+  }
+}
+
 Future<SharedPreferences> _prefs() => SharedPreferences.getInstance();
 
 /// Raw blobs set aside for a look later, oldest first.
@@ -216,6 +246,32 @@ void main() {
       expect(await _setAside(), [_garbage, _garbage2]);
       final main = await GamePersistence().load();
       expect(main!.herdCount, BalanceV0.startingHerdSize + 1);
+    });
+  });
+
+  group('one write at a time (Т8)', () {
+    test(
+      'a save started before clear does not bring the family back',
+      () async {
+        final slow = _SlowPrefs();
+        final p = GamePersistence(prefs: slow);
+        await p.save(_family(1));
+        final late = p.save(_family(2)); // exit to menu, not awaited
+        final wipe = p.clear(); // «Заново» right after
+        await Future.wait([late, wipe]);
+        expect(slow.values[_key], isNull);
+        expect(slow.values[_prevKey], isNull);
+        expect(await p.load(), isNull);
+      },
+    );
+
+    test('load waits for the save in flight', () async {
+      final p = GamePersistence(prefs: _SlowPrefs());
+      await p.save(_family(3));
+      final saving = p.save(_family(4)); // exit to menu, not awaited
+      final loaded = await p.load(); // menu checks «Продолжить»
+      await saving;
+      expect(loaded?.grass, 4);
     });
   });
 }

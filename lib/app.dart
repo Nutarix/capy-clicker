@@ -20,6 +20,8 @@ class CapyClickerApp extends StatefulWidget {
 
 class _CapyClickerAppState extends State<CapyClickerApp> {
   final GameAudio _audio = GameAudio();
+
+  /// One save store for menu and game: its writes run in call order.
   final GamePersistence _persistence = GamePersistence();
 
   /// When false, show [MainMenuScreen]; when true, [GameScreen].
@@ -63,6 +65,7 @@ class _CapyClickerAppState extends State<CapyClickerApp> {
           ? PortraitPhoneFrame(
               child: GameScreen(
                 audio: _audio,
+                persistence: _persistence,
                 now: widget.now,
                 onBackToMenu: _backToMenu,
               ),

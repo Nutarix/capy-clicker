@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -10,6 +11,10 @@ import '../models/game_state.dart';
 /// Main save keeps the v1 key and format. Next to it: the previous good save
 /// (raised when the main one cannot be read) and damaged blobs set aside for
 /// a look later — never wiped silently, not even by a new game.
+///
+/// Operations run one at a time, in call order: a save fired on the way to
+/// the menu lands before the «Заново» clear that follows it. Share one
+/// instance between menu and game for that.
 class GamePersistence {
   GamePersistence({this._prefs});
 
@@ -25,6 +30,24 @@ class GamePersistence {
   /// Last save known to read back: what [load] returned or [save] wrote.
   String? _lastGoodRaw;
 
+  /// Operation in flight; null when idle. Not a chained future on purpose:
+  /// a finished chain would outlive the zone it was made in (fake time).
+  Future<void>? _busy;
+
+  Future<T> _serial<T>(Future<T> Function() op) async {
+    while (_busy != null) {
+      await _busy;
+    }
+    final done = Completer<void>();
+    _busy = done.future;
+    try {
+      return await op();
+    } finally {
+      _busy = null;
+      done.complete();
+    }
+  }
+
   Future<SharedPreferences> _ensurePrefs() async {
     return _prefs ??= await SharedPreferences.getInstance();
   }
@@ -35,7 +58,9 @@ class GamePersistence {
     return state != null && state.totalHerdAcrossMeadows > 0;
   }
 
-  Future<GameState?> load() async {
+  Future<GameState?> load() => _serial(_load);
+
+  Future<GameState?> _load() async {
     final prefs = await _ensurePrefs();
     final raw = _readRaw(prefs, _key);
     // No main save: new game. The copy is not raised — «Заново» stays new.
@@ -57,7 +82,9 @@ class GamePersistence {
     return null;
   }
 
-  Future<void> save(GameState state) async {
+  Future<void> save(GameState state) => _serial(() => _save(state));
+
+  Future<void> _save(GameState state) async {
     final prefs = await _ensurePrefs();
     final raw = jsonEncode(state.toJson());
     var prev = _lastGoodRaw;
@@ -74,7 +101,9 @@ class GamePersistence {
   }
 
   /// «Заново»: drop main and copy. Set-aside blobs stay.
-  Future<void> clear() async {
+  Future<void> clear() => _serial(_clear);
+
+  Future<void> _clear() async {
     final prefs = await _ensurePrefs();
     _lastGoodRaw = null;
     // Copy first: a cut here must not leave an old copy without a main.
