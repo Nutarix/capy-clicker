@@ -42,6 +42,9 @@ class GameController extends ChangeNotifier {
   Timer? _tickTimer;
   Timer? _persistTimer;
   bool _ready = false;
+
+  /// Screen closed. A late [init] must not start timers or write the save.
+  bool _disposed = false;
   DateTime _lastTick = DateTime.now();
 
   /// Active mud boost ends at this instant (null = inactive).
@@ -555,6 +558,8 @@ class GameController extends ChangeNotifier {
   /// Load save (or bootstrap), grant capped offline progress, start ticker.
   Future<void> init() async {
     final loaded = await _persistence.load();
+    // Left before the save loaded: keep it as is, no ticker on a dead screen.
+    if (_disposed) return;
     if (loaded != null && loaded.totalHerdAcrossMeadows > 0) {
       _state = _clampHerdToMeadow(loaded.withActiveSynced());
       // Fill legacy empty unlocked meadows with cozy starters (no toast).
@@ -570,6 +575,7 @@ class GameController extends ChangeNotifier {
       _state = _bootstrap();
       _state = _syncGladeAnnounced(_state, announce: false);
       await _persistence.save(_withSavedAt(_state));
+      if (_disposed) return;
     }
     _ready = true;
     _lastTick = _now();
@@ -1743,7 +1749,11 @@ class GameController extends ChangeNotifier {
     _wallowTimer?.cancel();
     _berryTimer?.cancel();
     _mergeFlashTimer?.cancel();
-    unawaited(_persistence.save(_withSavedAt(_state)));
+    _disposed = true;
+    // Before load finished [_state] is the empty placeholder — never write it.
+    if (_ready) {
+      unawaited(_persistence.save(_withSavedAt(_state)));
+    }
     super.dispose();
   }
 }
