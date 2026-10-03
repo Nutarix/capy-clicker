@@ -29,7 +29,4 @@ jobs:
 
       - run: flutter analyze
 
-      # playtest_mockup_shots_test.dart needs fonts and paths from another
-      # machine; spec 001 moves it to tool/. Until then CI skips it by name.
-      - name: flutter test
-        run: flutter test $(find test -name '*_test.dart' ! -name 'playtest_mockup_shots_test.dart' | sort)
+      - run: flutter test
