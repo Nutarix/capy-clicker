@@ -9,7 +9,7 @@
 
 ## Шрифты
 
-- [ ] **Ш3. Шрифты в ассетах (Т1–Т3).** Тест `bundled_fonts_test.dart`: стили `CozyTheme` грузятся из ассетов без сети и меряются настоящим шрифтом. Код: `assets/google_fonts/` (6 `.ttf` + 2 `OFL.txt`), папка в `pubspec`, `test/flutter_test_config.dart` как в 001, `main()`: запрет скачивания и `LicenseRegistry`.
+- [x] **Ш3. Шрифты в ассетах (Т1–Т3).** Тест `bundled_fonts_test.dart`: стили `CozyTheme` грузятся из ассетов без сети и меряются настоящим шрифтом. Код: `assets/google_fonts/` (5 `.ttf` + 2 `OFL.txt`), папка в `pubspec`, `test/flutter_test_config.dart` как в 001, `main()`: запрет скачивания и `LicenseRegistry`.
 
 ## Android
 

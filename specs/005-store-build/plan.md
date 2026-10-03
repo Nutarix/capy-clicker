@@ -23,18 +23,17 @@
 
 Файлы — статические начертания с `fonts.gstatic.com`, ровно те, что пакет качал до сих пор: sha256 и длина совпадают с записанными в `google_fonts` 8.2.1. В репозитории `google/fonts` теперь лежат только переменные шрифты (`Nunito[wght].ttf`), а `google_fonts` грузит каждое начертание отдельным файлом и переменный шрифт не разложит по весам. Лицензии `OFL.txt` — из `github.com/google/fonts` (`ofl/nunito`, `ofl/pixelifysans`).
 
-Нужные начертания (всё, что запрашивает `CozyTheme`, включая `nunitoTextTheme` Material 3):
+Нужные начертания — всё, что запрашивает `CozyTheme` (тест перечисляет семьи, которые реально выдаёт тема; `nunitoTextTheme` во Flutter 3.47 даёт только w400, Medium не нужен):
 
 | Файл | Где |
 |---|---|
-| `Nunito-Regular.ttf` | тело текста, заголовки M3, `contentTextStyle` диалога, запасной для Pixelify |
-| `Nunito-Medium.ttf` | `title/label` M3 (w500) |
+| `Nunito-Regular.ttf` | весь `textTheme`, `contentTextStyle` диалога, запасной для Pixelify |
 | `Nunito-SemiBold.ttf` | `hudChipMutedStyle` |
 | `Nunito-Bold.ttf` | `TextButton`, `secondaryButtonStyle`, `hudChipStyle` |
 | `Nunito-ExtraBold.ttf` | `AppBar`, `ElevatedButton`, диалог, `primaryButtonStyle` |
 | `PixelifySans-Bold.ttf` | заголовок меню и главная кнопка |
 
-Курсив не используется. ~680 КБ шрифтов.
+Курсив не используется. ~550 КБ шрифтов.
 
 `main()`: `GoogleFonts.config.allowRuntimeFetching = false` и `LicenseRegistry` с обоими `OFL.txt`.
 

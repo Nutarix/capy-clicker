@@ -98,6 +98,9 @@ flutter:
     - assets/audio/sfx_merge.wav
     - assets/audio/sfx_wallow.wav
     - assets/audio/sfx_glade.wav
+    # Nunito + Pixelify Sans, static weights used by CozyTheme. google_fonts
+    # picks them up by file name; runtime fetching is off (see main.dart).
+    - assets/google_fonts/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
