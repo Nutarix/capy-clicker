@@ -23,6 +23,7 @@ class GameController extends ChangeNotifier {
     GamePersistence? persistence,
     Random? random,
     DateTime Function()? now,
+    this.autoTick = true,
   }) : _persistence = persistence ?? GamePersistence(),
        _random = random ?? Random(),
        // Separate stream so food/loot drops do not desync core progression RNG.
@@ -33,6 +34,9 @@ class GameController extends ChangeNotifier {
   final Random _random;
   final Random _lootRandom;
   final DateTime Function() _now;
+
+  /// False: no periodic tick — tests drive the game clock via [debugAdvance].
+  final bool autoTick;
 
   GameState _state = GameState.initial();
   Timer? _tickTimer;
@@ -571,7 +575,9 @@ class GameController extends ChangeNotifier {
     _lastTick = _now();
     _twinRerollIn = BalanceV0.twinRerollSeconds.toDouble() * 0.4;
     _tickTimer?.cancel();
-    _tickTimer = Timer.periodic(const Duration(milliseconds: 50), _onTick);
+    if (autoTick) {
+      _tickTimer = Timer.periodic(const Duration(milliseconds: 50), _onTick);
+    }
     _scheduleFirstBerry();
     _beginMudPresence();
     notifyListeners();
@@ -617,7 +623,12 @@ class GameController extends ChangeNotifier {
     final dt = now.difference(_lastTick).inMilliseconds / 1000.0;
     _lastTick = now;
     if (dt <= 0 || dt > 1.0) return;
+    _advanceClock(dt, now);
+  }
 
+  /// One step of the game clock: mud, boosts, auto grass, twins, auto bar.
+  /// Shared by the live tick and [debugAdvance], so tests run the real thing.
+  void _advanceClock(double dt, DateTime now) {
     var dirty = false;
     final mudBefore = _mudPresent;
     final mudCenterBefore = _mudCenter;
@@ -1527,7 +1538,7 @@ class GameController extends ChangeNotifier {
     _setState(_state.copyWith(twinIdA: a, twinIdB: b));
   }
 
-  /// Headless tick for progression sims (grass auto + twin reroll + auto bar).
+  /// Headless tick for progression sims: the live tick body, any [dt].
   @visibleForTesting
   void debugAdvance(double dt) {
     if (dt <= 0) return;
@@ -1541,51 +1552,7 @@ class GameController extends ChangeNotifier {
       }
       return;
     }
-    final now = _now();
-    var dirty = false;
-    final mudBefore = _mudPresent;
-    final mudCenterBefore = _mudCenter;
-    _advanceMud(dt);
-    if (_mudPresent != mudBefore || _mudCenter != mudCenterBefore) {
-      dirty = true;
-    }
-    if (_mudBoostUntil != null && now.isAfter(_mudBoostUntil!)) {
-      _mudBoostUntil = null;
-      dirty = true;
-    }
-    if (_grassBoostUntil != null && now.isAfter(_grassBoostUntil!)) {
-      _grassBoostUntil = null;
-      dirty = true;
-    }
-    if (_foodBoostUntil != null && now.isAfter(_foodBoostUntil!)) {
-      _foodBoostUntil = null;
-      _foodBoostKind = null;
-      dirty = true;
-    }
-    if (_placeBoostUntil != null && now.isAfter(_placeBoostUntil!)) {
-      _placeBoostUntil = null;
-      _placeBoostKind = null;
-      dirty = true;
-    }
-    _grassAcc += BalanceV0.autoGrassPerSecond * _grassAutoMultiplier * dt;
-    if (_grassAcc >= 1.0) {
-      final granted = _grassAcc.floor();
-      _grassAcc -= granted;
-      _state = _state.copyWith(grass: _state.grass + granted);
-      dirty = true;
-    }
-    _twinRerollIn -= dt;
-    if (_twinRerollIn <= 0) {
-      _twinRerollIn = BalanceV0.twinRerollSeconds.toDouble();
-      final next = _maybeMarkTwins(_state);
-      if (next != _state) {
-        _state = next;
-        dirty = true;
-        _schedulePersist();
-      }
-    }
-    if (dirty) notifyListeners();
-    addProgress(autoRatePerSecond * dt, fromTap: false);
+    _advanceClock(dt, _now());
   }
 
   /// Newest chapter (not a visit back to an older land).
