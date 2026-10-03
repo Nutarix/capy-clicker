@@ -6,6 +6,8 @@
 [`FOREST_MAP_V0.md`](FOREST_MAP_V0.md), [`PRESTIGE_V0.md`](PRESTIGE_V0.md), [`MULTIPLIERS_V0.md`](MULTIPLIERS_V0.md),
 [`V1_CHECKLIST.md`](V1_CHECKLIST.md).
 
+Долгая разбивка работ до релиза: [`WBS.md`](WBS.md).
+
 ---
 
 ## Приоритет (одобрено)
