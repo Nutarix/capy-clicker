@@ -635,7 +635,11 @@ class GameController extends ChangeNotifier {
     _suspendedAt = null;
     // Shown again before load finished: [init] starts the clock itself.
     if (!_ready) return;
+    // As on a relaunch: glades / goals the grant reaches open quietly, with
+    // no toasts or celebration grass (those check [_ready]).
+    _ready = false;
     _applyOfflineProgress(since);
+    _ready = true;
     _lastTick = _now();
     _startTicker();
     notifyListeners();

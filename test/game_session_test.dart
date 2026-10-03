@@ -112,6 +112,11 @@ void main() {
       );
       expect(c.state.herdCount, cold.state.herdCount);
       expect(c.state.herdProgress, closeTo(cold.state.herdProgress, 1e-9));
+      // Same quiet catch-up as a relaunch: glades and goals, no extra rewards.
+      expect(c.state.sunnyGladeAnnounced, cold.state.sunnyGladeAnnounced);
+      expect(c.state.sessionGoalIndex, cold.state.sessionGoalIndex);
+      expect(c.state.grass, cold.state.grass);
+      expect(c.gladeUnlockToast, cold.gladeUnlockToast);
       expect(now().difference(hiddenAt), const Duration(minutes: 10));
 
       c.acknowledgeOfflineWelcome();
