@@ -91,6 +91,7 @@ flutter:
     - assets/images/decor_kormushka.png
     - assets/images/research_uyut.png
     - assets/images/walk/
+    - assets/images/traits/
     - assets/images/ui/
     - assets/audio/bgm_cozy.wav
     - assets/audio/sfx_flower.wav
