@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import '../models/balance.dart';
@@ -87,7 +88,8 @@ class MeadowDraggableCapybara extends StatefulWidget {
   /// Resolve place under normalized point.
   final CozyPlaceKind? Function(Offset normalized)? placeAt;
 
-  /// Long-press → role menu.
+  /// Held still ≥ [kLongPressTimeout] and let go → role menu. A finger that
+  /// moves is always a drag, even after a pause (spec 003, Т9).
   final VoidCallback? onLongPress;
 
   /// Live puddle center, so wander does not park a body on the stump-top.
@@ -686,8 +688,15 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
       top: top,
       // Bob and walk repaint this capy only (spec 002, Т8).
       child: RepaintBoundary(
-        child: GestureDetector(
-          onLongPress: widget.onLongPress,
+        child: RawGestureDetector(
+          gestures: {
+            if (widget.onLongPress != null)
+              HoldStillRecognizer:
+                  GestureRecognizerFactoryWithHandlers<HoldStillRecognizer>(
+                    () => HoldStillRecognizer(debugOwner: this),
+                    (r) => r.onHold = widget.onLongPress,
+                  ),
+          },
           child: DragTarget<String>(
             onWillAcceptWithDetails: (details) =>
                 details.data != widget.capybara.id,
@@ -778,6 +787,55 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
       ),
     );
   }
+}
+
+/// A long press that never beats a drag (spec 003, Т9).
+///
+/// [LongPressGestureRecognizer] wins the arena at its deadline; after that a
+/// [Draggable] cannot start, so «hold, then pull» opened the sheet instead.
+/// This one only notes the deadline. A move past the slop leaves the arena
+/// to the drag. A release without moving, after the deadline, is the hold.
+class HoldStillRecognizer extends PrimaryPointerGestureRecognizer {
+  HoldStillRecognizer({super.debugOwner}) : super(deadline: kLongPressTimeout);
+
+  VoidCallback? onHold;
+  bool _held = false;
+
+  @override
+  void addAllowedPointer(PointerDownEvent event) {
+    _held = false;
+    super.addAllowedPointer(event);
+  }
+
+  @override
+  void didExceedDeadline() {
+    _held = true;
+  }
+
+  @override
+  void handlePrimaryPointer(PointerEvent event) {
+    if (event is PointerUpEvent) {
+      if (_held) {
+        _held = false;
+        resolve(GestureDisposition.accepted);
+        if (onHold != null) invokeCallback<void>('onHold', onHold!);
+      } else {
+        resolve(GestureDisposition.rejected);
+      }
+    } else if (event is PointerCancelEvent) {
+      _held = false;
+      resolve(GestureDisposition.rejected);
+    }
+  }
+
+  @override
+  void rejectGesture(int pointer) {
+    _held = false;
+    super.rejectGesture(pointer);
+  }
+
+  @override
+  String get debugDescription => 'hold still';
 }
 
 /// Brief scale punch when a merge creates this capy.

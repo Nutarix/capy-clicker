@@ -376,4 +376,48 @@ void main() {
       c.dispose();
     });
   });
+
+  group('С9 держать и тянуть', () {
+    const herd = <SavedCapy>[('c1', 1, 0.35, 0.72), ('c2', 2, 0.65, 0.80)];
+
+    testWidgets('hold, then move: a drag, no sheet', (tester) async {
+      final h = await MeadowHarness.pump(tester, meadowPrefs(herd: herd));
+      final from = tester.getCenter(h.capy('c1'));
+      final to = h.screenAt(tester, const Offset(0.55, 0.60));
+      await h.drag(
+        tester,
+        from,
+        to,
+        holdFirst: const Duration(milliseconds: 800),
+      );
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.byType(UyutHubSheet), findsNothing);
+      final pos = h.controller.state.herd.firstWhere((c) => c.id == 'c1');
+      expect(
+        (pos.position - const Offset(0.55, 0.60)).distance,
+        lessThan(0.05),
+      );
+      await h.dispose(tester);
+    });
+
+    testWidgets('hold still and let go: the «Уют» sheet', (tester) async {
+      final h = await MeadowHarness.pump(tester, meadowPrefs(herd: herd));
+      final g = await tester.startGesture(tester.getCenter(h.capy('c1')));
+      await tester.pump(const Duration(milliseconds: 800));
+      expect(find.byType(UyutHubSheet), findsNothing, reason: 'not yet');
+      await g.up();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.byType(UyutHubSheet), findsOneWidget);
+      await h.dispose(tester);
+    });
+
+    testWidgets('a short tap opens nothing', (tester) async {
+      final h = await MeadowHarness.pump(tester, meadowPrefs(herd: herd));
+      await tester.tap(h.capy('c1'));
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.byType(UyutHubSheet), findsNothing);
+      await h.dispose(tester);
+    });
+  });
 }
