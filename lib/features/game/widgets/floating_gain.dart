@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 
 /// One floating «+N%» / «×2» popup over the meadow or HUD.
 class FloatingGainEvent {
@@ -64,6 +65,10 @@ class _FloatingGainPopupState extends State<_FloatingGainPopup>
   late final Animation<double> _opacity;
   late final Animation<double> _scale;
 
+  /// Anchor in the layer's own coordinates, worked out once: the label then
+  /// only rises, whatever rebuilds the layer later (spec 003, Т3).
+  Offset? _local;
+
   @override
   void initState() {
     super.initState();
@@ -98,12 +103,17 @@ class _FloatingGainPopupState extends State<_FloatingGainPopup>
     super.dispose();
   }
 
+  Offset _toLayer(Offset global) {
+    final layer = context.findAncestorRenderObjectOfType<RenderStack>();
+    if (layer == null || !layer.attached) return global;
+    return layer.globalToLocal(global);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final box = context.findRenderObject() as RenderBox?;
-    final local = box != null && box.hasSize
-        ? box.globalToLocal(widget.event.globalAnchor)
-        : widget.event.globalAnchor;
+    // The layer's stack, not this popup: the popup has no box on its
+    // first build, and its own box moves with the label.
+    final local = _local ??= _toLayer(widget.event.globalAnchor);
 
     return AnimatedBuilder(
       animation: _ctrl,

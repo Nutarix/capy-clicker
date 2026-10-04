@@ -80,6 +80,11 @@ class MeadowHarness {
     }
     // The camera eases for 450 ms after load.
     await tester.pump(const Duration(milliseconds: 600));
+    // The opening «Лужа!» plate would sit over the bottom bar.
+    tester
+        .state<ScaffoldMessengerState>(find.byType(ScaffoldMessenger).first)
+        .removeCurrentSnackBar();
+    await tester.pump();
     return MeadowHarness._(c, audio);
   }
 

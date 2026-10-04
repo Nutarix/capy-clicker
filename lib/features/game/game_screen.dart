@@ -9,6 +9,7 @@ import 'audio/game_audio.dart';
 import 'controllers/game_controller.dart';
 import 'persistence/game_persistence.dart';
 import 'widgets/floating_gain.dart';
+import 'widgets/meadow_space.dart';
 import 'widgets/meadow_background.dart';
 import 'widgets/screen/game_hud.dart';
 import 'widgets/screen/game_messages.dart';
@@ -67,6 +68,9 @@ class _GameScreenState extends State<GameScreen>
     const [],
   );
   int _floatSeq = 0;
+
+  /// Screen ↔ meadow, shared by the meadow and the «+капи» label.
+  final MeadowSpace _meadowSpace = MeadowSpace();
 
   /// What the whole screen is built from: loaded, which meadow, which land.
   late (bool, String, int) _frame;
@@ -160,6 +164,14 @@ class _GameScreenState extends State<GameScreen>
     ];
   }
 
+  /// «+капи» over the newcomer (a new capy joins the end of the family).
+  void _floatOverNewCapy() {
+    final herd = _controller.state.herd;
+    if (herd.isEmpty) return;
+    final at = _meadowSpace.toGlobal(herd.last.position);
+    if (at != null) _spawnFloat('+капи', at);
+  }
+
   void _floatFinished(int id) {
     _floats.value = [
       for (final e in _floats.value)
@@ -202,6 +214,7 @@ class _GameScreenState extends State<GameScreen>
                       controller: _controller,
                       audio: _audio,
                       onFloat: _spawnFloat,
+                      space: _meadowSpace,
                     ),
                   ),
                   if (chromeHidden)
@@ -211,7 +224,7 @@ class _GameScreenState extends State<GameScreen>
                       controller: _controller,
                       audio: _audio,
                       onForest: openForestMap,
-                      onFloat: _spawnFloat,
+                      onCapyCalled: _floatOverNewCapy,
                     ),
                 ],
               ),

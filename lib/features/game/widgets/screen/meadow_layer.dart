@@ -14,9 +14,9 @@ import '../../models/world_zones.dart';
 import '../berry_basket.dart';
 import '../draggable_capybara.dart';
 import '../flower_dot.dart';
-import '../meadow_space.dart';
 import '../game_selector.dart';
 import '../meadow_decor.dart';
+import '../meadow_space.dart';
 import '../mud_puddle.dart';
 import '../placed_home_decor.dart';
 import '../quiet_merge_arc.dart';
@@ -58,7 +58,7 @@ class MeadowLayer extends StatefulWidget {
   /// own in, so the HUD can place «+капи» over the new capy. Null: own one.
   final MeadowSpace? space;
 
-  /// Floating «+N%» / «×2» at a global point (Offset.zero = default spot).
+  /// Floating «+N%» / «×2» at a screen point.
   final void Function(String label, Offset globalAnchor, {Color? color})
   onFloat;
 
@@ -172,6 +172,13 @@ class _MeadowLayerState extends State<MeadowLayer> {
     return ok;
   }
 
+  /// The place's sign rises from the place itself.
+  void _floatAtPlace(CozyPlaceKind kind, MeadowProps props) {
+    final place = props.places[kind];
+    final at = place == null ? null : _space.toGlobal(place);
+    if (at != null) widget.onFloat(kind.emoji, at);
+  }
+
   bool _onMudDrop(String id) {
     final ok = _controller.tryMudWallow(id);
     if (ok) {
@@ -279,7 +286,7 @@ class _MeadowLayerState extends State<MeadowLayer> {
                         onTap: () {
                           unawaited(_audio.noteUserGesture());
                           final ok = _controller.tryActivatePlace(kind);
-                          if (ok) widget.onFloat(kind.emoji, Offset.zero);
+                          if (ok) _floatAtPlace(kind, props);
                         },
                       ),
                     ),
@@ -369,7 +376,7 @@ class _MeadowLayerState extends State<MeadowLayer> {
           capyId: id,
           standAt: props.places[kind],
         );
-        if (ok) widget.onFloat(kind.emoji, Offset.zero);
+        if (ok) _floatAtPlace(kind, props);
         return ok;
       },
       onLongPress: () {
