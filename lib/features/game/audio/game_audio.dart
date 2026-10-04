@@ -49,8 +49,15 @@ class GameAudio extends ChangeNotifier {
   bool get isInBackground => _inBackground;
   bool get isAvailable => _available && !silent;
 
+  Future<void>? _init;
+
   /// Load mute preference and prepare players (no autoplay on web).
-  Future<void> init() async {
+  ///
+  /// Once per instance: the app and the game screen share one, and a second
+  /// run would reload the music and start it over (spec 003, Т8).
+  Future<void> init() => _init ??= _load();
+
+  Future<void> _load() async {
     try {
       _prefs ??= await SharedPreferences.getInstance();
       _muted = _prefs!.getBool(mutedPrefsKey) ?? false;

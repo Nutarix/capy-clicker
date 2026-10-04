@@ -100,6 +100,7 @@ class _GameScreenState extends State<GameScreen>
     _controller.addListener(_onControllerChanged);
     listenToGameEvents();
     _controller.init();
+    // Shared sound is already up: init runs once per GameAudio.
     _audio.init();
     _lifecycle = AppLifecycleListener(
       onInactive: () => unawaited(_controller.flushSave()),
