@@ -20,7 +20,7 @@ import 'package:capy_clicker/features/game/models/world_zones.dart';
 /// `python tool/fingerprint_names_diff.py main` (the rest is byte-identical).
 /// Spec 006 rewrote them for the pile (rules and balance changed); the
 /// expected differences are listed in `specs/006-kuchka/plan.md`, check:
-/// `python tool/fingerprint_pile_diff.py main`.
+/// `python tool/fingerprint_pile_diff.py origin/main`.
 class Fingerprint {
   Fingerprint(this.name);
 
