@@ -15,6 +15,7 @@ import 'package:capy_clicker/features/game/widgets/floating_gain.dart';
 import 'package:capy_clicker/features/game/widgets/flower_dot.dart';
 import 'package:capy_clicker/features/game/widgets/morning_cozy_sheet.dart';
 import 'package:capy_clicker/features/game/widgets/screen/place_slot.dart';
+import 'package:capy_clicker/features/game/widgets/uyut/uyut_hub_sheet.dart';
 
 import 'support/meadow_harness.dart';
 
@@ -298,6 +299,81 @@ void main() {
       audio.dispose();
       await tester.pump(const Duration(seconds: 1));
       GameAudio.forceSilent = false;
+    });
+  });
+
+  group('С7 роли в «Уюте»', () {
+    Future<GameController> openRoles(WidgetTester tester) async {
+      SharedPreferences.setMockInitialValues(
+        meadowPrefs(herd: const [('c1', 1, 0.4, 0.7), ('c2', 2, 0.6, 0.7)]),
+      );
+      final c = GameController(
+        persistence: GamePersistence(),
+        now: () => meadowNow,
+        autoTick: false,
+      );
+      await c.init();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => Center(
+                child: TextButton(
+                  onPressed: () =>
+                      UyutHubSheet.show(context, controller: c, initialTab: 1),
+                  child: const Text('open'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      expect(find.byType(UyutHubSheet), findsOneWidget);
+      return c;
+    }
+
+    Finder inSheet(Finder f) =>
+        find.descendant(of: find.byType(UyutHubSheet), matching: f);
+
+    testWidgets('a role plate shows over the sheet', (tester) async {
+      final c = await openRoles(tester);
+      await tester.tap(find.text('Назначить').first);
+      // The role's message goes out with the next tick.
+      c.debugAdvance(0.05);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(inSheet(find.text(CapyRole.nanya.assignToastRu)), findsOneWidget);
+      // Visible: it is the top hit where it is drawn.
+      final at = tester.getCenter(
+        inSheet(find.text(CapyRole.nanya.assignToastRu)),
+      );
+      final hit = tester.hitTestOnBinding(at);
+      final plate = tester.renderObject(
+        inSheet(find.text(CapyRole.nanya.assignToastRu)),
+      );
+      expect(hit.path.first.target, plate);
+
+      await tester.pumpWidget(const SizedBox());
+      c.dispose();
+    });
+
+    testWidgets('no free slot: the reason shows over the sheet', (
+      tester,
+    ) async {
+      final c = await openRoles(tester);
+      await tester.tap(find.text('Назначить').first);
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 5));
+      expect(c.state.roleSlots, 1);
+      await tester.tap(find.text('Назначить').first);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(inSheet(find.textContaining('слот')), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox());
+      c.dispose();
     });
   });
 }

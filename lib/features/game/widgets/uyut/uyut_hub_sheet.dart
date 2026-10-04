@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -52,6 +54,11 @@ class _UyutHubSheetState extends State<UyutHubSheet>
     with SingleTickerProviderStateMixin {
   late final TabController _tabs;
 
+  /// The sheet's own plates: the screen's lie under the modal sheet
+  /// (spec 003, Т7).
+  final GlobalKey<ScaffoldMessengerState> _messenger = GlobalKey();
+  StreamSubscription<GameEvent>? _events;
+
   GameController get c => widget.controller;
 
   @override
@@ -63,6 +70,31 @@ class _UyutHubSheetState extends State<UyutHubSheet>
       initialIndex: widget.initialTab.clamp(0, 3),
     );
     _tabs.addListener(_onChanged);
+    _events = c.events.listen(_onGameEvent);
+  }
+
+  void _onGameEvent(GameEvent event) {
+    if (event is RoleAssigned) _plate(event.text);
+  }
+
+  void _plate(String text) {
+    _messenger.currentState
+      ?..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+          backgroundColor: const Color(0xFF5C3D1E).withValues(alpha: 0.94),
+          content: Text(
+            text,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      );
   }
 
   void _onChanged() {
@@ -73,7 +105,11 @@ class _UyutHubSheetState extends State<UyutHubSheet>
   Widget _tabBody() {
     return switch (_tabs.index) {
       0 => _FoodTab(controller: c),
-      1 => _RolesTab(controller: c, focusCapyId: widget.focusCapyId),
+      1 => _RolesTab(
+        controller: c,
+        focusCapyId: widget.focusCapyId,
+        onPlate: _plate,
+      ),
       2 => _DecorTab(controller: c),
       _ => _ResearchTab(controller: c),
     };
@@ -81,6 +117,7 @@ class _UyutHubSheetState extends State<UyutHubSheet>
 
   @override
   void dispose() {
+    _events?.cancel();
     _tabs.removeListener(_onChanged);
     _tabs.dispose();
     super.dispose();
@@ -100,39 +137,47 @@ class _UyutHubSheetState extends State<UyutHubSheet>
           ),
           child: SizedBox(
             height: height,
-            child: Column(
-              children: [
-                const SizedBox(height: 10),
-                Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.brown.shade200,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'Уют семьи',
-                  style: CozyTheme.hudChipStyle(fontSize: 18)
-                      .copyWith(fontWeight: FontWeight.w800),
-                ),
-                TabBar(
-                  controller: _tabs,
-                  labelColor: const Color(0xFF5C3D1E),
-                  unselectedLabelColor: Colors.brown.withValues(alpha: 0.45),
-                  indicatorColor: const Color(0xFFC47820),
-                  labelPadding: const EdgeInsets.symmetric(horizontal: 2),
-                  indicatorSize: TabBarIndicatorSize.label,
-                  tabs: [
-                    const Tab(height: 48, child: _HubTabLabel('Еда')),
-                    const Tab(height: 48, child: _HubTabLabel('Роли')),
-                    const Tab(height: 48, child: _HubTabLabel('Дом')),
-                    const Tab(height: 48, child: _HubTabLabel('Наука')),
+            child: ScaffoldMessenger(
+              key: _messenger,
+              child: Scaffold(
+                backgroundColor: Colors.transparent,
+                body: Column(
+                  children: [
+                    const SizedBox(height: 10),
+                    Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.brown.shade200,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Уют семьи',
+                      style: CozyTheme.hudChipStyle(fontSize: 18)
+                          .copyWith(fontWeight: FontWeight.w800),
+                    ),
+                    TabBar(
+                      controller: _tabs,
+                      labelColor: const Color(0xFF5C3D1E),
+                      unselectedLabelColor: Colors.brown.withValues(
+                        alpha: 0.45,
+                      ),
+                      indicatorColor: const Color(0xFFC47820),
+                      labelPadding: const EdgeInsets.symmetric(horizontal: 2),
+                      indicatorSize: TabBarIndicatorSize.label,
+                      tabs: [
+                        const Tab(height: 48, child: _HubTabLabel('Еда')),
+                        const Tab(height: 48, child: _HubTabLabel('Роли')),
+                        const Tab(height: 48, child: _HubTabLabel('Дом')),
+                        const Tab(height: 48, child: _HubTabLabel('Наука')),
+                      ],
+                    ),
+                    Expanded(child: _tabBody()),
                   ],
                 ),
-                Expanded(child: _tabBody()),
-              ],
+              ),
             ),
           ),
         ),
@@ -261,8 +306,15 @@ class _FoodRow extends StatelessWidget {
 }
 
 class _RolesTab extends StatelessWidget {
-  const _RolesTab({required this.controller, this.focusCapyId});
+  const _RolesTab({
+    required this.controller,
+    required this.onPlate,
+    this.focusCapyId,
+  });
   final GameController controller;
+
+  /// A plate over the sheet (why a role could not be given).
+  final ValueChanged<String> onPlate;
 
   /// Kept so a long-press still opens this tab. Roles are not listed by id.
   final String? focusCapyId;
@@ -279,6 +331,18 @@ class _RolesTab extends StatelessWidget {
       }
     }
     return false;
+  }
+
+  /// Why nobody took the role. Reads the same counts as the rule.
+  String _whyNot() {
+    final state = controller.state;
+    final held = CapyRole.values.where(_held).length;
+    if (held >= state.roleSlots) {
+      return state.roleSlots < 2
+          ? 'Все слоты ролей заняты. Сними роль или изучи «Вторая роль»'
+          : 'Все слоты ролей заняты. Сначала сними роль';
+    }
+    return 'На этой поляне все капи уже с ролями';
   }
 
   @override
@@ -313,7 +377,8 @@ class _RolesTab extends StatelessWidget {
             held: _held(role),
             onAssign: () {
               HapticFeedback.lightImpact();
-              controller.assignRoleToFreeCapy(role);
+              // Success shows the role's own plate (RoleAssigned).
+              if (!controller.assignRoleToFreeCapy(role)) onPlate(_whyNot());
             },
             onClear: () {
               HapticFeedback.lightImpact();
