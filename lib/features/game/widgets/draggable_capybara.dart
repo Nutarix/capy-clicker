@@ -43,6 +43,9 @@ class MeadowDraggableCapybara extends StatefulWidget {
     this.onLongPress,
     this.mudCenter,
     this.livePositions,
+    this.showName = false,
+    this.onTouch,
+    this.random,
   });
 
   final Capybara capybara;
@@ -100,6 +103,16 @@ class MeadowDraggableCapybara extends StatefulWidget {
   /// yet. Owned by the meadow (one per game screen). Null: this capy only.
   final Map<String, Offset>? livePositions;
 
+  /// Name next to the level (spec 004, Т6): the meadow keeps it on while
+  /// touched and ~2 s after. A merge target shows its own while dragged over.
+  final bool showName;
+
+  /// Finger down (true) and up (false) on this capy.
+  final ValueChanged<bool>? onTouch;
+
+  /// Wander dice (tests pass a seeded one).
+  final math.Random? random;
+
   @override
   State<MeadowDraggableCapybara> createState() =>
       _MeadowDraggableCapybaraState();
@@ -133,7 +146,7 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
   /// 4-frame walk-cycle loop (paws); repeats only while [_walking].
   late final AnimationController _walkCycle;
 
-  final math.Random _rng = math.Random();
+  late final math.Random _rng = widget.random ?? math.Random();
 
   /// Display position (may ease during wander before persisting).
   late Offset _displayPos;
@@ -626,61 +639,69 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
         _displayPos.dy * widget.meadowSize.height - footprint.height / 2;
 
     final magnetHighlight = widget.magnetAttractedId == widget.capybara.id;
-    final fullBadge = widget.promoteLevelBadge || magnetHighlight;
+    final name = widget.capybara.displayNameRu;
 
     // Idle bob (unique per sheet) + walk bounce; facing via faceRight.
     // Walk-cycle frames rebuild via _walkCycle. Wallow/merge wrap OUTSIDE
     // so stateful overlays are not recreated every tick.
-    Widget visual = AnimatedBuilder(
-      animation: Listenable.merge([_idleBob, _walk, _walkCycle]),
-      builder: (context, child) {
-        Widget body = CapybaraPlaceholder(
-          level: widget.capybara.level,
-          role: widget.capybara.role,
-          walkFrame: _currentWalkFrame,
-          flash: widget.mergeFlash,
-          twinSparkle: widget.twinSparkle,
-          compactLabel: !fullBadge,
-          faceRight: _faceRight,
-        );
-        final role = widget.capybara.role;
-        if (role != null) {
-          body = Stack(
-            clipBehavior: Clip.none,
-            children: [
-              body,
-              Positioned(
-                right: -4,
-                top: -6,
-                child: MultiplierIcon(assetPath: role.assetPath, size: 20),
-              ),
-            ],
+    Widget visualFor({required bool targeted}) {
+      final nameShown = name != null && (widget.showName || targeted);
+      final fullBadge = widget.promoteLevelBadge || targeted || nameShown;
+      Widget visual = AnimatedBuilder(
+        animation: Listenable.merge([_idleBob, _walk, _walkCycle]),
+        builder: (context, child) {
+          Widget body = CapybaraPlaceholder(
+            level: widget.capybara.level,
+            role: widget.capybara.role,
+            walkFrame: _currentWalkFrame,
+            flash: widget.mergeFlash,
+            twinSparkle: widget.twinSparkle,
+            compactLabel: !fullBadge,
+            faceRight: _faceRight,
+            name: nameShown ? name : null,
           );
-        }
-        final sheet = _sheet;
-        final idleY = _walking ? 0.0 : CapyWalk.idleBobY(sheet, _idleBob.value);
-        final idleX = _walking
-            ? 0.0
-            : CapyWalk.idleSwayX(sheet, _idleBob.value);
-        final walkY = _walking ? CapyWander.walkBounceY(_walk.value) : 0.0;
-        final squash = _walking
-            ? 1.0
-            : CapyWalk.idleSquashY(sheet, _idleBob.value);
-        return Transform.translate(
-          offset: Offset(idleX, idleY + walkY),
-          child: Transform(
-            alignment: Alignment.bottomCenter,
-            transform: Matrix4.diagonal3Values(1.0, squash, 1.0),
-            child: body,
-          ),
-        );
-      },
-    );
-    if (widget.isWallowing) {
-      visual = WallowOverlay(child: visual);
-    }
-    if (widget.mergeFlash) {
-      visual = _MergePunch(child: visual);
+          final role = widget.capybara.role;
+          if (role != null) {
+            body = Stack(
+              clipBehavior: Clip.none,
+              children: [
+                body,
+                Positioned(
+                  right: -4,
+                  top: -6,
+                  child: MultiplierIcon(assetPath: role.assetPath, size: 20),
+                ),
+              ],
+            );
+          }
+          final sheet = _sheet;
+          final idleY = _walking
+              ? 0.0
+              : CapyWalk.idleBobY(sheet, _idleBob.value);
+          final idleX = _walking
+              ? 0.0
+              : CapyWalk.idleSwayX(sheet, _idleBob.value);
+          final walkY = _walking ? CapyWander.walkBounceY(_walk.value) : 0.0;
+          final squash = _walking
+              ? 1.0
+              : CapyWalk.idleSquashY(sheet, _idleBob.value);
+          return Transform.translate(
+            offset: Offset(idleX, idleY + walkY),
+            child: Transform(
+              alignment: Alignment.bottomCenter,
+              transform: Matrix4.diagonal3Values(1.0, squash, 1.0),
+              child: body,
+            ),
+          );
+        },
+      );
+      if (widget.isWallowing) {
+        visual = WallowOverlay(child: visual);
+      }
+      if (widget.mergeFlash) {
+        visual = _MergePunch(child: visual);
+      }
+      return visual;
     }
 
     return Positioned(
@@ -688,100 +709,111 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
       top: top,
       // Bob and walk repaint this capy only (spec 002, Т8).
       child: RepaintBoundary(
-        child: RawGestureDetector(
-          gestures: {
-            if (widget.onLongPress != null)
-              HoldStillRecognizer:
-                  GestureRecognizerFactoryWithHandlers<HoldStillRecognizer>(
-                    () => HoldStillRecognizer(debugOwner: this),
-                    (r) => r.onHold = widget.onLongPress,
-                  ),
-          },
-          child: DragTarget<String>(
-            onWillAcceptWithDetails: (details) =>
-                details.data != widget.capybara.id,
-            // The meadow's onMerge buzzes, as for the magnet.
-            onAcceptWithDetails: (details) =>
-                widget.onMerge(details.data, widget.capybara.id),
-            builder: (context, candidate, _) {
-              final highlight = candidate.isNotEmpty || magnetHighlight;
-              return Draggable<String>(
-                data: widget.capybara.id,
-                dragAnchorStrategy: _dragAnchorStrategy,
-                // Built once at drag start: what changes later is listened to.
-                feedback: ValueListenableBuilder<double>(
-                  key: const ValueKey('capy-drag-feedback'),
-                  valueListenable: _dragScale,
-                  builder: (context, scale, child) => Transform.scale(
-                    scale: scale,
-                    alignment: Alignment.topLeft,
-                    child: child,
-                  ),
-                  // Pull in meadow pixels, inside the scale; eased so the
-                  // lean is soft, not a jump at the magnet edge.
-                  child: ValueListenableBuilder<Offset>(
-                    valueListenable: _pull,
-                    builder: (context, pull, child) =>
-                        TweenAnimationBuilder<Offset>(
-                          tween: Tween(begin: Offset.zero, end: pull),
-                          duration: const Duration(milliseconds: 140),
-                          curve: Curves.easeOut,
-                          builder: (context, offset, child) =>
-                              Transform.translate(offset: offset, child: child),
-                          child: child,
-                        ),
-                    child: Material(
-                      color: Colors.transparent,
-                      child: Opacity(
-                        opacity: 0.92,
-                        child: CapybaraPlaceholder(
-                          level: widget.capybara.level,
-                          role: widget.capybara.role,
-                          walkFrame: 0,
-                          compactLabel: false,
+        child: Listener(
+          onPointerDown: (_) => widget.onTouch?.call(true),
+          onPointerUp: (_) => widget.onTouch?.call(false),
+          onPointerCancel: (_) => widget.onTouch?.call(false),
+          child: RawGestureDetector(
+            gestures: {
+              if (widget.onLongPress != null)
+                HoldStillRecognizer:
+                    GestureRecognizerFactoryWithHandlers<HoldStillRecognizer>(
+                      () => HoldStillRecognizer(debugOwner: this),
+                      (r) => r.onHold = widget.onLongPress,
+                    ),
+            },
+            child: DragTarget<String>(
+              onWillAcceptWithDetails: (details) =>
+                  details.data != widget.capybara.id,
+              // The meadow's onMerge buzzes, as for the magnet.
+              onAcceptWithDetails: (details) =>
+                  widget.onMerge(details.data, widget.capybara.id),
+              builder: (context, candidate, _) {
+                final highlight = candidate.isNotEmpty || magnetHighlight;
+                // Over a target the player sees whose name stays (spec 004).
+                final visual = visualFor(targeted: highlight);
+                return Draggable<String>(
+                  data: widget.capybara.id,
+                  dragAnchorStrategy: _dragAnchorStrategy,
+                  // Built once at drag start: what changes later is listened to.
+                  feedback: ValueListenableBuilder<double>(
+                    key: const ValueKey('capy-drag-feedback'),
+                    valueListenable: _dragScale,
+                    builder: (context, scale, child) => Transform.scale(
+                      scale: scale,
+                      alignment: Alignment.topLeft,
+                      child: child,
+                    ),
+                    // Pull in meadow pixels, inside the scale; eased so the
+                    // lean is soft, not a jump at the magnet edge.
+                    child: ValueListenableBuilder<Offset>(
+                      valueListenable: _pull,
+                      builder: (context, pull, child) =>
+                          TweenAnimationBuilder<Offset>(
+                            tween: Tween(begin: Offset.zero, end: pull),
+                            duration: const Duration(milliseconds: 140),
+                            curve: Curves.easeOut,
+                            builder: (context, offset, child) =>
+                                Transform.translate(
+                                  offset: offset,
+                                  child: child,
+                                ),
+                            child: child,
+                          ),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: Opacity(
+                          opacity: 0.92,
+                          child: CapybaraPlaceholder(
+                            level: widget.capybara.level,
+                            role: widget.capybara.role,
+                            walkFrame: 0,
+                            compactLabel: false,
+                            name: name,
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-                childWhenDragging: Opacity(
-                  opacity: 0.22,
-                  child: CapybaraPlaceholder(
-                    level: widget.capybara.level,
-                    role: widget.capybara.role,
-                    walkFrame: 0,
-                    compactLabel: true,
+                  childWhenDragging: Opacity(
+                    opacity: 0.22,
+                    child: CapybaraPlaceholder(
+                      level: widget.capybara.level,
+                      role: widget.capybara.role,
+                      walkFrame: 0,
+                      compactLabel: true,
+                    ),
                   ),
-                ),
-                onDragStarted: _onDragStarted,
-                onDragUpdate: _onDragUpdate,
-                onDragEnd: _onDragEnd,
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 120),
-                  decoration: highlight
-                      ? BoxDecoration(
-                          borderRadius: BorderRadius.circular(20),
-                          border: magnetHighlight
-                              ? Border.all(
-                                  color: const Color(0xFFFFD54F),
-                                  width: 2.5,
-                                )
-                              : null,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.amber.withValues(
-                                alpha: magnetHighlight ? 0.85 : 0.55,
+                  onDragStarted: _onDragStarted,
+                  onDragUpdate: _onDragUpdate,
+                  onDragEnd: _onDragEnd,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 120),
+                    decoration: highlight
+                        ? BoxDecoration(
+                            borderRadius: BorderRadius.circular(20),
+                            border: magnetHighlight
+                                ? Border.all(
+                                    color: const Color(0xFFFFD54F),
+                                    width: 2.5,
+                                  )
+                                : null,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.amber.withValues(
+                                  alpha: magnetHighlight ? 0.85 : 0.55,
+                                ),
+                                blurRadius: magnetHighlight ? 26 : 16,
+                                spreadRadius: magnetHighlight ? 5 : 2,
                               ),
-                              blurRadius: magnetHighlight ? 26 : 16,
-                              spreadRadius: magnetHighlight ? 5 : 2,
-                            ),
-                          ],
-                        )
-                      : null,
-                  child: visual,
-                ),
-              );
-            },
+                            ],
+                          )
+                        : null,
+                    child: visual,
+                  ),
+                );
+              },
+            ),
           ),
         ),
       ),

@@ -76,6 +76,14 @@ class _MeadowLayerState extends State<MeadowLayer> {
   final Set<String> _badgePromoted = {};
   Timer? _badgeClearTimer;
 
+  /// Capys whose name shows by the level (spec 004, Т6): touched now, or
+  /// let go less than [nameHold] ago.
+  final Set<String> _namesShown = {};
+  final Map<String, Timer> _nameTimers = {};
+
+  /// How long a name stays after the finger leaves.
+  static const nameHold = Duration(seconds: 2);
+
   /// Soft first-appearance hint on berry basket (session).
   bool _berryHintSeen = false;
 
@@ -117,7 +125,28 @@ class _MeadowLayerState extends State<MeadowLayer> {
   @override
   void dispose() {
     _badgeClearTimer?.cancel();
+    for (final t in _nameTimers.values) {
+      t.cancel();
+    }
     super.dispose();
+  }
+
+  /// Finger on a capy: its name shows; off: it fades [nameHold] later.
+  void _onCapyTouch(String id, bool down) {
+    _nameTimers.remove(id)?.cancel();
+    if (down) {
+      if (_namesShown.add(id)) setState(() {});
+      return;
+    }
+    _hideNameLater(id);
+  }
+
+  void _hideNameLater(String id) {
+    _nameTimers[id] = Timer(nameHold, () {
+      _nameTimers.remove(id);
+      if (!mounted) return;
+      if (_namesShown.remove(id)) setState(() {});
+    });
   }
 
   void _onFlowerTap(Offset globalAnchor) {
@@ -167,7 +196,13 @@ class _MeadowLayerState extends State<MeadowLayer> {
       unawaited(_audio.noteUserGesture());
       _audio.playMerge();
       final flash = _controller.mergeFlashId;
-      if (flash != null) _promoteBadge(flash);
+      if (flash != null) {
+        _promoteBadge(flash);
+        // Who stayed: the merged capy shows its name for a moment.
+        _namesShown.add(flash);
+        _nameTimers.remove(flash)?.cancel();
+        _hideNameLater(flash);
+      }
     }
     return ok;
   }
@@ -369,6 +404,8 @@ class _MeadowLayerState extends State<MeadowLayer> {
       },
       mudCenter: view.mud,
       livePositions: _livePositions,
+      showName: _namesShown.contains(capy.id),
+      onTouch: (down) => _onCapyTouch(capy.id, down),
       onPlaceDrop: (id, kind) {
         unawaited(_audio.noteUserGesture());
         final ok = _controller.tryActivatePlace(
