@@ -1,5 +1,6 @@
 import 'dart:ui';
 
+import 'capy_names.dart';
 import 'multipliers/capy_role.dart';
 
 /// A single capybara entity on the meadow.
@@ -9,6 +10,10 @@ class Capybara {
     required this.level,
     required this.position,
     this.role,
+    this.nameKey,
+    this.nameEpithet = false,
+    this.customName,
+    this.trait,
   });
 
   final String id;
@@ -20,27 +25,70 @@ class Capybara {
   /// Optional Семья role (Няня / Собиратель / Сторож).
   final CapyRole? role;
 
+  /// Game name by key ([CapyNames]); null for a baby (spec 004, Т1).
+  final String? nameKey;
+
+  /// The name carries the trait: «Шишка-соня» (all hundred were taken).
+  final bool nameEpithet;
+
+  /// The player's own name, shown as is.
+  final String? customName;
+
+  /// One trait per named capy: meadow behavior only.
+  final CapyTrait? trait;
+
+  bool get isNamed => nameKey != null;
+
+  /// Shown name: the player's own, else the game name in RU. Null for a baby.
+  String? get displayNameRu {
+    final own = customName;
+    if (own != null && own.isNotEmpty) return own;
+    final name = CapyNames.byKey(nameKey);
+    if (name == null) return null;
+    final t = trait;
+    if (nameEpithet && t != null) return CapyNames.ruWithTrait(name, t);
+    return name.ru;
+  }
+
+  /// [displayNameRu], or «Малыш» for a baby (lists).
+  String get listNameRu => displayNameRu ?? CapyNames.babyRu;
+
   Capybara copyWith({
     String? id,
     int? level,
     Offset? position,
     CapyRole? role,
     bool clearRole = false,
+    String? nameKey,
+    bool? nameEpithet,
+    String? customName,
+    bool clearCustomName = false,
+    CapyTrait? trait,
   }) {
     return Capybara(
       id: id ?? this.id,
       level: level ?? this.level,
       position: position ?? this.position,
       role: clearRole ? null : (role ?? this.role),
+      nameKey: nameKey ?? this.nameKey,
+      nameEpithet: nameEpithet ?? this.nameEpithet,
+      customName: clearCustomName ? null : (customName ?? this.customName),
+      trait: trait ?? this.trait,
     );
   }
 
+  /// Name fields go last and only when set: an unnamed capy writes the same
+  /// JSON as before spec 004.
   Map<String, dynamic> toJson() => {
     'id': id,
     'level': level,
     'x': position.dx,
     'y': position.dy,
     if (role != null) 'role': role!.id,
+    if (nameKey != null) 'name': nameKey,
+    if (nameEpithet) 'epithet': true,
+    if (customName != null) 'customName': customName,
+    if (trait != null) 'trait': trait!.id,
   };
 
   factory Capybara.fromJson(Map<String, dynamic> json) {
@@ -52,6 +100,10 @@ class Capybara {
         (json['y'] as num).toDouble(),
       ),
       role: CapyRoleX.tryParse(json['role'] as String?),
+      nameKey: json['name'] as String?,
+      nameEpithet: json['epithet'] as bool? ?? false,
+      customName: json['customName'] as String?,
+      trait: CapyTraitX.tryParse(json['trait'] as String?),
     );
   }
 
@@ -63,8 +115,21 @@ class Capybara {
           id == other.id &&
           level == other.level &&
           position == other.position &&
-          role == other.role;
+          role == other.role &&
+          nameKey == other.nameKey &&
+          nameEpithet == other.nameEpithet &&
+          customName == other.customName &&
+          trait == other.trait;
 
   @override
-  int get hashCode => Object.hash(id, level, position, role);
+  int get hashCode => Object.hash(
+    id,
+    level,
+    position,
+    role,
+    nameKey,
+    nameEpithet,
+    customName,
+    trait,
+  );
 }
