@@ -96,7 +96,8 @@ class GameMeadows extends GamePart {
     return state.copyWith(meadows: meadows, nextId: nextId);
   }
 
-  /// Prestige v0: Great Glade + Капи Lv.4 → first Уют + Туманный бор stub.
+  /// Prestige v0: Great Glade + Капи Lv.[BalanceV0.goalCapyLevel] → first
+  /// Уют + Туманный бор stub.
   GameState maybeUnlockMistyBiome(GameState state, {required bool announce}) {
     if (state.mistyBiomeUnlocked) return state;
     if (state.sunnyGladeAnnounced < 3) return state;
@@ -107,7 +108,7 @@ class GameMeadows extends GamePart {
         if (c.level > maxLv) maxLv = c.level;
       }
     }
-    if (maxLv < 4) return state;
+    if (maxLv < BalanceV0.goalCapyLevel) return state;
 
     var nextId = state.nextId;
     final meadows = Map<String, MeadowSnapshot>.from(

@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:capy_clicker/features/game/controllers/game_controller.dart';
+import 'package:capy_clicker/features/game/models/balance.dart';
 import 'package:capy_clicker/features/game/models/capy_names.dart';
 
 import 'support/test_game.dart';
@@ -35,9 +36,19 @@ void main() {
     'lib/features/game/widgets/rocket_chapter.dart',
     'lib/features/game/widgets/uyut/uyut_hub_sheet.dart',
     'lib/features/game/widgets/capybara_placeholder.dart',
+    // Spec 006: the pile.
+    'lib/features/game/core/pile.dart',
+    'lib/features/game/core/shop.dart',
+    'lib/features/game/models/capy_pile.dart',
+    'lib/features/game/widgets/pile_caption.dart',
+    'lib/features/game/widgets/tip_overlay.dart',
+    'lib/features/game/widgets/screen/game_hud.dart',
+    'lib/features/game/widgets/forest_map_overlay.dart',
+    'lib/features/game/models/multipliers/cozy_place.dart',
+    'lib/features/game/models/multipliers/family_food.dart',
   ];
 
-  test('no gendered word in the strings of spec 004 files', () {
+  test('no gendered word in the strings of spec 004 and 006 files', () {
     final literal = RegExp(r"'([^'\\]|\\.)*'");
     for (final path in files) {
       final source = File(path).readAsStringSync();
@@ -49,16 +60,14 @@ void main() {
   });
 
   test('the name plate and every epithet read without a gender', () async {
-    SharedPreferences.setMockInitialValues({});
+    SharedPreferences.setMockInitialValues(
+      herdSave([testCapy('e', 3, pile: 'p'), testCapy('b', 1, pile: 'p')]),
+    );
     final c = testController();
     final got = <GameEvent>[];
     c.events.listen(got.add);
     await c.init();
-    for (var i = 0; i < 10 && c.state.herd.length < 2; i++) {
-      c.addProgress(1.0, fromTap: false);
-    }
-    final ones = c.state.herd.where((x) => x.level == 1).toList();
-    c.tryMerge(ones[0].id, ones[1].id);
+    c.debugAdvance(BalanceV0.pileCatchUpSeconds(1) + 1);
     final text = got.whereType<CapyNamed>().single.text;
     expect(text, startsWith('Малыш подрос — теперь это '));
     expect(gendered.hasMatch(text), isFalse);

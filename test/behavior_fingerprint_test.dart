@@ -5,12 +5,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:capy_clicker/features/game/controllers/game_controller.dart';
 import 'package:capy_clicker/features/game/models/balance.dart';
-import 'package:capy_clicker/features/game/models/capybara.dart';
 import 'package:capy_clicker/features/game/models/multipliers/multipliers.dart';
 import 'package:capy_clicker/features/game/models/world_zones.dart';
 import 'package:capy_clicker/features/game/persistence/game_persistence.dart';
 
 import 'support/fingerprint.dart';
+import 'support/test_game.dart';
 
 /// Behavior fingerprint (spec 002, Т12): a scripted session over the whole
 /// public controller API on a fixed seed and a still clock. Timers (berry,
@@ -67,35 +67,17 @@ void main() {
       }
     }
 
-    /// Lowest-level same-level pair, in herd order.
-    (String, String)? lowestPair() {
-      final byLevel = <int, List<Capybara>>{};
-      for (final cap in c.state.herd) {
-        byLevel.putIfAbsent(cap.level, () => []).add(cap);
-      }
-      final levels = byLevel.keys.toList()..sort();
-      for (final lv in levels) {
-        final list = byLevel[lv]!;
-        if (list.length >= 2) return (list[0].id, list[1].id);
-      }
-      return null;
-    }
-
-    bool mergeLowest() {
-      final pair = lowestPair();
-      if (pair == null) return false;
-      return c.tryMerge(pair.$1, pair.$2);
-    }
-
-    /// Spawn while there is room, merge the lowest pair when full.
+    /// Spawn while a place is free, pile up when full; with nobody to move,
+    /// let the piles grow a while (spec 006).
     void grow(bool Function() done, {int rounds = 600}) {
       for (var i = 0; i < rounds && !done(); i++) {
-        if (c.state.herdCount < c.effectiveMaxHerdSize) {
+        var wait = 0.5;
+        if (c.placesUsed < c.effectiveMaxHerdSize) {
           c.addProgress(1.0, fromTap: false);
-        } else {
-          mergeLowest();
+        } else if (!pileStep(c)) {
+          wait = 20;
         }
-        adv(0.5);
+        adv(wait);
       }
     }
 
@@ -143,25 +125,30 @@ void main() {
     adv(4);
     fp.mark('grass boost over', c);
 
-    // --- Merges, twins ---
+    // --- Piles, the pair ---
     grow(() => c.state.herdCount >= 5);
     fp.mark('herd 5', c);
-    fp.mark('merge', c, extra: {'ok': mergeLowest()});
+    final h5 = [for (final x in c.state.herd) x.id];
+    fp.mark('pile', c, extra: {'ok': c.joinPile(h5[1], h5[0])});
     await tester.pump(
-      BalanceV0.mergeFlashDuration + const Duration(milliseconds: 20),
+      BalanceV0.pileFlashDuration + const Duration(milliseconds: 20),
     );
-    fp.mark('merge flash over', c);
-    fp.mark('merge mismatch', c, extra: {
-      'ok': c.tryMerge(c.state.herd.first.id, c.state.herd.last.id),
+    fp.mark('pile flash over', c);
+    fp.mark('pile same', c, extra: {'ok': c.joinPile(h5[0], h5[1])});
+    fp.mark('pile third', c, extra: {'ok': c.joinPile(h5[2], h5[1])});
+    fp.mark('pile fourth', c, extra: {'ok': c.joinPile(h5[3], h5[0])});
+    fp.mark('pile fifth refused', c, extra: {
+      'ok': c.joinPile(h5[4], h5[2]),
     });
-    final pair = lowestPair();
-    if (pair != null) {
-      c.debugMarkTwins(pair.$1, pair.$2);
-      fp.mark('twins marked', c);
-      fp.mark('twin merge', c, extra: {'ok': c.tryMerge(pair.$1, pair.$2)});
-    }
+    adv(BalanceV0.pilePeerSeconds(1) + 2);
+    fp.mark('peers grew', c);
+    c.updatePosition(h5[3], const Offset(0.3, 0.8));
+    fp.mark('stand up', c);
+    c.debugMarkTwins(h5[3], h5[4]);
+    fp.mark('pair marked', c);
+    fp.mark('pair pile', c, extra: {'ok': c.joinPile(h5[4], h5[3])});
     adv(40);
-    fp.mark('twin reroll', c);
+    fp.mark('pair reroll', c);
 
     // --- Food ---
     for (final food in FamilyFood.values) {

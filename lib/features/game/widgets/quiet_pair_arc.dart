@@ -5,41 +5,39 @@ import 'package:flutter/material.dart';
 import '../models/balance.dart';
 import '../models/capybara.dart';
 
-/// Quiet dotted arc between a merge pair. No «сюда!» chip.
-class QuietMergeArc extends StatelessWidget {
-  const QuietMergeArc({super.key, required this.from, required this.to});
+/// Quiet dotted arc between the «хотят посидеть рядом» pair (spec 006):
+/// the two marked capys, close but not together yet. No «сюда!» chip.
+class QuietPairArc extends StatelessWidget {
+  const QuietPairArc({super.key, required this.from, required this.to});
 
   /// Normalized meadow positions.
   final Offset from;
   final Offset to;
 
-  /// Dotted arc for a same-level pair that is close, but not stacked.
-  ///
-  /// Magnet snap stays at [GameController.effectiveMagnetRadius]. The arc
-  /// uses sprite pixels so a grass gap still reads, and a pile does not.
-  static (Offset, Offset)? pairFor(List<Capybara> herd, Size meadow) {
-    (Offset, Offset)? best;
-    var bestDist = double.infinity;
-    final minPx = BalanceV0.baseCapySize * 0.95;
-    final maxPx = BalanceV0.baseCapySize * 2.6;
-    final min2 = minPx * minPx;
-    final max2 = maxPx * maxPx;
-    for (var i = 0; i < herd.length; i++) {
-      for (var j = i + 1; j < herd.length; j++) {
-        final a = herd[i];
-        final b = herd[j];
-        if (a.level != b.level) continue;
-        final dx = (a.position.dx - b.position.dx) * meadow.width;
-        final dy = (a.position.dy - b.position.dy) * meadow.height;
-        final dist2 = dx * dx + dy * dy;
-        if (dist2 < min2 || dist2 > max2) continue;
-        if (dist2 < bestDist) {
-          bestDist = dist2;
-          best = (a.position, b.position);
-        }
-      }
+  /// The marked pair [twinA]/[twinB] when both stand on [herd], a grass gap
+  /// apart and not too far (sprite pixels), and not in one pile.
+  static (Offset, Offset)? pairFor(
+    List<Capybara> herd,
+    Size meadow, {
+    required String? twinA,
+    required String? twinB,
+  }) {
+    if (twinA == null || twinB == null) return null;
+    Capybara? a;
+    Capybara? b;
+    for (final c in herd) {
+      if (c.id == twinA) a = c;
+      if (c.id == twinB) b = c;
     }
-    return best;
+    if (a == null || b == null) return null;
+    if (a.pileId != null && a.pileId == b.pileId) return null;
+    final minPx = BalanceV0.baseCapySize * 0.95;
+    final maxPx = BalanceV0.baseCapySize * 4.0;
+    final dx = (a.position.dx - b.position.dx) * meadow.width;
+    final dy = (a.position.dy - b.position.dy) * meadow.height;
+    final dist2 = dx * dx + dy * dy;
+    if (dist2 < minPx * minPx || dist2 > maxPx * maxPx) return null;
+    return (a.position, b.position);
   }
 
   @override

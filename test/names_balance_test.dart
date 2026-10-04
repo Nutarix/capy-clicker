@@ -5,11 +5,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:capy_clicker/features/game/controllers/game_controller.dart';
-import 'package:capy_clicker/features/game/models/capybara.dart';
+import 'package:capy_clicker/features/game/models/balance.dart';
 import 'package:capy_clicker/features/game/models/world_zones.dart';
 import 'package:capy_clicker/features/game/persistence/game_persistence.dart';
 
 import 'support/fingerprint.dart';
+import 'support/test_game.dart';
 
 /// Spec 004, Т12: names and traits do not touch the numbers.
 ///
@@ -53,24 +54,14 @@ void main() {
       }
     }
 
-    bool mergeLowest() {
-      final byLevel = <int, List<Capybara>>{};
-      for (final x in c.state.herd) {
-        byLevel.putIfAbsent(x.level, () => []).add(x);
-      }
-      for (final lv in byLevel.keys.toList()..sort()) {
-        final list = byLevel[lv]!;
-        if (list.length >= 2) return c.tryMerge(list[1].id, list[0].id);
-      }
-      return false;
-    }
-
     void grow(bool Function() done, {int rounds = 900}) {
       for (var i = 0; i < rounds && !done(); i++) {
-        if (c.state.herdCount < c.effectiveMaxHerdSize) {
+        var wait = 0.5;
+        if (c.placesUsed < c.effectiveMaxHerdSize) {
           c.addProgress(1.0, fromTap: false);
-        } else {
-          mergeLowest();
+        } else if (!pileStep(c)) {
+          // Every place taken, nobody to move: let the piles grow.
+          wait = 20;
         }
         if (i % 7 == 0) c.onFlowerTap();
         if (i % 23 == 0) {
@@ -81,13 +72,18 @@ void main() {
           c.debugPlaceMud(const Offset(0.48, 0.84), seconds: 4);
           c.tryMudWallow(c.state.herd.last.id);
         }
-        adv(0.5);
+        adv(wait);
         if (i % 40 == 0) mark('grow $i');
       }
     }
 
     mark('init');
-    grow(() => c.state.sunnyGladeAnnounced >= 3 && c.state.maxCapyLevel >= 4);
+    grow(
+      () =>
+          c.state.sunnyGladeAnnounced >= 3 &&
+          c.state.maxCapyLevel >= BalanceV0.goalCapyLevel,
+      rounds: 3000,
+    );
     mark('great meadow');
     grow(() => c.state.mistyBiomeUnlocked, rounds: 400);
     mark('misty');

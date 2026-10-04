@@ -5,11 +5,17 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:capy_clicker/features/game/controllers/game_controller.dart';
 import 'package:capy_clicker/features/game/models/balance.dart';
+import 'package:capy_clicker/features/game/models/multipliers/cozy_place.dart';
 import 'package:capy_clicker/features/game/persistence/game_persistence.dart';
 
 import 'support/fingerprint.dart';
+import 'support/test_game.dart';
 
-/// Headless ~10–15 min cozy-session simulation for loop v1.1.
+/// Headless cozy player over the first forest (spec 006, Т9, Т14): flowers,
+/// berries, puddle, spending, and the pile — babies to an elder (nursery),
+/// peers together, the pair «хотят посидеть рядом», the nanny on the top
+/// pile. Targets (WBS 1.4): Ягодная in the first session (10–15 min), all
+/// four glades in 1–2 hours.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -17,9 +23,10 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
-  test('cozy session: fresh → berry glade → spend → twin → goals', () async {
+  test('cozy player: berry in the first session, the forest in 1–2 h',
+      () async {
     final rng = Random(42);
-    var clock = DateTime(2026, 9, 22, 10, 0, 0);
+    var clock = DateTime.utc(2026, 9, 22, 7);
     final c = GameController(
       persistence: GamePersistence(),
       random: rng,
@@ -29,137 +36,116 @@ void main() {
     await c.init();
     final fp = Fingerprint('sim_cozy_session')..mark('init', c);
 
-    var simSeconds = 0.0;
-    var flowerCooldown = 0.0;
-    var mudCooldown = 0.0;
+    var t = 0.0;
+    var flowerCd = 0.0;
+    var mudCd = 0.0;
     var berryCheckIn = 12.0;
-    var mergesDone = 0;
-    var twinMerges = 0;
-    var calls = 0;
-    var boosts = 0;
-    var spendCooldown = 0.0;
-    double? firstGladeAt;
-    double? firstSpendAt;
-    double? twinBonusAt;
-    final twinMarkWindows = <double>[];
-    String? lastTwinKey;
+    var spendCd = 0.0;
+    var pileCd = 6.0;
+    var placeCd = 10.0;
+    var nannyCd = 60.0;
+    var calls = 0, boosts = 0, seats = 0, pairBonuses = 0;
+    final ms = <String, double>{};
+    void note(String k) => ms.putIfAbsent(k, () => t);
+    final pairMarks = <double>[];
+    String? lastPair;
 
-    void step(double dt) {
-      clock = clock.add(Duration(milliseconds: (dt * 1000).round()));
-      simSeconds += dt;
-      c.debugAdvance(dt);
-      flowerCooldown -= dt;
-      mudCooldown -= dt;
-      berryCheckIn -= dt;
-      spendCooldown -= dt;
-    }
+    // Two and a half hours of play, in quarter seconds.
+    while (t < 9000) {
+      clock = clock.add(const Duration(milliseconds: 250));
+      t += 0.25;
+      c.debugAdvance(0.25);
+      flowerCd -= 0.25;
+      mudCd -= 0.25;
+      berryCheckIn -= 0.25;
+      spendCd -= 0.25;
+      pileCd -= 0.25;
+      placeCd -= 0.25;
+      nannyCd -= 0.25;
+      if ((t * 4).round() % 2400 == 0) fp.mark('t=$t', c);
 
-    // ~12 min equivalent active cozy play.
-    while (simSeconds < 720) {
-      step(0.25);
-      if ((simSeconds * 4).round() % 480 == 0) fp.mark('t=$simSeconds', c);
+      if (c.goalCompleteToast != null) c.acknowledgeGoalComplete();
+      if (c.gladeUnlockToast != null) c.acknowledgeGladeUnlock();
 
-      // Track twin mark windows (start of a new pair).
-      final tA = c.state.twinIdA;
-      final tB = c.state.twinIdB;
+      final s = c.state;
+      if (s.sunnyGladeAnnounced >= 1) note('berry');
+      if (s.sunnyGladeAnnounced >= 2) note('sunny');
+      if (s.sunnyGladeAnnounced >= 3) note('great');
+      if (s.maxCapyLevel >= BalanceV0.goalCapyLevel) note('goalLevel');
+      if (s.mistyBiomeUnlocked) note('mist');
+
+      final tA = s.twinIdA;
+      final tB = s.twinIdB;
       if (tA != null && tB != null) {
         final key = ([tA, tB]..sort()).join(':');
-        if (key != lastTwinKey) {
-          twinMarkWindows.add(simSeconds);
-          lastTwinKey = key;
+        if (key != lastPair) {
+          pairMarks.add(t);
+          lastPair = key;
         }
       } else {
-        lastTwinKey = null;
+        lastPair = null;
       }
 
-      if (firstGladeAt == null && c.state.sunnyGladeAnnounced >= 1) {
-        firstGladeAt = simSeconds;
-      }
-
-      // Flower taps ~ every 2.6–3.4s (cozy, not speedrun).
-      if (flowerCooldown <= 0) {
+      // Flower taps every ~3.4–4.6 s (cozy, not speedrun).
+      if (flowerCd <= 0) {
         c.onFlowerTap();
-        flowerCooldown = 3.4 + rng.nextDouble() * 1.2;
+        flowerCd = 3.4 + rng.nextDouble() * 1.2;
       }
 
-      // Berry when available.
       if (berryCheckIn <= 0) {
         berryCheckIn = 4.0;
-        if (!c.isBerryVisible && simSeconds > 10) {
-          // Approx rare spawn — force periodically like basket cadence.
-          if (rng.nextDouble() < 0.18) c.debugShowBerry();
+        if (!c.isBerryVisible && t > 10 && rng.nextDouble() < 0.18) {
+          c.debugShowBerry();
         }
-        if (c.isBerryVisible) {
-          c.onBerryTap();
-        }
+        if (c.isBerryVisible) c.onBerryTap();
       }
 
-      // Mud wallow every ~18s.
-      if (mudCooldown <= 0 && c.state.herd.isNotEmpty) {
-        c.tryMudWallow(c.state.herd.first.id);
-        mudCooldown = 28 + rng.nextDouble() * 12;
+      // A capy on its own goes for the puddle every ~30 s.
+      if (mudCd <= 0) {
+        final single = s.herd.where((x) => x.pileId == null);
+        if (single.isNotEmpty) c.tryMudWallow(single.first.id);
+        mudCd = 28 + rng.nextDouble() * 12;
       }
 
-      // Spend fork with human-like cooldown (~8–14s between spends).
-      if (spendCooldown <= 0 && (c.canCallCapy || c.canGrassBoost)) {
-        final preferCall = c.state.herdCount < 8 && c.canCallCapy;
+      if (placeCd <= 0) {
+        for (final k in CozyPlaceKind.values) {
+          if (c.tryActivatePlace(k)) break;
+        }
+        placeCd = 10 + rng.nextDouble() * 6;
+      }
+
+      // Spend fork with a human cooldown: call a capy or a short boost.
+      if (spendCd <= 0 && (c.canCallCapy || c.canGrassBoost)) {
         var spent = false;
-        if (preferCall && rng.nextDouble() < 0.5) {
+        if (c.canCallCapy && rng.nextDouble() < 0.5) {
           spent = c.spendCallCapy();
           if (spent) calls++;
         } else if (c.canGrassBoost && rng.nextDouble() < 0.55) {
           spent = c.spendGrassBoost();
           if (spent) boosts++;
-        } else if (c.canCallCapy) {
-          spent = c.spendCallCapy();
-          if (spent) calls++;
         }
-        if (spent) {
-          firstSpendAt ??= simSeconds;
-          spendCooldown = 8.0 + rng.nextDouble() * 6.0;
+        if (spent) spendCd = 8.0 + rng.nextDouble() * 6.0;
+      }
+
+      // The pile: a look at the meadow every 5–10 s.
+      if (pileCd <= 0) {
+        pileCd = 5 + rng.nextDouble() * 5;
+        final grass = c.state.grass;
+        if (sitThePair(c)) {
+          seats++;
+          if (c.state.grass >= grass + BalanceV0.pairBonusGrass) {
+            pairBonuses++;
+            note('pairBonus');
+          }
+        } else if (c.placesUsed >= c.effectiveMaxHerdSize - 1 ||
+            rng.nextDouble() < 0.4) {
+          if (pileStep(c)) seats++;
         }
       }
 
-      // Occasional merge (favor twins); keep early merges rare so herd can grow.
-      final mergeChance = c.state.herdCount < 5 ? 0.03 : 0.07;
-      if (c.state.herdCount >= 2 && rng.nextDouble() < mergeChance) {
-        final herd = c.state.herd;
-        String? a;
-        String? b;
-        if (c.state.twinIdA != null && c.state.twinIdB != null) {
-          a = c.state.twinIdA;
-          b = c.state.twinIdB;
-        } else {
-          final byLevel = <int, List<String>>{};
-          for (final cap in herd) {
-            byLevel.putIfAbsent(cap.level, () => []).add(cap.id);
-          }
-          final pairs = byLevel.values.where((ids) => ids.length >= 2).toList();
-          if (pairs.isNotEmpty) {
-            final pick = pairs[rng.nextInt(pairs.length)];
-            a = pick[0];
-            b = pick[1];
-          }
-        }
-        if (a != null && b != null) {
-          final beforeGrass = c.state.grass;
-          final wasTwin = c.state.isTwinMarked(a) && c.state.isTwinMarked(b);
-          if (c.tryMerge(a, b)) {
-            mergesDone++;
-            if (wasTwin &&
-                c.state.grass >= beforeGrass + BalanceV0.twinMergeBonusGrass) {
-              twinMerges++;
-              twinBonusAt ??= simSeconds;
-            }
-          }
-        }
-      }
-
-      if (c.goalCompleteToast != null) {
-        c.acknowledgeGoalComplete();
-      }
-      if (c.gladeUnlockToast != null) {
-        c.acknowledgeGladeUnlock();
+      if (nannyCd <= 0) {
+        nannyCd = 90;
+        nannyToTopPile(c);
       }
     }
 
@@ -168,81 +154,59 @@ void main() {
         'end',
         c,
         extra: {
-          'firstGladeAt': firstGladeAt,
-          'firstSpendAt': firstSpendAt,
-          'twinBonusAt': twinBonusAt,
-          'merges': mergesDone,
-          'twinMerges': twinMerges,
+          'milestones': ms,
           'calls': calls,
           'boosts': boosts,
-          'twinMarks': twinMarkWindows,
+          'seats': seats,
+          'pairBonuses': pairBonuses,
+          'pairMarks': pairMarks.length,
         },
       )
       ..verify();
 
+    String min(String k) => ms[k] == null ? '-' : (ms[k]! / 60).toStringAsFixed(1);
     // ignore: avoid_print
     print(
-      'SIM firstGlade=${firstGladeAt?.toStringAsFixed(0)}s '
-      'spend@${firstSpendAt?.toStringAsFixed(0)}s '
-      'calls=$calls boosts=$boosts twinMerges=$twinMerges '
-      'merges=$mergesDone goals=${c.state.sessionGoalIndex} '
-      'gladeAnn=${c.state.sunnyGladeAnnounced} herd=${c.state.herdCount} '
-      'grass=${c.state.grass} twinsMarked=${twinMarkWindows.length} '
-      'goalProg=${c.sessionGoalProgress.toStringAsFixed(2)}',
+      'SIM cozy berry=${min('berry')}m sunny=${min('sunny')}m '
+      'great=${min('great')}m lv${BalanceV0.goalCapyLevel}=${min('goalLevel')}m '
+      'mist=${min('mist')}m calls=$calls boosts=$boosts seats=$seats '
+      'pairBonuses=$pairBonuses pairMarks=${pairMarks.length} '
+      'herd=${c.state.herdCount} places=${c.placesUsed} '
+      'power=${c.state.familyPower}',
     );
 
-    // --- Assertions / balance gates ---
-    expect(firstGladeAt, isNotNull, reason: 'Berry glade should unlock');
+    // --- Т9 targets (WBS 1.4) ---
+    expect(ms['berry'], isNotNull, reason: 'Ягодная поляна opens');
     expect(
-      firstGladeAt!,
-      inInclusiveRange(45, 360),
-      reason:
-          'First glade ~1–6 min cozy (family power ≥5; call-capy can land ~1 min); got ${firstGladeAt}s',
+      ms['berry']!,
+      inInclusiveRange(8 * 60, 15 * 60),
+      reason: 'Ягодная in the first session (10–15 min)',
     );
-    expect(firstSpendAt, isNotNull, reason: 'Spend fork should be used');
-    expect(calls + boosts, greaterThan(0));
-    // Meaningful fork: not always only spawn.
-    expect(boosts, greaterThan(0), reason: 'Boost should be chosen sometimes');
-    expect(calls, greaterThan(0), reason: 'Call should be chosen sometimes');
-
-    expect(mergesDone, greaterThan(0));
-    expect(twinMerges, greaterThan(0), reason: 'Twin merge bonus should fire');
-    expect(twinBonusAt, isNotNull);
-
-    // Twin rarity: appears several times per session, not permanent glow.
-    expect(twinMarkWindows.length, greaterThanOrEqualTo(2));
+    expect(ms['sunny'], isNotNull);
+    expect(ms['sunny']!, inInclusiveRange(15 * 60, 60 * 60));
+    expect(ms['great'], isNotNull, reason: 'all four glades');
     expect(
-      twinMarkWindows.length,
-      lessThan(20),
-      reason: 'twinsMarked=${twinMarkWindows.length} looks spammy over 12 min',
+      ms['great']!,
+      inInclusiveRange(60 * 60, 120 * 60),
+      reason: 'the first forest in 1–2 hours',
     );
-    if (twinMarkWindows.length >= 2) {
-      final gaps = <double>[];
-      for (var i = 1; i < twinMarkWindows.length; i++) {
-        gaps.add(twinMarkWindows[i] - twinMarkWindows[i - 1]);
-      }
-      final avg = gaps.reduce((a, b) => a + b) / gaps.length;
-      expect(avg, greaterThan(25), reason: 'avg twin gap $avg too spammy');
-    }
+    expect(ms['mist'], isNotNull, reason: 'Туманный бор after the forest');
+    expect(ms['mist']!, greaterThanOrEqualTo(ms['great']!));
+    expect(ms['mist']!, lessThanOrEqualTo(150 * 60));
 
-    // Soft herd cap held.
-    expect(c.state.herdCount, lessThanOrEqualTo(BalanceV0.maxHerdSize));
+    // The fork and the pile are used.
+    expect(calls, greaterThan(0));
+    expect(boosts, greaterThan(0));
+    expect(seats, greaterThan(20));
+    expect(pairBonuses, greaterThan(0), reason: 'the pair bonus fires');
+    // The pair is a window, not a permanent glow (~36 s rerolls).
+    expect(pairMarks.length, greaterThanOrEqualTo(10));
+    expect(pairMarks.length, lessThan(9000 ~/ 36));
+
+    // Places held; more capys than places.
+    expect(c.placesUsed, lessThanOrEqualTo(c.effectiveMaxHerdSize));
+    expect(c.state.herdCount, greaterThan(BalanceV0.maxHerdSize));
     expect(c.state.grass, greaterThanOrEqualTo(0));
-
-    // Goal chain advanced past berry; sunny goal in progress or done.
-    expect(c.state.sessionGoalIndex, greaterThanOrEqualTo(1));
-    expect(
-      c.state.sunnyGladeAnnounced >= 1 &&
-          (c.sessionGoalProgress > 0.3 ||
-              c.state.sessionGoalIndex >= 2 ||
-              c.state.sunnyGladeAnnounced >= 2),
-      isTrue,
-      reason:
-          '12 min should push toward Солнечный прогал '
-          '(goalIdx=${c.state.sessionGoalIndex} glade=${c.state.sunnyGladeAnnounced} '
-          'herd=${c.state.herdCount} progress=${c.sessionGoalProgress})',
-    );
-
     c.dispose();
   });
 }

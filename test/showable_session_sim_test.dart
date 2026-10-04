@@ -5,7 +5,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:capy_clicker/features/game/controllers/game_controller.dart';
 import 'package:capy_clicker/features/game/models/balance.dart';
-import 'package:capy_clicker/features/game/models/multipliers/capy_role.dart';
 import 'package:capy_clicker/features/game/models/multipliers/cozy_place.dart';
 import 'package:capy_clicker/features/game/models/multipliers/family_food.dart';
 import 'package:capy_clicker/features/game/models/multipliers/home_decor.dart';
@@ -15,11 +14,13 @@ import 'package:capy_clicker/features/game/models/world_zones.dart';
 import 'package:capy_clicker/features/game/persistence/game_persistence.dart';
 
 import 'support/fingerprint.dart';
+import 'support/test_game.dart';
 
-/// Showable cozy session (~12–15′) — balance gates for Game Lead demo.
+/// Showable cozy session (~14′) and a goal-oriented run over the first
+/// forest, with the pile (spec 006, Т9, Т14).
 ///
 /// Casual priority after berry: first permanent (Дом или Наука), then food/call.
-/// Goal-oriented mist horizon checked in a separate probe within the same file.
+/// Both play the pile sensibly: nurseries, peers, the pair, the nanny.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -27,9 +28,9 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
-  test('showable cozy 14′: berry → permanent → twin → no grass despair', () async {
+  test('showable cozy 14′: berry → permanent → pair → no grass despair', () async {
     final rng = Random(42);
-    var clock = DateTime(2026, 9, 22, 16, 0, 0);
+    var clock = DateTime.utc(2026, 9, 22, 13);
     final c = GameController(
       persistence: GamePersistence(),
       random: rng,
@@ -47,6 +48,7 @@ void main() {
     var uyutCd = 0.0;
     var berryCheck = 10.0;
     var calls = 0, boosts = 0, twinMerges = 0, merges = 0;
+    var pileCd = 6.0, nannyCd = 60.0;
     var feeds = 0, decorBuys = 0, researchUnlocks = 0;
     double? firstGladeAt;
     double? firstPermanentAt;
@@ -70,6 +72,8 @@ void main() {
       spendCd -= dt;
       uyutCd -= dt;
       berryCheck -= dt;
+      pileCd -= dt;
+      nannyCd -= dt;
     }
 
     // ~14 min cozy showable session.
@@ -125,8 +129,9 @@ void main() {
         if (c.isBerryVisible) c.onBerryTap();
       }
 
-      if (mudCd <= 0 && c.state.herd.isNotEmpty) {
-        c.tryMudWallow(c.state.herd.first.id);
+      if (mudCd <= 0) {
+        final single = c.state.herd.where((x) => x.pileId == null);
+        if (single.isNotEmpty) c.tryMudWallow(single.first.id);
         mudCd = 24 + rng.nextDouble() * 12;
       }
 
@@ -144,7 +149,7 @@ void main() {
 
       // Spend fork: call prefers growth; boost sometimes — keep both used.
       if (spendCd <= 0 && (c.canCallCapy || c.canGrassBoost)) {
-        final preferCall = c.state.herdCount < 9 && c.canCallCapy;
+        final preferCall = c.canCallCapy;
         var spent = false;
         if (preferCall && rng.nextDouble() < 0.55) {
           spent = c.spendCallCapy();
@@ -214,44 +219,27 @@ void main() {
           c.selectFood(FamilyFood.travka);
           if (c.feedFamily()) feeds++;
         }
-        if (c.state.herd.isNotEmpty) {
-          c.assignRole(c.state.herd.first.id, CapyRole.nanya);
-        }
         uyutCd = 9.0 + rng.nextDouble() * 6.0;
       }
 
-      // Occasional merges; favor twins; keep early merges rare.
-      final mergeChance = c.state.herdCount < 5 ? 0.03 : 0.065;
-      if (c.state.herdCount >= 2 && rng.nextDouble() < mergeChance) {
-        String? a;
-        String? b;
-        if (c.state.twinIdA != null && c.state.twinIdB != null) {
-          a = c.state.twinIdA;
-          b = c.state.twinIdB;
-        } else {
-          final byLevel = <int, List<String>>{};
-          for (final cap in c.state.herd) {
-            byLevel.putIfAbsent(cap.level, () => []).add(cap.id);
+      // The pile: the pair first, else a sensible seat; the nanny on top.
+      if (pileCd <= 0) {
+        pileCd = 5 + rng.nextDouble() * 5;
+        final grass = c.state.grass;
+        if (sitThePair(c)) {
+          merges++;
+          if (c.state.grass >= grass + BalanceV0.pairBonusGrass) {
+            twinMerges++;
+            twinBonusAt ??= simSeconds;
           }
-          final pairs = byLevel.values.where((ids) => ids.length >= 2).toList();
-          if (pairs.isNotEmpty) {
-            final pick = pairs[rng.nextInt(pairs.length)];
-            a = pick[0];
-            b = pick[1];
-          }
+        } else if (c.placesUsed >= c.effectiveMaxHerdSize - 1 ||
+            rng.nextDouble() < 0.4) {
+          if (pileStep(c)) merges++;
         }
-        if (a != null && b != null) {
-          final beforeGrass = c.state.grass;
-          final wasTwin = c.state.isTwinMarked(a) && c.state.isTwinMarked(b);
-          if (c.tryMerge(a, b)) {
-            merges++;
-            if (wasTwin &&
-                c.state.grass >= beforeGrass + BalanceV0.twinMergeBonusGrass) {
-              twinMerges++;
-              twinBonusAt ??= simSeconds;
-            }
-          }
-        }
+      }
+      if (nannyCd <= 0) {
+        nannyCd = 90;
+        nannyToTopPile(c);
       }
     }
 
@@ -298,9 +286,8 @@ void main() {
     expect(firstGladeAt, isNotNull, reason: 'Berry glade should unlock');
     expect(
       firstGladeAt!,
-      inInclusiveRange(45, 360),
-      reason:
-          'First berry glade ~1–6 min cozy (family power ≥5); got ${firstGladeAt}s',
+      inInclusiveRange(8 * 60, 14 * 60),
+      reason: 'Ягодная inside the 14′ first session (spec 006, Т9)',
     );
 
     expect(calls, greaterThan(0));
@@ -308,7 +295,7 @@ void main() {
     expect(twinMerges, greaterThan(0));
     expect(twinBonusAt, isNotNull);
     expect(twinMarks.length, greaterThanOrEqualTo(2));
-    expect(twinMarks.length, lessThan(22), reason: 'twin not spammy');
+    expect(twinMarks.length, lessThan(30), reason: 'pair not spammy');
 
     expect(
       decorBuys + researchUnlocks,
@@ -318,8 +305,8 @@ void main() {
     expect(firstPermanentAt, isNotNull);
     expect(
       firstPermanentAt!,
-      lessThan(720),
-      reason: 'First permanent should land within ~12′',
+      lessThan(840),
+      reason: 'First permanent right after Ягодная, inside 14′',
     );
 
     // Soft anti-despair: mid-session average grass not stuck near 0.
@@ -334,16 +321,16 @@ void main() {
       reason: 'Grass=0 too often ($zeroFrac) — mid-session despair',
     );
 
-    expect(c.state.herdCount, lessThanOrEqualTo(c.effectiveMaxHerdSize));
+    expect(c.placesUsed, lessThanOrEqualTo(c.effectiveMaxHerdSize));
     expect(c.state.grass, greaterThanOrEqualTo(0));
     expect(c.state.sessionGoalIndex, greaterThanOrEqualTo(1));
 
     c.dispose();
   });
 
-  test('showable goal-oriented ~18′: mist + uyut reachable', () async {
+  test('goal-oriented: the forest in 1–2 h, then the misty grove', () async {
     final rng = Random(99);
-    var clock = DateTime(2026, 9, 22, 17, 0, 0);
+    var clock = DateTime.utc(2026, 9, 22, 14);
     final c = GameController(
       persistence: GamePersistence(),
       random: rng,
@@ -351,15 +338,17 @@ void main() {
       autoTick: false,
     );
     await c.init();
+    // Fingerprint name kept from the 18′ run it replaces.
     final fp = Fingerprint('sim_showable_goal18')..mark('init', c);
 
     var t = 0.0;
     var flowerCd = 0.0, mudCd = 0.0, placeCd = 0.0, spendCd = 0.0;
-    var uyutCd = 0.0, berryCheck = 8.0;
+    var uyutCd = 0.0, berryCheck = 8.0, pileCd = 4.0, nannyCd = 30.0;
+    var uyutAtMist = 0;
     final ms = <String, double>{};
     void note(String k) => ms.putIfAbsent(k, () => t);
 
-    while (t < 1200) {
+    while (t < 9000) {
       clock = clock.add(const Duration(milliseconds: 250));
       t += 0.25;
       c.debugAdvance(0.25);
@@ -369,7 +358,9 @@ void main() {
       spendCd -= 0.25;
       uyutCd -= 0.25;
       berryCheck -= 0.25;
-      if ((t * 4).round() % 480 == 0) fp.mark('t=$t', c);
+      pileCd -= 0.25;
+      nannyCd -= 0.25;
+      if ((t * 4).round() % 2400 == 0) fp.mark('t=$t', c);
 
       if (c.goalCompleteToast != null) c.acknowledgeGoalComplete();
       if (c.gladeUnlockToast != null) c.acknowledgeGladeUnlock();
@@ -377,8 +368,11 @@ void main() {
       if (c.state.sunnyGladeAnnounced >= 1) note('berry');
       if (c.state.sunnyGladeAnnounced >= 2) note('sunny');
       if (c.state.sunnyGladeAnnounced >= 3) note('great');
-      if (c.state.maxCapyLevel >= 4) note('lv4');
-      if (c.state.mistyBiomeUnlocked) note('mist');
+      if (c.state.maxCapyLevel >= BalanceV0.goalCapyLevel) note('goalLevel');
+      if (c.state.mistyBiomeUnlocked && !ms.containsKey('mist')) {
+        uyutAtMist = c.state.uyut;
+        note('mist');
+      }
       if (c.state.activeMeadowId == WorldZones.mistEdgeMeadowId) note('visit');
       if (c.state.ownedDecor.isNotEmpty) note('decor');
       if (c.state.researched.isNotEmpty) note('research');
@@ -392,8 +386,9 @@ void main() {
         if (!c.isBerryVisible && rng.nextDouble() < 0.28) c.debugShowBerry();
         if (c.isBerryVisible) c.onBerryTap();
       }
-      if (mudCd <= 0 && c.state.herd.isNotEmpty) {
-        c.tryMudWallow(c.state.herd.first.id);
+      if (mudCd <= 0) {
+        final single = c.state.herd.where((x) => x.pileId == null);
+        if (single.isNotEmpty) c.tryMudWallow(single.first.id);
         mudCd = 18 + rng.nextDouble() * 8;
       }
       if (placeCd <= 0) {
@@ -409,7 +404,7 @@ void main() {
       }
       if (spendCd <= 0) {
         var spent = false;
-        if (c.state.herdCount < 11 && c.canCallCapy) {
+        if (c.canCallCapy) {
           spent = c.spendCallCapy();
         } else if (c.canGrassBoost) {
           spent = c.spendGrassBoost();
@@ -436,9 +431,6 @@ void main() {
           c.selectFood(FamilyFood.travka);
           c.feedFamily();
         }
-        if (c.state.herd.isNotEmpty) {
-          c.assignRole(c.state.herd.first.id, CapyRole.nanya);
-        }
         if (c.state.grass >= 22) {
           for (final d in HomeDecor.values) {
             if (!c.state.ownedDecor.contains(d.id) && c.buyDecor(d)) break;
@@ -450,28 +442,14 @@ void main() {
         uyutCd = 8 + rng.nextDouble() * 5;
       }
 
-      final mergeP = c.state.herdCount >= 8
-          ? 0.06
-          : (c.state.maxCapyLevel < 4 && c.state.herdCount >= 5 ? 0.04 : 0.015);
-      if (c.state.herdCount >= 2 && rng.nextDouble() < mergeP) {
-        String? a;
-        String? b;
-        if (c.state.twinIdA != null) {
-          a = c.state.twinIdA;
-          b = c.state.twinIdB;
-        } else {
-          final by = <int, List<String>>{};
-          for (final cap in c.state.herd) {
-            by.putIfAbsent(cap.level, () => []).add(cap.id);
-          }
-          final pairs = by.values.where((x) => x.length >= 2).toList();
-          if (pairs.isNotEmpty) {
-            final p = pairs[rng.nextInt(pairs.length)];
-            a = p[0];
-            b = p[1];
-          }
-        }
-        if (a != null && b != null) c.tryMerge(a, b);
+      // Goal-oriented piling: every few seconds, the pair first.
+      if (pileCd <= 0) {
+        pileCd = 3 + rng.nextDouble() * 3;
+        if (!sitThePair(c)) pileStep(c);
+      }
+      if (nannyCd <= 0) {
+        nannyCd = 60;
+        nannyToTopPile(c);
       }
 
       if (c.state.mistyBiomeUnlocked &&
@@ -487,17 +465,26 @@ void main() {
 
     // ignore: avoid_print
     print(
-      'SHOWABLE goal18 ms=$ms herd=${c.state.herdCount} grass=${c.state.grass} '
+      'SHOWABLE goal ms=${ms.map((k, v) => MapEntry(k, (v / 60).toStringAsFixed(1)))} '
+      'herd=${c.state.herdCount} grass=${c.state.grass} '
       'decor=${c.state.ownedDecor.length} res=${c.state.researched.length} '
       'uyut=${c.state.uyut}',
     );
 
     expect(ms.containsKey('berry'), isTrue);
     expect(ms.containsKey('decor') || ms.containsKey('research'), isTrue);
+    expect(ms['berry']!, inInclusiveRange(6 * 60, 15 * 60));
     expect(ms.containsKey('sunny'), isTrue, reason: 'sunny for show run');
-    expect(ms['mist'], isNotNull, reason: 'mist within ~20′ goal-oriented');
-    expect(ms['mist']!, lessThanOrEqualTo(1200));
-    expect(c.state.uyut, greaterThanOrEqualTo(1));
+    expect(ms['great'], isNotNull, reason: 'all four glades');
+    expect(
+      ms['great']!,
+      inInclusiveRange(55 * 60, 120 * 60),
+      reason: 'the first forest in 1–2 hours, even goal-oriented',
+    );
+    expect(ms['mist'], isNotNull, reason: 'Туманный бор after the forest');
+    expect(ms['mist']!, greaterThanOrEqualTo(ms['great']!));
+    expect(ms['mist']!, lessThanOrEqualTo(150 * 60));
+    expect(uyutAtMist, greaterThanOrEqualTo(1), reason: 'the first spark');
     expect(ms.containsKey('visit'), isTrue);
 
     c.dispose();

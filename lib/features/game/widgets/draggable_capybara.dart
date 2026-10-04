@@ -14,13 +14,16 @@ import '../models/capybara.dart';
 import '../models/multipliers/capy_role.dart';
 import 'uyut/multiplier_icon.dart';
 import '../models/multipliers/cozy_place.dart';
-import '../models/merge_magnet.dart';
+import '../models/pile_layout.dart';
+import '../models/pile_magnet.dart';
 import 'capybara_placeholder.dart';
 import 'meadow_space.dart';
 import 'mud_puddle.dart';
 
-/// Meadow-aware draggable: merge on same-level drop, soft magnet assist,
-/// wallow on mud drop, idle bob + wander walk.
+/// Meadow-aware draggable: drop on a capy or a pile to sit together (spec
+/// 006), soft magnet assist, wallow on mud drop, idle bob + wander walk.
+/// In a pile ([pileSeat]) it dozes in its seat: sleep frames, no walks; a
+/// drag takes it out.
 class MeadowDraggableCapybara extends StatefulWidget {
   const MeadowDraggableCapybara({
     super.key,
@@ -28,13 +31,13 @@ class MeadowDraggableCapybara extends StatefulWidget {
     required this.herd,
     required this.meadowSize,
     this.space,
-    required this.onMerge,
+    required this.onSit,
     required this.onDropPosition,
     required this.onMudDrop,
     required this.isOverMud,
     this.herdCount = 0,
     this.isWallowing = false,
-    this.mergeFlash = false,
+    this.pileFlash = false,
     this.twinSparkle = false,
     this.magnetAttractedId,
     this.promoteLevelBadge = false,
@@ -50,6 +53,7 @@ class MeadowDraggableCapybara extends StatefulWidget {
     this.onTouch,
     this.random,
     this.berryVisible = false,
+    this.pileSeat,
   });
 
   final Capybara capybara;
@@ -60,7 +64,7 @@ class MeadowDraggableCapybara extends StatefulWidget {
   /// may still be easing. Null or not laid out: the meadow starts at the
   /// screen origin, unscaled (bare widget tests).
   final MeadowSpace? space;
-  final bool Function(String draggedId, String targetId) onMerge;
+  final bool Function(String draggedId, String targetId) onSit;
   final void Function(String id, Offset normalized) onDropPosition;
   final bool Function(String id) onMudDrop;
   final bool Function(Offset normalized) isOverMud;
@@ -69,7 +73,7 @@ class MeadowDraggableCapybara extends StatefulWidget {
   final int herdCount;
 
   final bool isWallowing;
-  final bool mergeFlash;
+  final bool pileFlash;
 
   /// Subtle twin-sparkle mark for the skill-merge pair.
   final bool twinSparkle;
@@ -120,6 +124,9 @@ class MeadowDraggableCapybara extends StatefulWidget {
   /// Berry basket on the meadow: a sweet tooth heads for it (spec 004, Т8).
   final bool berryVisible;
 
+  /// Seat in a pile (spec 006, Т8), or null on its own.
+  final PileSeat? pileSeat;
+
   @override
   State<MeadowDraggableCapybara> createState() =>
       _MeadowDraggableCapybaraState();
@@ -131,7 +138,7 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
   String? _magnetTargetId;
 
   /// True after a mid-drag magnet merge so onDragEnd skips drop/mud.
-  bool _mergedDuringDrag = false;
+  bool _satDuringDrag = false;
 
   /// Soft pull toward the magnet target, meadow pixels. The feedback is
   /// built once at drag start, so it listens to this (spec 003, Т4).
@@ -155,6 +162,9 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
 
   /// Sleepyhead nap / dreamer gaze (spec 004, Т9): runs once per pose.
   late final AnimationController _poseClock;
+
+  /// Breath in a pile: inhale and exhale frames, looping (spec 006).
+  late final AnimationController _breath;
   CapyPoseKind? _pose;
 
   late final math.Random _rng = widget.random ?? math.Random();
@@ -181,7 +191,12 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
   }
 
   bool get _wanderBlocked =>
-      _dragging || widget.isWallowing || widget.mergeFlash;
+      _dragging ||
+      widget.isWallowing ||
+      widget.pileFlash ||
+      widget.pileSeat != null;
+
+  bool get _seated => widget.pileSeat != null;
 
   CapyWalkSheet get _sheet => CapyWalk.sheetFor(
     level: widget.capybara.level,
@@ -212,6 +227,14 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
       ..addStatusListener((status) {
         if (status == AnimationStatus.completed) _onPoseDone();
       });
+
+    _breath = AnimationController(
+      vsync: this,
+      duration: Duration(
+        milliseconds: (CapyPose.breathSeconds * 1000).round(),
+      ),
+    );
+    if (_seated) _startBreath();
 
     _walk = AnimationController(vsync: this)
       ..addListener(() {
@@ -247,15 +270,31 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
     _scheduleEscape();
   }
 
+  void _startBreath() {
+    _breath.value = widget.pileSeat?.breathPhase ?? 0;
+    _breath.repeat();
+  }
+
   @override
   void didUpdateWidget(covariant MeadowDraggableCapybara oldWidget) {
     super.didUpdateWidget(oldWidget);
+    final sat = widget.pileSeat != null && oldWidget.pileSeat == null;
+    final stood = widget.pileSeat == null && oldWidget.pileSeat != null;
+    if (sat) {
+      _cancelWalk(commit: false);
+      _displayPos = widget.capybara.position;
+      _live[widget.capybara.id] = _displayPos;
+      _startBreath();
+    } else if (stood) {
+      _breath.stop();
+      if (!_dragging) _scheduleWander(_pause());
+    }
     if (widget.isWallowing && !oldWidget.isWallowing) {
       _cancelWalk(commit: false);
       _displayPos = widget.capybara.position;
       _live[widget.capybara.id] = _displayPos;
     }
-    if (widget.mergeFlash && !oldWidget.mergeFlash) {
+    if (widget.pileFlash && !oldWidget.pileFlash) {
       _cancelWalk(commit: false);
     }
     // Role / level change → switch walk sheet + idle flavour, in the new
@@ -303,7 +342,11 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
   /// [MeadowDraggableCapybara.livePositions] keep the grass gap, so a herd
   /// leaving the same disc does not restack.
   void _escapeForbiddenGround() {
-    if (!mounted || _dragging || widget.isWallowing || widget.mergeFlash) {
+    if (!mounted ||
+        _dragging ||
+        widget.isWallowing ||
+        widget.pileFlash ||
+        _seated) {
       return;
     }
     final meadow = widget.meadowSize;
@@ -357,6 +400,7 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
     _walkCycle.dispose();
     _walk.dispose();
     _poseClock.dispose();
+    _breath.dispose();
     _dragScale.dispose();
     _pull.dispose();
     super.dispose();
@@ -600,8 +644,13 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
     }
   }
 
-  /// The pose frame now, or null when not posing.
+  /// The pose frame now, or null when not posing. In a pile: asleep,
+  /// breathing on its own phase, no bubble.
   CapyPoseFrame? _poseFrame() {
+    if (_seated) {
+      final frame = _breath.value < 0.5 ? 0 : 1;
+      return CapyPoseFrame(asset: CapyPose.sleepAsset(_sheet, frame));
+    }
     final kind = _pose;
     final length = _poseClock.duration;
     if (kind == null || length == null) return null;
@@ -646,19 +695,22 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
     return _dragAnchor * _dragScale.value;
   }
 
-  MergeMagnetHit? _hitAt(Offset dragNormalized) {
-    return MergeMagnet.nearestEligible(
+  /// Mid-drag: capys and piles with room. On release ([includeFull]) a
+  /// full pile counts too: the drop there is a soft refusal.
+  PileMagnetHit? _hitAt(Offset dragNormalized, {bool includeFull = false}) {
+    return PileMagnet.nearest(
       draggedId: widget.capybara.id,
-      draggedLevel: widget.capybara.level,
+      draggedPileId: widget.capybara.pileId,
       dragNormalized: dragNormalized,
       herd: widget.herd,
       radius: widget.magnetRadius,
+      includeFull: includeFull,
     );
   }
 
-  bool _tryMagnetMerge(MergeMagnetHit hit) {
-    // Haptics live in the parent's onMerge callback (same juice as manual).
-    return widget.onMerge(widget.capybara.id, hit.target.id);
+  bool _tryMagnetSit(PileMagnetHit hit) {
+    // Haptics live in the parent's onSit callback (same juice as manual).
+    return widget.onSit(widget.capybara.id, hit.target.id);
   }
 
   void _notifyMagnet(String? id) {
@@ -667,7 +719,7 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
     widget.onMagnetTargetChanged?.call(id);
   }
 
-  void _updateMagnetVisual(MergeMagnetHit? hit, Offset dragNormalized) {
+  void _updateMagnetVisual(PileMagnetHit? hit, Offset dragNormalized) {
     if (hit == null) {
       _notifyMagnet(null);
       _pull.value = Offset.zero;
@@ -675,7 +727,7 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
     }
 
     // Subtle pull: lerp feedback toward target in meadow pixel space.
-    final pulled = MergeMagnet.lerpToward(
+    final pulled = PileMagnet.lerpToward(
       dragNormalized,
       hit.target.position,
       BalanceV0.magnetPullLerp,
@@ -687,11 +739,21 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
     _pull.value = nextPull;
   }
 
+  /// [id] already sits in this capy's pile: a drop here changes nothing.
+  bool _samePile(String id) {
+    final pile = widget.capybara.pileId;
+    if (pile == null) return false;
+    for (final c in widget.herd) {
+      if (c.id == id) return c.pileId == pile;
+    }
+    return false;
+  }
+
   void _onDragStarted() {
     _dragging = true;
     _lastPointerNorm = null;
     _cancelWalk(commit: false);
-    _mergedDuringDrag = false;
+    _satDuringDrag = false;
     _pull.value = Offset.zero;
     _notifyMagnet(null);
     widget.onDragBadge?.call();
@@ -704,7 +766,7 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
   }
 
   void _onDragUpdate(DragUpdateDetails details) {
-    if (_mergedDuringDrag) return;
+    if (_satDuringDrag) return;
     final normalized = _normalizedFromPointer(details.globalPosition);
     _lastPointerNorm = normalized;
     final hit = _hitAt(normalized);
@@ -712,12 +774,12 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
 
     // Mid-drag complete only when clearly inside the snap band.
     if (hit != null &&
-        MergeMagnet.withinSnapDistance(
+        PileMagnet.withinSnapDistance(
           hit.distance,
           radius: widget.magnetRadius,
         )) {
-      if (_tryMagnetMerge(hit)) {
-        _mergedDuringDrag = true;
+      if (_tryMagnetSit(hit)) {
+        _satDuringDrag = true;
         _notifyMagnet(null);
         _pull.value = Offset.zero;
       }
@@ -725,8 +787,8 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
   }
 
   void _onDragEnd(DraggableDetails details) {
-    final mergedAlready = _mergedDuringDrag;
-    _mergedDuringDrag = false;
+    final mergedAlready = _satDuringDrag;
+    _satDuringDrag = false;
     _dragging = false;
     _notifyMagnet(null);
     _pull.value = Offset.zero;
@@ -738,9 +800,10 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
 
     final normalized = _normalizedFromFeedbackTopLeft(details.offset);
 
-    // Soft magnet on release: any same-level within full magnetRadius.
-    final hit = _hitAt(normalized);
-    if (hit != null && _tryMagnetMerge(hit)) {
+    // Soft magnet on release: any capy or pile within magnetRadius. A full
+    // pile says no and the core stands this capy beside it: done either way.
+    final hit = _hitAt(normalized, includeFull: true);
+    if (hit != null && (_tryMagnetSit(hit) || hit.full)) {
       _scheduleWander(_pause());
       return;
     }
@@ -770,32 +833,48 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
   @override
   Widget build(BuildContext context) {
     final footprint = _footprint;
-    final left = _displayPos.dx * widget.meadowSize.width - footprint.width / 2;
+    final seat = widget.pileSeat?.offset ?? Offset.zero;
+    final left =
+        _displayPos.dx * widget.meadowSize.width -
+        footprint.width / 2 +
+        seat.dx;
     final top =
-        _displayPos.dy * widget.meadowSize.height - footprint.height / 2;
+        _displayPos.dy * widget.meadowSize.height -
+        footprint.height / 2 +
+        seat.dy;
 
     final magnetHighlight = widget.magnetAttractedId == widget.capybara.id;
     final name = widget.capybara.displayNameRu;
+    final seated = _seated;
 
     // Idle bob (unique per sheet) + walk bounce; facing via faceRight.
     // Walk-cycle frames rebuild via _walkCycle. Wallow/merge wrap OUTSIDE
     // so stateful overlays are not recreated every tick.
     Widget visualFor({required bool targeted}) {
-      final nameShown = name != null && (widget.showName || targeted);
+      // In a pile the pile's caption shows the names (spec 006, 11.16.3).
+      final nameShown =
+          !seated && name != null && (widget.showName || targeted);
       final fullBadge = widget.promoteLevelBadge || targeted || nameShown;
       Widget visual = AnimatedBuilder(
-        animation: Listenable.merge([_idleBob, _walk, _walkCycle, _poseClock]),
+        animation: Listenable.merge([
+          _idleBob,
+          _walk,
+          _walkCycle,
+          _poseClock,
+          _breath,
+        ]),
         builder: (context, child) {
           Widget body = CapybaraPlaceholder(
             level: widget.capybara.level,
             role: widget.capybara.role,
             walkFrame: _currentWalkFrame,
             pose: _poseFrame(),
-            flash: widget.mergeFlash,
+            flash: widget.pileFlash,
             twinSparkle: widget.twinSparkle,
             compactLabel: !fullBadge,
-            faceRight: _faceRight,
+            faceRight: seated ? widget.pileSeat!.faceRight : _faceRight,
             name: nameShown ? name : null,
+            showLabel: !seated,
           );
           final role = widget.capybara.role;
           if (role != null) {
@@ -813,7 +892,7 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
           }
           final sheet = _sheet;
           // A pose breathes in its own frames: no bob on top.
-          final still = _walking || _pose != null;
+          final still = _walking || _pose != null || seated;
           final idleY = still ? 0.0 : CapyWalk.idleBobY(sheet, _idleBob.value);
           final idleX = still ? 0.0 : CapyWalk.idleSwayX(sheet, _idleBob.value);
           final walkY = _walking ? CapyWander.walkBounceY(_walk.value) : 0.0;
@@ -833,8 +912,8 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
       if (widget.isWallowing) {
         visual = WallowOverlay(child: visual);
       }
-      if (widget.mergeFlash) {
-        visual = _MergePunch(child: visual);
+      if (widget.pileFlash) {
+        visual = _FlashPunch(child: visual);
       }
       return visual;
     }
@@ -859,10 +938,10 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
             },
             child: DragTarget<String>(
               onWillAcceptWithDetails: (details) =>
-                  details.data != widget.capybara.id,
-              // The meadow's onMerge buzzes, as for the magnet.
+                  details.data != widget.capybara.id && !_samePile(details.data),
+              // The meadow's onSit buzzes, as for the magnet.
               onAcceptWithDetails: (details) =>
-                  widget.onMerge(details.data, widget.capybara.id),
+                  widget.onSit(details.data, widget.capybara.id),
               builder: (context, candidate, _) {
                 final highlight = candidate.isNotEmpty || magnetHighlight;
                 // Over a target the player sees whose name stays (spec 004).
@@ -1021,16 +1100,16 @@ class HoldStillRecognizer extends PrimaryPointerGestureRecognizer {
 }
 
 /// Brief scale punch when a merge creates this capy.
-class _MergePunch extends StatefulWidget {
-  const _MergePunch({required this.child});
+class _FlashPunch extends StatefulWidget {
+  const _FlashPunch({required this.child});
 
   final Widget child;
 
   @override
-  State<_MergePunch> createState() => _MergePunchState();
+  State<_FlashPunch> createState() => _FlashPunchState();
 }
 
-class _MergePunchState extends State<_MergePunch>
+class _FlashPunchState extends State<_FlashPunch>
     with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl;
   late final Animation<double> _scale;
@@ -1040,7 +1119,7 @@ class _MergePunchState extends State<_MergePunch>
     super.initState();
     _ctrl = AnimationController(
       vsync: this,
-      duration: BalanceV0.mergeFlashDuration,
+      duration: BalanceV0.pileFlashDuration,
     )..forward();
     // The bounce is in the sequence. A curve that overshoots 1 (easeOutBack)
     // would push the sequence past its end: an error box, gray in release

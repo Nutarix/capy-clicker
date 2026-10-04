@@ -29,9 +29,7 @@ void main() {
     c.events.listen(got.add);
     await c.init();
     got.clear();
-    for (var i = 0; i < 5 && c.state.sunnyGladeAnnounced < 1; i++) {
-      c.addProgress(1.0, fromTap: false);
-    }
+    growFamily(c, () => c.state.sunnyGladeAnnounced >= 1);
     final glades = got.whereType<GladeUnlocked>().toList();
     expect(glades, hasLength(1));
     expect(glades.single.text, c.gladeUnlockToast);

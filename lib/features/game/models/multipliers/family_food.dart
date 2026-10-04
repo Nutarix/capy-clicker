@@ -35,7 +35,7 @@ extension FamilyFoodX on FamilyFood {
   String get effectRu => switch (this) {
     FamilyFood.travka => 'спокойный авто-буст',
     FamilyFood.yagody => 'короткий сильный авто',
-    FamilyFood.oreshki => 'удача слияния + авто',
+    FamilyFood.oreshki => 'удача пары + авто',
   };
 
   static FamilyFood? tryParse(String? raw) {

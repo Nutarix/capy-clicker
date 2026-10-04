@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import '../models/balance.dart';
+import '../models/capy_pile.dart';
 import '../models/capybara.dart';
 import '../models/family_land.dart';
 import '../models/game_state.dart';
@@ -69,10 +70,11 @@ class GameLands extends GamePart {
 
     final meadows = Map<String, MeadowSnapshot>.from(synced.meadows);
     final snap = meadows[fromMeadow]!;
-    final leftBehind = [
+    // The traveler leaves its pile; a pile left with one dissolves.
+    final leftBehind = CapyPiles.sanitize([
       for (final capy in snap.herd)
         if (capy.id != traveler.id) capy,
-    ];
+    ]);
     meadows[fromMeadow] = snap.copyWith(herd: leftBehind);
     final travelerLeftActive = fromMeadow == synced.activeMeadowId;
     final archive = FamilyLand.fromState(
@@ -91,6 +93,7 @@ class GameLands extends GamePart {
     final arrived = traveler.copyWith(
       position: const Offset(0.30, 0.72),
       clearRole: true,
+      clearPile: true,
     );
     final companion = Capybara(
       id: 'c$nextId',

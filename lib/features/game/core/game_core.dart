@@ -13,9 +13,9 @@ import 'goals.dart';
 import 'herd.dart';
 import 'lands.dart';
 import 'meadows.dart';
-import 'merge.dart';
 import 'messages.dart';
 import 'names.dart';
+import 'pile.dart';
 import 'puddle.dart';
 import 'rates.dart';
 import 'save.dart';
@@ -66,7 +66,7 @@ class GameCore {
   late final GamePuddle puddle = GamePuddle(this);
   late final GameFinds finds = GameFinds(this);
   late final GameHerd herd = GameHerd(this);
-  late final GameMerge merge = GameMerge(this);
+  late final GamePile pile = GamePile(this);
   late final GameMeadows meadows = GameMeadows(this);
   late final GameShop shop = GameShop(this);
   late final FamilyRoles roles = FamilyRoles(this);
@@ -127,7 +127,8 @@ class GameCore {
     if (state.hasResearch('unlock_tent') && !state.tentUnlocked) {
       state = state.copyWith(tentUnlocked: true);
     }
-    state = merge.sanitizeTwins(state);
+    state = pile.sanitize(state);
+    state = pile.sanitizeTwins(state);
     state = meadows.syncGladeAnnounced(state, announce: true);
     state = meadows.maybeUnlockMistyBiome(state, announce: true);
     state = goals.checkGoals(state, celebrate: true);
@@ -148,6 +149,14 @@ class GameCore {
     save.schedule();
   }
 
+  /// Growth-only change (spec 006): only `growth` of pile members moved.
+  /// No chain link reads it, so a checked state stays checked; nothing on
+  /// screen shows it, so no notice. Saved on the usual interval.
+  void commitQuiet(GameState next) {
+    _state = next;
+    save.schedule();
+  }
+
   /// Load save (or bootstrap), grant capped offline progress, start ticker.
   Future<void> init() async {
     messages.resetDaily();
@@ -162,7 +171,9 @@ class GameCore {
       state = meadows.fillEmptyUnlockedMeadows(state);
       // Sync announced index quietly — no FOMO toast on relaunch.
       state = meadows.syncGladeAnnounced(state, announce: false);
-      state = merge.sanitizeTwins(state);
+      // Damaged piles stand up, quietly; old saves have none (С10).
+      state = pile.sanitize(state);
+      state = pile.sanitizeTwins(state);
       state = meadows.maybeUnlockMistyBiome(state, announce: false);
       state = meadows.fillEmptyUnlockedMeadows(state);
       state = goals.advanceGoalsQuiet(state);
@@ -180,7 +191,7 @@ class GameCore {
     }
     ready = true;
     clock.lastTick = now();
-    merge.twinRerollIn = BalanceV0.twinRerollSeconds.toDouble() * 0.4;
+    pile.twinRerollIn = BalanceV0.twinRerollSeconds.toDouble() * 0.4;
     if (clock.suspendedAt != null) {
       // Hidden while loading: away from now on; the clock waits for «shown».
       clock.suspendedAt = now();
@@ -197,7 +208,7 @@ class GameCore {
     save.dispose();
     puddle.dispose();
     finds.dispose();
-    merge.dispose();
+    pile.dispose();
     messages.dispose();
     disposed = true;
     // Before load finished [state] is the empty placeholder — never write it.

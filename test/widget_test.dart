@@ -143,7 +143,7 @@ void main() {
     expect(find.text('Лес'), findsNothing);
   });
 
-  testWidgets('first-launch tip overlay shows merge tip', (
+  testWidgets('first-launch tip overlay shows the pile tip', (
     WidgetTester tester,
   ) async {
     SharedPreferences.setMockInitialValues(_quietPrefs(tipsSeen: false));
@@ -151,7 +151,7 @@ void main() {
     await _enterGameFromMenu(tester);
 
     expect(
-      find.textContaining('Перетащи капибар друг на друга'),
+      find.textContaining('Перетащи капи на капи — сядут в кучку'),
       findsOneWidget,
     );
     await tester.tap(find.text('Далее'));

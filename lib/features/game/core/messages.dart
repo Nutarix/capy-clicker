@@ -43,8 +43,11 @@ class GameMessages extends GamePart {
   String? _roleToast;
   bool _rolePending = false;
 
+  /// Last growth in a pile since the last [flush] (spec 006).
+  CapyGrew? _grew;
+
   /// «Малыш подрос — теперь это …» (spec 004, С1). Queued in order: two
-  /// merges in one notice send both.
+  /// in one notice send both.
   final List<CapyNamed> _named = [];
 
   /// Progress granted from offline elapsed time (0 if none).
@@ -99,6 +102,10 @@ class GameMessages extends GamePart {
     _named.add(CapyNamed(text: text, capyId: capyId));
     // Nobody listening (sims): keep only the latest few.
     if (_named.length > 8) _named.removeAt(0);
+  }
+
+  void capyGrew(String capyId, int level) {
+    _grew = CapyGrew(capyId: capyId, level: level);
   }
 
   void offlineGranted(double progress, int seconds) {
@@ -158,6 +165,11 @@ class GameMessages extends GamePart {
         _rolePending = false;
         final text = _roleToast;
         if (text != null && text.isNotEmpty) _events.add(RoleAssigned(text));
+      }
+      final grew = _grew;
+      if (grew != null) {
+        _grew = null;
+        _events.add(grew);
       }
       if (_named.isNotEmpty) {
         final named = List<CapyNamed>.of(_named);

@@ -34,7 +34,7 @@ void main() {
       matching: find.byType(CapybaraPlaceholder),
     );
 
-    testWidgets('the dragged capy leans to its peer, release merges', (
+    testWidgets('the dragged capy leans to its peer, release seats a pile', (
       tester,
     ) async {
       final h = await MeadowHarness.pump(tester, meadowPrefs(herd: herd));
@@ -59,14 +59,15 @@ void main() {
       // A frame to rebuild, then the ease runs.
       await tester.pump(const Duration(milliseconds: 16));
       await tester.pump(const Duration(milliseconds: 300));
-      expect(h.controller.state.herd.length, 3, reason: 'no snap yet');
+      expect(h.controller.placesUsed, 3, reason: 'no snap yet');
       final lean = tester.getCenter(feedback) - finger - rest;
       expect(lean.dx, greaterThan(4), reason: 'pull toward c2: $lean');
       expect(lean.dy.abs(), lessThan(2));
 
       await g.up();
       await tester.pump();
-      expect(h.controller.state.herd.length, 2, reason: 'merged on release');
+      expect(h.controller.placesUsed, 2, reason: 'a pile on release');
+      expect(h.controller.state.herd.length, 3, reason: 'nobody disappears');
       await h.dispose(tester);
     });
   });
@@ -195,7 +196,7 @@ void main() {
       ('c3', 2, 0.45, 0.86),
     ];
 
-    testWidgets('merge by dropping on the peer: one', (tester) async {
+    testWidgets('pile by dropping on the peer: one', (tester) async {
       final h = await MeadowHarness.pump(tester, meadowPrefs(herd: herd));
       final n = await haptics(tester, () async {
         // Jump onto the peer's body, outside the snap band: the drop target
@@ -207,16 +208,16 @@ void main() {
         await tester.pump(const Duration(milliseconds: 16));
         await g.moveTo(peer + const Offset(0, 30));
         await tester.pump(const Duration(milliseconds: 16));
-        expect(h.controller.state.herd.length, 3, reason: 'no snap');
+        expect(h.controller.placesUsed, 3, reason: 'no snap');
         await g.up();
         await tester.pump();
       });
-      expect(h.controller.state.herd.length, 2);
+      expect(h.controller.placesUsed, 2);
       expect(n, 1);
       await h.dispose(tester);
     });
 
-    testWidgets('merge by the magnet: one', (tester) async {
+    testWidgets('pile by the magnet: one', (tester) async {
       final h = await MeadowHarness.pump(tester, meadowPrefs(herd: herd));
       final n = await haptics(tester, () async {
         await h.drag(
@@ -225,7 +226,7 @@ void main() {
           tester.getCenter(h.capy('c2')),
         );
       });
-      expect(h.controller.state.herd.length, 2);
+      expect(h.controller.placesUsed, 2);
       expect(n, 1);
       await h.dispose(tester);
     });

@@ -2,7 +2,7 @@
 ///
 /// They arrive on `GameController.events` right after the change notice
 /// that brought them, in a fixed order: offline, daily, glade, puddle, goal,
-/// role, name. The matching `acknowledge*` on the controller clears the pending
+/// role, growth, name. The matching `acknowledge*` on the controller clears the pending
 /// field, as before.
 sealed class GameEvent {
   const GameEvent();
@@ -48,6 +48,15 @@ class RoleAssigned extends GameEvent {
   const RoleAssigned(this.text);
 
   final String text;
+}
+
+/// Someone in a pile grew a level (spec 006): flash and the growth sound.
+/// Several in one notice send the last one.
+class CapyGrew extends GameEvent {
+  const CapyGrew({required this.capyId, required this.level});
+
+  final String capyId;
+  final int level;
 }
 
 /// A baby grew up and got a name: «Малыш подрос — теперь это Пуговка».

@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:capy_clicker/features/game/controllers/game_controller.dart';
+import 'package:capy_clicker/features/game/models/balance.dart';
 import 'package:capy_clicker/features/game/models/multipliers/capy_role.dart';
 import 'package:capy_clicker/features/game/models/multipliers/cozy_place.dart';
 import 'package:capy_clicker/features/game/models/multipliers/family_food.dart';
@@ -14,8 +15,10 @@ import 'package:capy_clicker/features/game/models/world_zones.dart';
 import 'package:capy_clicker/features/game/persistence/game_persistence.dart';
 
 import 'support/fingerprint.dart';
+import 'support/test_game.dart';
 
-/// Headless player-perspective session for Game Lead playtest report.
+/// Headless player-perspective session for Game Lead playtest report, over
+/// the first forest with the pile (spec 006, Т9, Т14).
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -24,10 +27,11 @@ void main() {
   });
 
   test(
-    'player session: flowers→spend→food→places→roles→research→meadows→mist',
+    'player session: flowers→spend→food→places→roles→research→piles→'
+    'meadows→mist',
     () async {
       final rng = Random(7);
-      var clock = DateTime(2026, 9, 22, 15, 0, 0);
+      var clock = DateTime.utc(2026, 9, 22, 12);
       final c = GameController(
         persistence: GamePersistence(),
         random: rng,
@@ -50,6 +54,8 @@ void main() {
           decorBuys = 0,
           researchUnlocks = 0;
       var calls = 0, boosts = 0, merges = 0;
+      var pileCd = 6.0, nannyCd = 60.0;
+      double? berryVisitAt;
       final milestones = <String, double>{};
       final goalHits = <String>[];
       final snapshots = <String>[];
@@ -81,14 +87,16 @@ void main() {
         spendCd -= dt;
         uyutCd -= dt;
         berryCheck -= dt;
+        pileCd -= dt;
+        nannyCd -= dt;
       }
 
       snap('start');
 
-      // ~25 min active play probing full horizon.
-      while (simSeconds < 1500) {
+      // Two and a half hours of active play probing the full horizon.
+      while (simSeconds < 9000) {
         step(0.25);
-        if ((simSeconds * 4).round() % 480 == 0) fp.mark('t=$simSeconds', c);
+        if ((simSeconds * 4).round() % 2400 == 0) fp.mark('t=$simSeconds', c);
 
         if (c.goalCompleteToast != null) {
           final g = SessionGoals.at(c.state.sessionGoalIndex);
@@ -100,7 +108,7 @@ void main() {
         if (c.state.sunnyGladeAnnounced >= 1) note('berry_glade');
         if (c.state.sunnyGladeAnnounced >= 2) note('sunny');
         if (c.state.sunnyGladeAnnounced >= 3) note('great');
-        if (c.state.maxCapyLevel >= 4) note('lv4');
+        if (c.state.maxCapyLevel >= BalanceV0.goalCapyLevel) note('goalLevel');
         if (c.state.mistyBiomeUnlocked) note('mist_unlock');
         if (c.state.activeMeadowId == WorldZones.mistEdgeMeadowId) {
           note('mist_visit');
@@ -108,8 +116,10 @@ void main() {
 
         if ((simSeconds - 180).abs() < 0.2 ||
             (simSeconds - 600).abs() < 0.2 ||
-            (simSeconds - 900).abs() < 0.2 ||
-            (simSeconds - 1200).abs() < 0.2) {
+            (simSeconds - 1800).abs() < 0.2 ||
+            (simSeconds - 3600).abs() < 0.2 ||
+            (simSeconds - 5400).abs() < 0.2 ||
+            (simSeconds - 7200).abs() < 0.2) {
           snap('t=${simSeconds.round()}');
         }
 
@@ -124,8 +134,9 @@ void main() {
           if (c.isBerryVisible) c.onBerryTap();
         }
 
-        if (mudCd <= 0 && c.state.herd.isNotEmpty) {
-          c.tryMudWallow(c.state.herd.first.id);
+        if (mudCd <= 0) {
+          final single = c.state.herd.where((x) => x.pileId == null);
+          if (single.isNotEmpty) c.tryMudWallow(single.first.id);
           mudCd = 20 + rng.nextDouble() * 10;
         }
 
@@ -144,9 +155,7 @@ void main() {
 
         if (spendCd <= 0) {
           var spent = false;
-          if (c.state.herdCount < 10 &&
-              c.canCallCapy &&
-              rng.nextDouble() < 0.55) {
+          if (c.canCallCapy && rng.nextDouble() < 0.55) {
             spent = c.spendCallCapy();
             if (spent) calls++;
           } else if (c.canGrassBoost && rng.nextDouble() < 0.5) {
@@ -188,27 +197,20 @@ void main() {
           uyutCd = 10 + rng.nextDouble() * 6;
         }
 
-        if (c.state.herdCount >= 2 && rng.nextDouble() < 0.09) {
-          final byLevel = <int, List<String>>{};
-          for (final cap in c.state.herd) {
-            byLevel.putIfAbsent(cap.level, () => []).add(cap.id);
+        // The pile: a look every 5–9 s; the pair first; the nanny moves
+        // to the top pile now and then.
+        if (pileCd <= 0) {
+          pileCd = 5 + rng.nextDouble() * 4;
+          if (sitThePair(c) ||
+              ((c.placesUsed >= c.effectiveMaxHerdSize - 1 ||
+                      rng.nextDouble() < 0.5) &&
+                  pileStep(c))) {
+            merges++;
           }
-          String? a;
-          String? b;
-          if (c.state.twinIdA != null && c.state.twinIdB != null) {
-            a = c.state.twinIdA;
-            b = c.state.twinIdB;
-          } else {
-            final pairs = byLevel.values
-                .where((ids) => ids.length >= 2)
-                .toList();
-            if (pairs.isNotEmpty) {
-              final p = pairs[rng.nextInt(pairs.length)];
-              a = p[0];
-              b = p[1];
-            }
-          }
-          if (a != null && b != null && c.tryMerge(a, b)) merges++;
+        }
+        if (nannyCd <= 0) {
+          nannyCd = 120;
+          if (nannyToTopPile(c)) roles++;
         }
 
         if (c.state.mistyBiomeUnlocked &&
@@ -217,11 +219,17 @@ void main() {
           c.switchToMeadow(WorldZones.mistEdgeMeadowId);
         }
 
-        if (c.state.sunnyGladeAnnounced >= 1 &&
-            c.state.activeMeadowId == 'warm_edge' &&
-            simSeconds > 400 &&
-            simSeconds < 430) {
-          c.switchToMeadow('berry_glade');
+        // A short visit to Ягодная once it opens, then home again.
+        if (c.state.sunnyGladeAnnounced >= 1 && berryVisitAt == null) {
+          if (c.switchToMeadow('berry_glade')) {
+            berryVisitAt = simSeconds;
+            note('berry_visit');
+          }
+        }
+        if (berryVisitAt != null &&
+            c.state.activeMeadowId == 'berry_glade' &&
+            simSeconds > berryVisitAt + 30) {
+          c.switchToMeadow('warm_edge');
         }
       }
 
@@ -249,7 +257,10 @@ void main() {
         ..verify();
 
       // ignore: avoid_print
-      print('PLAYER_SIM milestones=$milestones');
+      print(
+        'PLAYER_SIM milestones(min)='
+        '${milestones.map((k, v) => MapEntry(k, (v / 60).toStringAsFixed(1)))}',
+      );
       // ignore: avoid_print
       print('PLAYER_SIM goalHits=$goalHits');
       // ignore: avoid_print
@@ -266,10 +277,17 @@ void main() {
       expect(c.state.grass, greaterThanOrEqualTo(0));
       expect(c.state.uyut, greaterThanOrEqualTo(0));
       expect(
-        milestones.containsKey('berry_glade'),
-        isTrue,
-        reason: '25 min should unlock berry',
+        milestones['berry_glade'],
+        isNotNull,
+        reason: 'the first session unlocks berry',
       );
+      expect(milestones['berry_glade']!, inInclusiveRange(6 * 60, 15 * 60));
+      expect(milestones.containsKey('berry_visit'), isTrue);
+      expect(milestones['great'], isNotNull, reason: 'all four glades');
+      expect(milestones['great']!, inInclusiveRange(60 * 60, 120 * 60));
+      expect(milestones['mist_visit'], isNotNull);
+      expect(milestones['mist_unlock']!, lessThanOrEqualTo(150 * 60));
+      expect(merges, greaterThan(20), reason: 'the pile is played');
       c.dispose();
     },
   );

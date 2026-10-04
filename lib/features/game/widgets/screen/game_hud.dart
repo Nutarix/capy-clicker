@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import '../../../../theme/cozy_theme.dart';
 import '../../audio/game_audio.dart';
 import '../../controllers/game_controller.dart';
+import '../../models/balance.dart';
 import '../../models/session_goals.dart';
 import '../../models/world_zones.dart';
 import '../game_selector.dart';
@@ -102,11 +103,12 @@ class GameTopBar extends StatelessWidget {
   static String placeLine(GameController controller) {
     final state = controller.state;
     if (controller.onFreshNewLand) {
-      return 'Новая земля · сила ${state.familyPower}/5';
+      return 'Новая земля · сила ${state.familyPower}/'
+          '${BalanceV0.gladeBerryPower}';
     }
     if (state.activeMeadowId == WorldZones.mistEdgeMeadowId &&
-        state.maxCapyLevel >= 4) {
-      return 'Туманный бор · после Lv.4';
+        state.maxCapyLevel >= BalanceV0.goalCapyLevel) {
+      return 'Туманный бор · после Lv.${BalanceV0.goalCapyLevel}';
     }
     final goal = controller.currentSessionGoal;
     if (goal != null && goal.kind == SessionGoalKind.glade) {

@@ -6,9 +6,11 @@ import 'package:flutter/services.dart';
 import '../../audio/game_audio.dart';
 import '../../controllers/game_controller.dart';
 import '../../models/balance.dart';
+import '../../models/capy_pile.dart';
 import '../../models/capy_wander.dart';
 import '../../models/capybara.dart';
 import '../../models/meadow_occupancy.dart';
+import '../../models/pile_layout.dart';
 import '../../models/multipliers/multipliers.dart';
 import '../../models/world_zones.dart';
 import '../berry_basket.dart';
@@ -19,7 +21,8 @@ import '../meadow_decor.dart';
 import '../meadow_space.dart';
 import '../mud_puddle.dart';
 import '../placed_home_decor.dart';
-import '../quiet_merge_arc.dart';
+import '../pile_caption.dart';
+import '../quiet_pair_arc.dart';
 import '../uyut/uyut_hub_sheet.dart';
 import 'place_slot.dart';
 
@@ -27,11 +30,11 @@ import 'place_slot.dart';
 /// Т6): not on a tick that moved the bar alone.
 typedef _MeadowView = ({
   String meadowId,
-  List<Capybara> herd,
+  HerdLook herd,
   String? twinA,
   String? twinB,
   Offset? mud,
-  String? wallowing,
+  Set<String> wallowing,
   bool mudBoost,
   Set<String> placed,
   bool tent,
@@ -108,16 +111,16 @@ class _MeadowLayerState extends State<MeadowLayer> {
     final state = c.state;
     return (
       meadowId: state.activeMeadowId,
-      herd: state.herd,
+      herd: HerdLook(state.herd),
       twinA: state.twinIdA,
       twinB: state.twinIdB,
       mud: c.mudVisible ? c.mudCenter : null,
-      wallowing: c.wallowingCapyId,
+      wallowing: c.wallowingIds,
       mudBoost: c.isMudBoostActive,
       placed: state.placedDecor,
       tent: state.tentUnlocked,
       berry: c.isBerryVisible,
-      flash: c.mergeFlashId,
+      flash: c.pileFlashId,
       magnet: c.effectiveMagnetRadius,
     );
   }
@@ -132,13 +135,25 @@ class _MeadowLayerState extends State<MeadowLayer> {
   }
 
   /// Finger on a capy: its name shows; off: it fades [nameHold] later.
-  void _onCapyTouch(String id, bool down) {
-    _nameTimers.remove(id)?.cancel();
-    if (down) {
-      if (_namesShown.add(id)) setState(() {});
-      return;
+  /// In a pile, everyone's names show (spec 006, 11.16.3).
+  void _onCapyTouch(Capybara capy, bool down) {
+    final pile = capy.pileId;
+    final ids = pile == null
+        ? [capy.id]
+        : [
+            for (final c in _controller.state.herd)
+              if (c.pileId == pile) c.id,
+          ];
+    var changed = false;
+    for (final id in ids) {
+      _nameTimers.remove(id)?.cancel();
+      if (down) {
+        changed = _namesShown.add(id) || changed;
+      } else {
+        _hideNameLater(id);
+      }
     }
-    _hideNameLater(id);
+    if (changed) setState(() {});
   }
 
   void _hideNameLater(String id) {
@@ -189,19 +204,18 @@ class _MeadowLayerState extends State<MeadowLayer> {
     });
   }
 
-  bool _onMerge(String a, String b) {
-    final ok = _controller.tryMerge(a, b);
+  /// Dropped [a] on [b]: they sit in a pile (spec 006). A full pile says no
+  /// quietly — no buzz, no sound; the capy stands beside it.
+  bool _onSit(String a, String b) {
+    final ok = _controller.joinPile(a, b);
     if (ok) {
       HapticFeedback.mediumImpact();
       unawaited(_audio.noteUserGesture());
-      _audio.playMerge();
-      final flash = _controller.mergeFlashId;
-      if (flash != null) {
-        _promoteBadge(flash);
-        // Who stayed: the merged capy shows its name for a moment.
-        _namesShown.add(flash);
-        _nameTimers.remove(flash)?.cancel();
-        _hideNameLater(flash);
+      // Who sits here now: the pile's names show for a moment.
+      final seated = _controller.state.herd.where((c) => c.id == a);
+      if (seated.isNotEmpty) {
+        _onCapyTouch(seated.first, true);
+        _onCapyTouch(seated.first, false);
       }
     }
     return ok;
@@ -252,7 +266,11 @@ class _MeadowLayerState extends State<MeadowLayer> {
   }
 
   Widget _meadow(_MeadowView view, double w, double h) {
-    final herd = view.herd;
+    final herd = view.herd.herd;
+    final piles = CapyPiles.groups(herd);
+    final seats = <String, PileSeat>{
+      for (final members in piles.values) ...PileLayout.seats(members),
+    };
     final meadowKey = WorldZones.gladeById(view.meadowId).minHerd;
     final mud = view.mud;
     final props = MeadowOccupancy.layout(
@@ -304,7 +322,7 @@ class _MeadowLayerState extends State<MeadowLayer> {
                           '${mud.dx.toStringAsFixed(3)}:'
                           '${mud.dy.toStringAsFixed(3)}',
                         ),
-                        isWallowing: view.wallowing != null,
+                        isWallowing: view.wallowing.isNotEmpty,
                         boostActive: view.mudBoost,
                       ),
                     ),
@@ -351,12 +369,22 @@ class _MeadowLayerState extends State<MeadowLayer> {
                       ),
                     ),
                   ),
-                if (QuietMergeArc.pairFor(herd, Size(w, h)) case final pair?)
-                  QuietMergeArc(from: pair.$1, to: pair.$2),
-                // A capy showing its name (touched, merge target) paints last,
-                // so passing capys never cover the chip. Keys keep state.
-                for (final capy in _paintOrder(herd))
-                  _capy(capy, view, meadowKey, Size(w, h), props),
+                if (QuietPairArc.pairFor(
+                      herd,
+                      Size(w, h),
+                      twinA: view.twinA,
+                      twinB: view.twinB,
+                    )
+                    case final pair?)
+                  QuietPairArc(from: pair.$1, to: pair.$2),
+                // A capy showing its name (touched, magnet target) paints
+                // last, so passing capys never cover the chip; a pile paints
+                // as one, eldest behind. Keys keep state.
+                for (final capy in _paintOrder(herd, piles, seats))
+                  _capy(capy, view, meadowKey, Size(w, h), props, seats),
+                // Pile captions over everything: levels, names on touch.
+                for (final e in piles.entries)
+                  _caption(e.value, Size(w, h)),
               ],
             ),
           ),
@@ -365,11 +393,51 @@ class _MeadowLayerState extends State<MeadowLayer> {
     );
   }
 
-  List<Capybara> _paintOrder(List<Capybara> herd) {
-    bool onTop(Capybara c) =>
+  /// Herd order, a pile drawn together where its first member stands, by
+  /// seat. Touched or magnet-targeted capys (their whole pile) go last.
+  List<Capybara> _paintOrder(
+    List<Capybara> herd,
+    Map<String, List<Capybara>> piles,
+    Map<String, PileSeat> seats,
+  ) {
+    bool lit(Capybara c) =>
         _namesShown.contains(c.id) || _magnetAttractedId == c.id;
-    if (!herd.any(onTop)) return herd;
-    return [...herd.where((c) => !onTop(c)), ...herd.where(onTop)];
+    final units = <List<Capybara>>[];
+    final seen = <String>{};
+    for (final c in herd) {
+      final p = c.pileId;
+      if (p == null) {
+        units.add([c]);
+      } else if (seen.add(p)) {
+        units.add(
+          List<Capybara>.of(piles[p]!)
+            ..sort((a, b) => seats[a.id]!.order.compareTo(seats[b.id]!.order)),
+        );
+      }
+    }
+    if (piles.isEmpty && !herd.any(lit)) return herd;
+    return [
+      for (final u in units)
+        if (!u.any(lit)) ...u,
+      for (final u in units)
+        if (u.any(lit)) ...u,
+    ];
+  }
+
+  Widget _caption(List<Capybara> members, Size meadow) {
+    final at = members.first.position;
+    final expanded = members.any((c) => _namesShown.contains(c.id));
+    final top = at.dy * meadow.height + PileLayout.captionTop(members);
+    return Positioned(
+      left: at.dx * meadow.width - 120,
+      width: 240,
+      top: top,
+      child: IgnorePointer(
+        child: Center(
+          child: PileCaption(members: members, expanded: expanded),
+        ),
+      ),
+    );
   }
 
   Widget _capy(
@@ -378,6 +446,7 @@ class _MeadowLayerState extends State<MeadowLayer> {
     int meadowKey,
     Size meadow,
     MeadowProps props,
+    Map<String, PileSeat> seats,
   ) {
     final promote =
         _badgePromoted.contains(capy.id) ||
@@ -386,19 +455,20 @@ class _MeadowLayerState extends State<MeadowLayer> {
     return MeadowDraggableCapybara(
       key: ValueKey(capy.id),
       capybara: capy,
-      herd: view.herd,
+      herd: view.herd.herd,
+      pileSeat: seats[capy.id],
       // Active glade rect, not body count. Count was read as family power
       // and walked them off the meadow, then the drop clamp piled them back
       // onto one edge.
       herdCount: meadowKey,
       meadowSize: meadow,
       space: _space,
-      onMerge: _onMerge,
+      onSit: _onSit,
       onDropPosition: _controller.updatePosition,
       onMudDrop: _onMudDrop,
       isOverMud: _controller.isOverMud,
-      isWallowing: view.wallowing == capy.id,
-      mergeFlash: view.flash == capy.id,
+      isWallowing: view.wallowing.contains(capy.id),
+      pileFlash: view.flash == capy.id,
       twinSparkle: capy.id == view.twinA || capy.id == view.twinB,
       magnetAttractedId: _magnetAttractedId,
       promoteLevelBadge: promote,
@@ -415,7 +485,7 @@ class _MeadowLayerState extends State<MeadowLayer> {
       livePositions: _livePositions,
       showName: _namesShown.contains(capy.id),
       berryVisible: view.berry,
-      onTouch: (down) => _onCapyTouch(capy.id, down),
+      onTouch: (down) => _onCapyTouch(capy, down),
       onPlaceDrop: (id, kind) {
         unawaited(_audio.noteUserGesture());
         final ok = _controller.tryActivatePlace(

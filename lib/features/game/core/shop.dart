@@ -18,10 +18,10 @@ class GameShop extends GamePart {
     core.notify();
   }
 
-  /// Spend grass to spawn a Lv.1 capy if under soft herd cap.
+  /// Spend grass to spawn a Lv.1 capy if a place is free.
   bool spendCallCapy() {
     if (state.grass < BalanceV0.callCapyGrassCost) return false;
-    if (state.herdCount >= core.rates.effectiveMaxHerdSize) return false;
+    if (core.herd.placesUsed >= core.rates.effectiveMaxHerdSize) return false;
     var next = state.copyWith(grass: state.grass - BalanceV0.callCapyGrassCost);
     next = core.herd.spawnCapybara(next, level: BalanceV0.startingLevel);
     core.commit(next);
@@ -39,13 +39,13 @@ class GameShop extends GamePart {
 
   bool get canCallCapy =>
       state.grass >= BalanceV0.callCapyGrassCost &&
-      state.herdCount < core.rates.effectiveMaxHerdSize;
+      core.herd.placesUsed < core.rates.effectiveMaxHerdSize;
 
   /// Why «Позвать капи» is gray. Null while the call is available.
   /// A full семья wins over low grass — leftover grass must not look like a bug.
   String? get callCapyBlockedReason {
-    if (state.herdCount >= core.rates.effectiveMaxHerdSize) {
-      return 'Семья полная';
+    if (core.herd.placesUsed >= core.rates.effectiveMaxHerdSize) {
+      return 'Мест нет — посади капи в кучку';
     }
     if (state.grass < BalanceV0.callCapyGrassCost) return 'Не хватает травы';
     return null;

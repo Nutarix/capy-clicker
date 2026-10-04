@@ -1,5 +1,7 @@
 import 'dart:ui';
 
+import 'balance.dart';
+
 /// One circle of **«Солнечные поляны»** (Sunny Glades): herd band → walkable
 /// rect + baseline camera zoom + cozy Russian name.
 ///
@@ -62,18 +64,21 @@ class SunnyGlade {
 abstract final class WorldZones {
   /// Four Sunny Glade circles (herd → rect + base zoom).
   ///
-  /// | # | Name | Family power | Rect (L,T,R,B) | Zoom |
-  /// |---|------|--------------|----------------|------|
-  /// | 0 | Тёплая опушка | 0–4 | 0.10, 0.52, 0.86, 0.92 | 1.00 |
-  /// | 1 | Ягодная поляна | 5–9 | 0.06, 0.50, 0.90, 0.93 | 0.82 |
-  /// | 2 | Солнечный прогал | 10–15 | 0.05, 0.40, 0.91, 0.945 | 0.66 |
-  /// | 3 | Большой луг | 16+ | 0.03, 0.34, 0.94, 0.96 | 0.50 |
+  /// Family power thresholds: [BalanceV0.gladeBerryPower],
+  /// [BalanceV0.gladeSunnyPower], [BalanceV0.gladeGreatPower] (spec 006).
+  ///
+  /// | # | Name | Rect (L,T,R,B) | Zoom |
+  /// |---|------|----------------|------|
+  /// | 0 | Тёплая опушка | 0.10, 0.52, 0.86, 0.92 | 1.00 |
+  /// | 1 | Ягодная поляна | 0.06, 0.50, 0.90, 0.93 | 0.82 |
+  /// | 2 | Солнечный прогал | 0.05, 0.40, 0.91, 0.945 | 0.66 |
+  /// | 3 | Большой луг | 0.03, 0.34, 0.94, 0.96 | 0.50 |
   static const List<SunnyGlade> glades = [
     SunnyGlade(
       id: 'warm_edge',
       index: 0,
       minHerd: 0,
-      maxHerd: 4,
+      maxHerd: BalanceV0.gladeBerryPower - 1,
       nameRu: 'Тёплая опушка',
       nameEn: 'Warm Forest Edge',
       left: 0.10,
@@ -86,8 +91,8 @@ abstract final class WorldZones {
     SunnyGlade(
       id: 'berry_glade',
       index: 1,
-      minHerd: 5,
-      maxHerd: 9,
+      minHerd: BalanceV0.gladeBerryPower,
+      maxHerd: BalanceV0.gladeSunnyPower - 1,
       nameRu: 'Ягодная поляна',
       nameEn: 'Berry Glade',
       // Wider sides — berry bushes along the tree line.
@@ -101,8 +106,8 @@ abstract final class WorldZones {
     SunnyGlade(
       id: 'sunny_clearing',
       index: 2,
-      minHerd: 10,
-      maxHerd: 15,
+      minHerd: BalanceV0.gladeSunnyPower,
+      maxHerd: BalanceV0.gladeGreatPower - 1,
       nameRu: 'Солнечный прогал',
       nameEn: 'Sunny Clearing',
       // Deeper into the forest (taller meadow), still under canopy wall.
@@ -116,8 +121,8 @@ abstract final class WorldZones {
     SunnyGlade(
       id: 'great_meadow',
       index: 3,
-      minHerd: 16,
-      maxHerd: 999,
+      minHerd: BalanceV0.gladeGreatPower,
+      maxHerd: 1 << 30,
       nameRu: 'Большой луг',
       nameEn: 'Great Meadow',
       // Most of the lower ~2/3; dense canopy stays a soft wall above.

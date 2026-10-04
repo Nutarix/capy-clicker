@@ -18,6 +18,9 @@ import 'package:capy_clicker/features/game/models/world_zones.dart';
 ///
 /// Spec 004 rewrote them once for the capy name fields only; proof:
 /// `python tool/fingerprint_names_diff.py main` (the rest is byte-identical).
+/// Spec 006 rewrote them for the pile (rules and balance changed); the
+/// expected differences are listed in `specs/006-kuchka/plan.md`, check:
+/// `python tool/fingerprint_pile_diff.py origin/main`.
 class Fingerprint {
   Fingerprint(this.name);
 
@@ -117,6 +120,7 @@ Map<String, Object?> probe(GameController c) {
     'autoRate': c.autoRatePerSecond,
     'zoom': c.cameraZoom,
     'maxHerd': c.effectiveMaxHerdSize,
+    'placesUsed': c.placesUsed,
     'magnet': c.effectiveMagnetRadius,
     'mudBoost': [c.isMudBoostActive, c.mudBoostRemainingSeconds],
     'grassBoost': [c.isGrassBoostActive, c.grassBoostRemainingSeconds],
@@ -133,7 +137,7 @@ Map<String, Object?> probe(GameController c) {
     },
     'wallowing': c.wallowingCapyId,
     'berry': c.isBerryVisible,
-    'mergeFlash': c.mergeFlashId,
+    'flash': c.pileFlashId,
     'mud': [c.mudVisible, _offset(c.mudCenter)],
     'overMud': [for (final p in _probePoints) c.isOverMud(p)],
     'gladeToast': c.gladeUnlockToast,

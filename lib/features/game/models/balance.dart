@@ -219,17 +219,17 @@ abstract final class BalanceV0 {
   /// Alternate flavor (docs): mud-boost equivalent duration if we ever switch reward.
   static const Duration dailyBonusMudBoostEquivalent = Duration(seconds: 30);
 
-  // --- Soft magnetic merge (drag assist only) ---
+  // --- Soft magnet (drag assist only; spec 006: toward capys and piles) ---
 
   /// Normalized meadow distance within which a dragged capy gently attracts
-  /// toward the nearest same-level neighbour and can complete a merge.
+  /// toward the nearest capy or pile and can seat it there.
   /// Tuned local (~1/10 meadow) — does NOT magnet across the whole field.
   /// Compare: minSpawnSeparation = 0.14; mudHitRadius = 0.11.
-  /// Playtest P1: slightly tighter than 0.10 to cut accidental mid-drag merges.
+  /// Playtest P1: slightly tighter than 0.10 to cut accidental mid-drag seats.
   static const double magnetRadius = 0.085;
 
   /// Mid-drag auto-complete when distance ≤ magnetRadius * this fraction.
-  /// Drag-end still merges for any hit within the full [magnetRadius].
+  /// Drag-end still seats for any hit within the full [magnetRadius].
   /// Mid-drag auto-complete band (tighter → more release-to-snap).
   static const double magnetSnapFraction = 0.42;
 
@@ -256,8 +256,9 @@ abstract final class BalanceV0 {
   /// Showable v1: 6 → 10 — funds first permanent right after wow.
   static const int gladeUnlockGrass = 10;
 
-  /// Bonus grass for merging a marked twin-sparkle pair.
-  static const int twinMergeBonusGrass = 5;
+  /// Bonus grass when the marked «хотят посидеть рядом» pair sits in one
+  /// pile (spec 006; was the twin merge).
+  static const int pairBonusGrass = 5;
 
   /// Soft celebration grass when a session goal completes.
   /// Showable v1: 4 → 6.
@@ -272,14 +273,14 @@ abstract final class BalanceV0 {
   static const double grassBoostMultiplier = 1.5;
   static const Duration grassBoostDuration = Duration(seconds: 6);
 
-  // --- Twin sparkle (merge skill window) ---
+  // --- «Хотят посидеть рядом» pair (former twin sparkle) ---
 
   /// How often we try to mark a same-level pair (seconds).
   /// Playtest v1.1: 18 → 36 — rare skill window (~30–60s feel), not permanent glow.
   static const int twinRerollSeconds = 36;
 
-  /// After a successful twin-merge bonus, delay before next mark attempt.
-  static const int twinPostMergeCooldownSeconds = 28;
+  /// After the pair bonus, delay before next mark attempt.
+  static const int pairPostBonusCooldownSeconds = 28;
 
   /// Chance to actually mark a pair on a reroll (else quiet gap).
   static const double twinMarkChance = 0.55;
@@ -363,11 +364,72 @@ abstract final class BalanceV0 {
   static const double researchBerryRespawnFactor = 0.85;
   static const double researchFoodDropBonus = 0.10;
 
+  // --- Pile (spec 006, docs/BALANCE_KUCHKA.md) ---
+
+  /// At most this many capys sit in one pile; the next one is softly refused.
+  static const int pileMaxSize = 4;
+
+  /// Seconds for one catch-up step in a pile (a younger capy toward the
+  /// eldest), by the capy's current level. Index 0 = level 1 → 2.
+  static const List<double> pileCatchUpSecondsByLevel = [
+    120,
+    180,
+    300,
+    480,
+    720,
+  ];
+
+  /// Seconds for one step of three or more peers (the eldest level of the
+  /// pile grows), by their current level. Index 0 = level 1 → 2.
+  static const List<double> pilePeerSecondsByLevel = [
+    300,
+    1200,
+    2700,
+    4800,
+    7200,
+  ];
+
+  /// Past the tables each level takes this much longer than the last.
+  static const double pileLevelTimeGrowth = 1.5;
+
+  /// A nanny in the pile: the whole pile grows this much faster.
+  static const double pileNanyaGrowBonus = 0.5;
+
+  static double _byLevel(List<double> table, int level) {
+    final i = level < 1 ? 0 : level - 1;
+    if (i < table.length) return table[i];
+    var s = table.last;
+    for (var k = table.length - 1; k < i; k++) {
+      s *= pileLevelTimeGrowth;
+    }
+    return s;
+  }
+
+  /// One catch-up step for a capy of [level] (spec 006, Т3).
+  static double pileCatchUpSeconds(int level) =>
+      _byLevel(pileCatchUpSecondsByLevel, level);
+
+  /// One peer step for capys of [level] (spec 006, Т3).
+  static double pilePeerSeconds(int level) =>
+      _byLevel(pilePeerSecondsByLevel, level);
+
+  // --- Glades and goals by family power (spec 006, Т9) ---
+
+  /// Family power (sum of levels on the meadow) that opens each glade.
+  static const int gladeBerryPower = 75;
+  static const int gladeSunnyPower = 115;
+  static const int gladeGreatPower = 160;
+
+  /// Session goal «Капи Lv.N» after the Great Meadow; with it the misty
+  /// grove opens.
+  static const int goalCapyLevel = 5;
+
   // --- Juice / tips ---
 
-  /// Brief merge flash duration on the new merged capy.
-  static const Duration mergeFlashDuration = Duration(milliseconds: 520);
+  /// Brief flash on a capy that sat in a pile or grew.
+  static const Duration pileFlashDuration = Duration(milliseconds: 520);
 
   /// SharedPreferences key: first-launch tip overlay dismissed.
-  static const String tipsSeenKey = 'capy_clicker_tips_seen_v1_2';
+  /// Spec 006: `_v1_3` — the pile replaced the merge tip; shown once more.
+  static const String tipsSeenKey = 'capy_clicker_tips_seen_v1_3';
 }

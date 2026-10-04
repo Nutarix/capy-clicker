@@ -8,7 +8,8 @@ import 'package:capy_clicker/features/game/widgets/floating_gain.dart';
 
 import 'support/meadow_harness.dart';
 
-/// The gray box after a merge (spec 003, Т12).
+/// The gray box after a merge (spec 003, Т12); the punch is now the pile's
+/// seat and growth flash (spec 006).
 ///
 /// An overshooting curve fed a [TweenSequence] a value above 1: an assert in
 /// debug, a `StateError` in release. The failed build became an
@@ -45,11 +46,11 @@ void main() {
                   ),
                   herd: const [],
                   meadowSize: const Size(400, 600),
-                  onMerge: (_, _) => false,
+                  onSit: (_, _) => false,
                   onDropPosition: (_, _) {},
                   onMudDrop: (_) => false,
                   isOverMud: (_) => false,
-                  mergeFlash: true,
+                  pileFlash: true,
                 ),
               ],
             ),
@@ -59,7 +60,7 @@ void main() {
     );
     await everyFrame(
       tester,
-      BalanceV0.mergeFlashDuration + const Duration(milliseconds: 100),
+      BalanceV0.pileFlashDuration + const Duration(milliseconds: 100),
     );
     await tester.pumpWidget(const SizedBox());
   });
@@ -86,7 +87,7 @@ void main() {
     await everyFrame(tester, const Duration(milliseconds: 1000));
   });
 
-  testWidgets('a merge on the meadow leaves no error box', (tester) async {
+  testWidgets('a pile on the meadow leaves no error box', (tester) async {
     final h = await MeadowHarness.pump(
       tester,
       meadowPrefs(herd: const [('c1', 1, 0.30, 0.72), ('c2', 1, 0.62, 0.72)]),
@@ -94,7 +95,7 @@ void main() {
     final from = tester.getCenter(h.capy('c1'));
     final to = tester.getCenter(h.capy('c2'));
     await h.drag(tester, from, to);
-    expect(h.controller.state.herd.length, 1, reason: 'merged');
+    expect(h.controller.placesUsed, 1, reason: 'a pile');
     await everyFrame(tester, const Duration(milliseconds: 700));
     await h.dispose(tester);
   });

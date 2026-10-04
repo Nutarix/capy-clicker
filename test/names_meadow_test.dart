@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:capy_clicker/features/game/controllers/game_controller.dart';
+import 'package:capy_clicker/features/game/models/balance.dart';
 import 'package:capy_clicker/features/game/widgets/draggable_capybara.dart';
 
 import 'support/meadow_harness.dart';
@@ -100,19 +101,23 @@ void main() {
     await h.dispose(tester);
   });
 
-  testWidgets('two babies merged: the plate says who grew up', (tester) async {
+  testWidgets('a baby grown in a pile: the plate says who grew up', (
+    tester,
+  ) async {
     final h = await MeadowHarness.pump(
       tester,
-      meadowPrefs(herd: const [('c1', 1, 0.30, 0.66), ('c2', 1, 0.70, 0.66)]),
+      meadowPrefs(herd: const [('c1', 1, 0.30, 0.66), ('c2', 3, 0.70, 0.66)]),
     );
-    expect(h.controller.tryMerge('c1', 'c2'), isTrue);
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
-    final grown = h.controller.state.herd.single;
-    expect(
-      find.text('Малыш подрос — теперь это ${grown.displayNameRu}'),
-      findsOneWidget,
-    );
+    expect(h.controller.joinPile('c1', 'c2'), isTrue);
+    h.controller.debugAdvance(BalanceV0.pileCatchUpSeconds(1) + 1);
+    final grown = h.controller.state.herd.firstWhere((x) => x.id == 'c1');
+    expect(grown.level, 2);
+    // Plates queue (a puddle may come first): wait for ours.
+    final plate = find.text('Малыш подрос — теперь это ${grown.displayNameRu}');
+    for (var i = 0; i < 200 && plate.evaluate().isEmpty; i++) {
+      await tester.pump(const Duration(milliseconds: 250));
+    }
+    expect(plate, findsOneWidget);
     await h.dispose(tester);
   });
 
