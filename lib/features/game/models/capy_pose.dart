@@ -72,7 +72,7 @@ abstract final class CapyPose {
     CapyWalkSheet.base => const Offset(292, 226),
     CapyWalkSheet.lv3 => const Offset(298, 232),
     CapyWalkSheet.nanny => const Offset(265, 205),
-    CapyWalkSheet.gatherer => const Offset(285, 190),
+    CapyWalkSheet.gatherer => const Offset(276, 206),
     CapyWalkSheet.guard => const Offset(252, 122),
   };
 

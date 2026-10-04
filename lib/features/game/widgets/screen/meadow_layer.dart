@@ -405,6 +405,7 @@ class _MeadowLayerState extends State<MeadowLayer> {
       mudCenter: view.mud,
       livePositions: _livePositions,
       showName: _namesShown.contains(capy.id),
+      berryVisible: view.berry,
       onTouch: (down) => _onCapyTouch(capy.id, down),
       onPlaceDrop: (id, kind) {
         unawaited(_audio.noteUserGesture());
