@@ -52,6 +52,10 @@ void main() {
     GamePersistence? persistence,
     String? focus,
   }) async {
+    // A tall phone: the whole list is laid out.
+    tester.view.physicalSize = const Size(420, 1600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
     final c = testController(persistence: persistence ?? GamePersistence());
     await tester.runAsync(c.init);
     await tester.pumpWidget(

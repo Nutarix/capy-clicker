@@ -401,29 +401,24 @@ class _RolesTab extends StatelessWidget {
   Widget _list() {
     final any = CapyRole.values.any(_held);
     final family = _family();
+    Capybara? focused;
+    for (final c in family) {
+      if (c.id == focusCapyId) focused = c;
+    }
+    Widget row(Capybara capy) => _CapyRow(
+      key: ValueKey('family-${capy.id}'),
+      capy: capy,
+      focused: capy.id == focusCapyId,
+      onRename: (name) {
+        HapticFeedback.lightImpact();
+        return controller.renameCapy(capy.id, name);
+      },
+    );
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
       children: [
-        Padding(
-          padding: const EdgeInsets.only(bottom: 6),
-          child: Text(
-            'Семья на поляне · имя можно поменять',
-            style: CozyTheme.hudChipMutedStyle(fontSize: 12),
-          ),
-        ),
-        for (final capy in family) ...[
-          _CapyRow(
-            key: ValueKey('family-${capy.id}'),
-            capy: capy,
-            focused: capy.id == focusCapyId,
-            onRename: (name) {
-              HapticFeedback.lightImpact();
-              return controller.renameCapy(capy.id, name);
-            },
-          ),
-          const SizedBox(height: 6),
-        ],
-        const SizedBox(height: 8),
+        // The long-pressed capy first, then the roles, then everyone else.
+        if (focused != null) ...[row(focused), const SizedBox(height: 10)],
         if (!any)
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
@@ -449,6 +444,16 @@ class _RolesTab extends StatelessWidget {
           ),
           const SizedBox(height: 10),
         ],
+        const SizedBox(height: 4),
+        Padding(
+          padding: const EdgeInsets.only(bottom: 6),
+          child: Text(
+            'Семья на поляне · имя можно поменять',
+            style: CozyTheme.hudChipMutedStyle(fontSize: 12),
+          ),
+        ),
+        for (final capy in family)
+          if (capy.id != focusCapyId) ...[row(capy), const SizedBox(height: 6)],
       ],
     );
   }
