@@ -15,11 +15,13 @@ GameController testController({
   Random? random,
   int seed = 1,
   DateTime Function()? now,
+  bool debugNames = true,
 }) {
   return GameController(
     persistence: persistence ?? GamePersistence(),
     random: random ?? Random(seed),
     now: now ?? () => testNow,
     autoTick: false,
+    debugNames: debugNames,
   );
 }
