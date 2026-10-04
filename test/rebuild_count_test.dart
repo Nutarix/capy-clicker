@@ -146,6 +146,43 @@ void main() {
     audio.dispose();
   });
 
+  testWidgets('a growing pile does not rebuild the meadow (spec 006)', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({
+      BalanceV0.tipsSeenKey: true,
+      key:
+          '{"herdProgress":0.3,"nextId":4,"grass":2,'
+          '"savedAtMs":${base.millisecondsSinceEpoch},'
+          '"lastDailyClaimYmd":"${GameController.calendarDayKey(base)}",'
+          '"herd":[{"id":"c1","level":3,"x":0.4,"y":0.7,"pile":"p1"},'
+          '{"id":"c2","level":1,"x":0.4,"y":0.7,"pile":"p1"},'
+          '{"id":"c3","level":1,"x":0.7,"y":0.74}]}',
+    });
+    final c = GameController(
+      persistence: GamePersistence(),
+      random: Random(1),
+      now: gameClock(tester),
+    );
+    final audio = GameAudio(silent: true);
+    await tester.pumpWidget(
+      MaterialApp(home: GameScreen(controller: c, audio: audio)),
+    );
+    await quietSeconds(tester, 4);
+    final growthBefore = c.state.herd.firstWhere((x) => x.id == 'c2').growth;
+    final counts = await countBuilds(() => quietSeconds(tester, 5));
+    final meadow = _count(counts, 'GameSelector<({bool berry');
+    final capys = counts['MeadowDraggableCapybara'] ?? 0;
+    // ignore: avoid_print
+    print('REBUILDS growing pile 5 s: meadow=$meadow capys=$capys');
+    final growthAfter = c.state.herd.firstWhere((x) => x.id == 'c2').growth;
+    expect(growthAfter, greaterThan(growthBefore), reason: 'it grows');
+    expect(meadow, lessThanOrEqualTo(10), reason: 'meadow rebuilds');
+    await tester.pumpWidget(const SizedBox());
+    c.dispose();
+    audio.dispose();
+  });
+
   testWidgets('Уют on «Роли»: ticks do not rebuild it, a role does', (
     tester,
   ) async {
