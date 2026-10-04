@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import '../core/game_core.dart';
 import '../core/game_events.dart';
 import '../core/goals.dart';
+import '../models/capybara.dart';
 import '../models/game_state.dart';
 import '../models/multipliers/multipliers.dart';
 import '../models/session_goals.dart';
@@ -24,6 +25,7 @@ class GameController extends ChangeNotifier {
     Random? random,
     DateTime Function()? now,
     this.autoTick = true,
+    @visibleForTesting bool debugNames = true,
   }) {
     _core = GameCore(
       persistence: persistence ?? GamePersistence(),
@@ -33,6 +35,7 @@ class GameController extends ChangeNotifier {
       now: now ?? DateTime.now,
       autoTick: autoTick,
       onNotify: notifyListeners,
+      namesEnabled: debugNames,
     );
   }
 
@@ -224,6 +227,13 @@ class GameController extends ChangeNotifier {
   void updatePosition(String id, Offset normalized) =>
       _core.herd.updatePosition(id, normalized);
 
+  // --- Names (spec 004) ---
+
+  /// The player's own name for a named capy, on any meadow of this land.
+  /// Trimmed, up to 16 characters; empty → false, the old name stays.
+  bool renameCapy(String capyId, String name) =>
+      _core.names.rename(capyId, name);
+
   // --- Spending ---
 
   FamilyFood get selectedFood => _core.shop.selectedFood;
@@ -290,6 +300,12 @@ class GameController extends ChangeNotifier {
 
   /// Arrival meadow: the newest land, before its own glades open.
   bool get onFreshNewLand => _core.lands.onFreshNewLand;
+
+  /// Who the rocket would take now (the youngest). Null when nobody is home.
+  Capybara? get nextTraveler => _core.lands.nextTraveler;
+
+  /// The traveler's name for the rocket chapter; null for a baby (Т10).
+  String? get nextTravelerName => nextTraveler?.displayNameRu;
 
   /// Send the youngest capy on. Grass and sparks stay. Old land is archived.
   bool launchToNewLand() => _core.lands.launchToNewLand();

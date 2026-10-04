@@ -15,6 +15,7 @@ import 'lands.dart';
 import 'meadows.dart';
 import 'merge.dart';
 import 'messages.dart';
+import 'names.dart';
 import 'puddle.dart';
 import 'rates.dart';
 import 'save.dart';
@@ -39,6 +40,7 @@ class GameCore {
     required this.now,
     required this.autoTick,
     required this._onNotify,
+    this.namesEnabled = true,
   });
 
   final GamePersistence persistence;
@@ -52,6 +54,10 @@ class GameCore {
   final bool autoTick;
 
   final void Function() _onNotify;
+
+  /// False: no names or traits are given (spec 004, Т12 test: the same
+  /// session with and without names draws the same numbers).
+  final bool namesEnabled;
 
   late final GameClock clock = GameClock(this);
   late final GameSave save = GameSave(this);
@@ -67,6 +73,7 @@ class GameCore {
   late final GameGoals goals = GameGoals(this);
   late final GameMessages messages = GameMessages(this);
   late final GameLands lands = GameLands(this);
+  late final GameNames names = GameNames(this);
 
   /// Save loaded and the game running (toasts and rewards only when true).
   bool ready = false;
@@ -149,6 +156,8 @@ class GameCore {
     if (disposed) return;
     if (loaded != null && loaded.totalHerdAcrossMeadows > 0) {
       state = herd.clampHerdToMeadow(loaded.withActiveSynced());
+      // Old save: level two and up get names and traits, quietly (С5).
+      state = names.migrate(state);
       // Fill legacy empty unlocked meadows with cozy starters (no toast).
       state = meadows.fillEmptyUnlockedMeadows(state);
       // Sync announced index quietly — no FOMO toast on relaunch.

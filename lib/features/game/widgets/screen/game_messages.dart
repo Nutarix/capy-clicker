@@ -45,6 +45,8 @@ mixin GameMessagesMixin on State<GameScreen> {
         _showGoalComplete(text);
       case RoleAssigned():
         break;
+      case CapyNamed(:final text):
+        _showCapyNamed(text);
     }
   }
 
@@ -82,6 +84,28 @@ mixin GameMessagesMixin on State<GameScreen> {
                 ),
               ),
             ],
+          ),
+        ),
+      );
+    });
+  }
+
+  /// «Малыш подрос — теперь это Пуговка» (spec 004, С1). The merge already
+  /// played its sound.
+  void _showCapyNamed(String text) {
+    _afterFrame(() {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 3),
+          backgroundColor: const Color(0xFF6B9B4A).withValues(alpha: 0.94),
+          content: Text(
+            text,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
       );

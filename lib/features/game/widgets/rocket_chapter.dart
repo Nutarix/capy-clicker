@@ -9,16 +9,26 @@ import 'cozy_rocket.dart';
 
 /// «Семья провожает» — one capy leaves, the rest stay.
 class RocketFarewell extends StatelessWidget {
-  const RocketFarewell({super.key, required this.onSend, required this.onStay});
+  const RocketFarewell({
+    super.key,
+    required this.onSend,
+    required this.onStay,
+    this.travelerName,
+  });
 
   final VoidCallback onSend;
   final VoidCallback onStay;
 
+  /// Who flies, when named (spec 004, Т10). No gendered words around it.
+  final String? travelerName;
+
   @override
   Widget build(BuildContext context) {
+    final name = travelerName;
+    final first = name == null ? 'Один улетает.' : 'Летит $name.';
     return _ChapterFrame(
       title: 'Семья провожает',
-      body: 'Один улетает. Остальные остаются дома.\nМожно будет вернуться.',
+      body: '$first Остальные остаются дома.\nМожно будет вернуться.',
       rocketAlign: Alignment.centerRight,
       actions: [
         CozyPixelButton(
@@ -40,14 +50,18 @@ class RocketFarewell extends StatelessWidget {
 
 /// Moment of flight. The meadow underneath is the family waving.
 class RocketFlight extends StatelessWidget {
-  const RocketFlight({super.key, required this.onArrive});
+  const RocketFlight({super.key, required this.onArrive, this.travelerName});
 
   final VoidCallback onArrive;
 
+  /// Who flies, when named (spec 004, Т10).
+  final String? travelerName;
+
   @override
   Widget build(BuildContext context) {
+    final name = travelerName;
     return _ChapterFrame(
-      title: 'Один в пути',
+      title: name == null ? 'Один в пути' : '$name в пути',
       body: 'Семья машет. Дом остаётся.',
       rocketAlign: Alignment.topCenter,
       actions: [

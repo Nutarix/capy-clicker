@@ -21,6 +21,7 @@ const saveKey = 'capy_clicker_game_state_v1';
 typedef SavedCapy = (String, int, double, double);
 
 /// Prefs with tips seen and today's gift taken, on [meadowId] with [herd].
+/// [extra] adds fields to a capy by id (a name, a trait).
 Map<String, Object> meadowPrefs({
   String meadowId = 'warm_edge',
   int announced = 0,
@@ -28,6 +29,7 @@ Map<String, Object> meadowPrefs({
   int grass = 0,
   bool dailyTaken = true,
   bool tipsSeen = true,
+  Map<String, Map<String, Object>> extra = const {},
 }) {
   final save = <String, Object?>{
     'nextId': 100,
@@ -42,7 +44,7 @@ Map<String, Object> meadowPrefs({
         'herdProgress': 0.0,
         'herd': [
           for (final c in herd)
-            {'id': c.$1, 'level': c.$2, 'x': c.$3, 'y': c.$4},
+            {'id': c.$1, 'level': c.$2, 'x': c.$3, 'y': c.$4, ...?extra[c.$1]},
         ],
       },
     },

@@ -4,7 +4,7 @@ import '../models/balance.dart';
 import 'game_core.dart';
 import 'game_events.dart';
 
-/// One-shot messages: puddle, new glade, goal, role, offline, daily.
+/// One-shot messages: puddle, new glade, goal, role, offline, daily, name.
 ///
 /// Each slot keeps its pending text (the controller getters and
 /// `acknowledge*` read and clear it) and a «not sent yet» flag. [flush] runs
@@ -42,6 +42,10 @@ class GameMessages extends GamePart {
   /// After assigning a role («Няня: +15% авто»).
   String? _roleToast;
   bool _rolePending = false;
+
+  /// «Малыш подрос — теперь это …» (spec 004, С1). Queued in order: two
+  /// merges in one notice send both.
+  final List<CapyNamed> _named = [];
 
   /// Progress granted from offline elapsed time (0 if none).
   double get offlineProgressGranted => _offlineProgressGranted;
@@ -89,6 +93,12 @@ class GameMessages extends GamePart {
   void roleAssigned(String text) {
     _roleToast = text;
     _rolePending = true;
+  }
+
+  void capyNamed(String text, String capyId) {
+    _named.add(CapyNamed(text: text, capyId: capyId));
+    // Nobody listening (sims): keep only the latest few.
+    if (_named.length > 8) _named.removeAt(0);
   }
 
   void offlineGranted(double progress, int seconds) {
@@ -148,6 +158,11 @@ class GameMessages extends GamePart {
         _rolePending = false;
         final text = _roleToast;
         if (text != null && text.isNotEmpty) _events.add(RoleAssigned(text));
+      }
+      if (_named.isNotEmpty) {
+        final named = List<CapyNamed>.of(_named);
+        _named.clear();
+        named.forEach(_events.add);
       }
     } finally {
       _flushing = false;
