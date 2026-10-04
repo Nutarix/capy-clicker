@@ -13,6 +13,7 @@ import 'uyut/multiplier_icon.dart';
 import '../models/multipliers/cozy_place.dart';
 import '../models/merge_magnet.dart';
 import 'capybara_placeholder.dart';
+import 'meadow_space.dart';
 import 'mud_puddle.dart';
 
 /// Meadow-aware draggable: merge on same-level drop, soft magnet assist,
@@ -23,7 +24,7 @@ class MeadowDraggableCapybara extends StatefulWidget {
     required this.capybara,
     required this.herd,
     required this.meadowSize,
-    required this.meadowOriginGlobal,
+    this.space,
     required this.onMerge,
     required this.onDropPosition,
     required this.onMudDrop,
@@ -48,8 +49,10 @@ class MeadowDraggableCapybara extends StatefulWidget {
   final List<Capybara> herd;
   final Size meadowSize;
 
-  /// Meadow top-left in global coordinates, read when a drag needs it.
-  final Offset Function() meadowOriginGlobal;
+  /// Screen ↔ meadow (spec 003, Т2), read when a drag needs it: the camera
+  /// may still be easing. Null or not laid out: the meadow starts at the
+  /// screen origin, unscaled (bare widget tests).
+  final MeadowSpace? space;
   final bool Function(String draggedId, String targetId) onMerge;
   final void Function(String id, Offset normalized) onDropPosition;
   final bool Function(String id) onMudDrop;
@@ -114,6 +117,13 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
 
   /// Last finger point in meadow space (hit mud even if the sprite center misses).
   Offset? _lastPointerNorm;
+
+  /// Screen pixels per meadow pixel when this drag started (camera zoom).
+  /// The feedback is drawn at this size, so it matches the capy on the meadow.
+  final ValueNotifier<double> _dragScale = ValueNotifier(1);
+
+  /// Finger inside the sprite at drag start, meadow pixels.
+  Offset _dragAnchor = Offset.zero;
 
   late final AnimationController _idleBob;
   late final AnimationController _walk;
@@ -315,6 +325,7 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
     _idleBob.dispose();
     _walkCycle.dispose();
     _walk.dispose();
+    _dragScale.dispose();
     super.dispose();
   }
 
@@ -446,20 +457,41 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
     }
   }
 
+  /// Screen point → meadow pixels (live transform: offset, zoom, center).
+  Offset _meadowLocal(Offset global) =>
+      widget.space?.globalToLocal(global) ?? global;
+
+  Offset _normalized(Offset local) => Offset(
+    local.dx / widget.meadowSize.width,
+    local.dy / widget.meadowSize.height,
+  );
+
+  /// Where the sprite center lands: the finger keeps its spot in the sprite.
+  /// [feedbackTopLeft] is the drag's top-left on screen (finger − anchor).
   Offset _normalizedFromFeedbackTopLeft(Offset feedbackTopLeft) {
+    final finger = feedbackTopLeft + _dragAnchor * _dragScale.value;
     final footprint = _footprint;
-    final local = feedbackTopLeft - widget.meadowOriginGlobal();
-    final nx = (local.dx + footprint.width / 2) / widget.meadowSize.width;
-    final ny = (local.dy + footprint.height / 2) / widget.meadowSize.height;
-    return Offset(nx, ny);
+    final local =
+        _meadowLocal(finger) -
+        _dragAnchor +
+        Offset(footprint.width / 2, footprint.height / 2);
+    return _normalized(local);
   }
 
-  Offset _normalizedFromPointer(Offset globalPointer) {
-    final local = globalPointer - widget.meadowOriginGlobal();
-    return Offset(
-      local.dx / widget.meadowSize.width,
-      local.dy / widget.meadowSize.height,
-    );
+  Offset _normalizedFromPointer(Offset globalPointer) =>
+      _normalized(_meadowLocal(globalPointer));
+
+  /// Grab point: the finger in the sprite, scaled like the feedback, so the
+  /// feedback lies exactly over the capy at drag start at any zoom.
+  Offset _dragAnchorStrategy(
+    Draggable<Object> draggable,
+    BuildContext context,
+    Offset position,
+  ) {
+    final box = context.findRenderObject() as RenderBox?;
+    _dragAnchor = box == null ? Offset.zero : box.globalToLocal(position);
+    _dragScale.value = widget.space?.scale ?? 1;
+    return _dragAnchor * _dragScale.value;
   }
 
   MergeMagnetHit? _hitAt(Offset dragNormalized) {
@@ -671,17 +703,27 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
               final highlight = candidate.isNotEmpty || magnetHighlight;
               return Draggable<String>(
                 data: widget.capybara.id,
-                feedback: Transform.translate(
-                  offset: _pullOffset,
-                  child: Material(
-                    color: Colors.transparent,
-                    child: Opacity(
-                      opacity: 0.92,
-                      child: CapybaraPlaceholder(
-                        level: widget.capybara.level,
-                        role: widget.capybara.role,
-                        walkFrame: 0,
-                        compactLabel: false,
+                dragAnchorStrategy: _dragAnchorStrategy,
+                // Built once at drag start: what changes later is listened to.
+                feedback: ValueListenableBuilder<double>(
+                  valueListenable: _dragScale,
+                  builder: (context, scale, child) => Transform.scale(
+                    scale: scale,
+                    alignment: Alignment.topLeft,
+                    child: child,
+                  ),
+                  child: Transform.translate(
+                    offset: _pullOffset,
+                    child: Material(
+                      color: Colors.transparent,
+                      child: Opacity(
+                        opacity: 0.92,
+                        child: CapybaraPlaceholder(
+                          level: widget.capybara.level,
+                          role: widget.capybara.role,
+                          walkFrame: 0,
+                          compactLabel: false,
+                        ),
                       ),
                     ),
                   ),

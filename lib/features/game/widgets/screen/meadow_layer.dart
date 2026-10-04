@@ -14,6 +14,7 @@ import '../../models/world_zones.dart';
 import '../berry_basket.dart';
 import '../draggable_capybara.dart';
 import '../flower_dot.dart';
+import '../meadow_space.dart';
 import '../game_selector.dart';
 import '../meadow_decor.dart';
 import '../mud_puddle.dart';
@@ -47,10 +48,15 @@ class MeadowLayer extends StatefulWidget {
     required this.controller,
     required this.audio,
     required this.onFloat,
+    this.space,
   });
 
   final GameController controller;
   final GameAudio audio;
+
+  /// Screen ↔ meadow for this meadow (spec 003, Т2). The screen hands its
+  /// own in, so the HUD can place «+капи» over the new capy. Null: own one.
+  final MeadowSpace? space;
 
   /// Floating «+N%» / «×2» at a global point (Offset.zero = default spot).
   final void Function(String label, Offset globalAnchor, {Color? color})
@@ -61,7 +67,7 @@ class MeadowLayer extends StatefulWidget {
 }
 
 class _MeadowLayerState extends State<MeadowLayer> {
-  final GlobalKey _meadowKey = GlobalKey();
+  late final MeadowSpace _space = widget.space ?? MeadowSpace();
 
   /// Soft-magnet target while a capy is being dragged (glow on attracted).
   String? _magnetAttractedId;
@@ -172,37 +178,16 @@ class _MeadowLayerState extends State<MeadowLayer> {
       HapticFeedback.lightImpact();
       unawaited(_audio.noteUserGesture());
       _audio.playWallow();
-      // Float near puddle center in meadow space.
-      final box = _meadowKey.currentContext?.findRenderObject() as RenderBox?;
-      if (box != null && box.hasSize) {
-        final center =
-            _controller.mudCenter ??
-            const Offset(BalanceV0.mudCenterX, BalanceV0.mudCenterY);
-        final local = Offset(
-          center.dx * box.size.width,
-          center.dy * box.size.height,
-        );
-        widget.onFloat(
-          '×2',
-          box.localToGlobal(local),
-          color: const Color(0xFFB8860B),
-        );
+      // Float at the puddle center.
+      final center =
+          _controller.mudCenter ??
+          const Offset(BalanceV0.mudCenterX, BalanceV0.mudCenterY);
+      final at = _space.toGlobal(center);
+      if (at != null) {
+        widget.onFloat('×2', at, color: const Color(0xFFB8860B));
       }
     }
     return ok;
-  }
-
-  /// Read when a drag needs it, not at build: the camera may still be easing.
-  Offset _meadowOriginGlobal() {
-    final ctx = _meadowKey.currentContext;
-    // Rocket chrome toggles the column; the previous meadow element can be
-    // inactive for the frame that rebuilds it. Do not touch a defunct render
-    // object (that throws during layout).
-    // Inactive elements still report mounted until the frame finishes.
-    if (ctx is! Element || !ctx.debugIsActive) return Offset.zero;
-    final box = ctx.findRenderObject() as RenderBox?;
-    if (box == null || !box.hasSize || !box.attached) return Offset.zero;
-    return box.localToGlobal(Offset.zero);
   }
 
   @override
@@ -243,89 +228,93 @@ class _MeadowLayerState extends State<MeadowLayer> {
         duration: const Duration(milliseconds: 450),
         curve: Curves.easeInOut,
         alignment: Alignment.center,
-        child: SizedBox(
-          key: _meadowKey,
-          width: w,
-          height: h,
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              // Each looping animation paints in its own layer (spec 002, Т8).
-              RepaintBoundary(
-                child: MeadowDecorLayer(
-                  herdCount: herd.length,
-                  meadowSize: Size(w, h),
+        // The meadow box hands itself to [_space] while attached (spec 003,
+        // Т1): a drag reads the live transform, zoom mid-ease included.
+        child: MeadowSpaceAnchor(
+          space: _space,
+          child: SizedBox(
+            width: w,
+            height: h,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                // Each looping animation paints in its own layer (spec 002, Т8).
+                RepaintBoundary(
+                  child: MeadowDecorLayer(
+                    herdCount: herd.length,
+                    meadowSize: Size(w, h),
+                  ),
                 ),
-              ),
-              RepaintBoundary(
-                child: PlacedHomeDecorLayer(
-                  placedIds: view.placed,
-                  meadowSize: Size(w, h),
+                RepaintBoundary(
+                  child: PlacedHomeDecorLayer(
+                    placedIds: view.placed,
+                    meadowSize: Size(w, h),
+                  ),
                 ),
-              ),
-              // Temporary mud puddle (behind capys). Absent during cooldown.
-              if (mud != null)
-                Positioned(
-                  left: mud.dx * w - CapyWander.mudAnchorX,
-                  top: mud.dy * h - CapyWander.mudAnchorY,
-                  child: RepaintBoundary(
-                    child: MudPuddle(
-                      key: ValueKey(
-                        '${mud.dx.toStringAsFixed(3)}:'
-                        '${mud.dy.toStringAsFixed(3)}',
+                // Temporary mud puddle (behind capys). Absent during cooldown.
+                if (mud != null)
+                  Positioned(
+                    left: mud.dx * w - CapyWander.mudAnchorX,
+                    top: mud.dy * h - CapyWander.mudAnchorY,
+                    child: RepaintBoundary(
+                      child: MudPuddle(
+                        key: ValueKey(
+                          '${mud.dx.toStringAsFixed(3)}:'
+                          '${mud.dy.toStringAsFixed(3)}',
+                        ),
+                        isWallowing: view.wallowing != null,
+                        boostActive: view.mudBoost,
                       ),
-                      isWallowing: view.wallowing != null,
-                      boostActive: view.mudBoost,
                     ),
                   ),
-                ),
-              // Cozy places (пень / камень / тент)
-              for (final kind in props.places.keys)
-                Positioned(
-                  left: props.places[kind]!.dx * w - 36,
-                  top: props.places[kind]!.dy * h - 32,
-                  child: RepaintBoundary(
-                    child: PlaceSlot(
-                      controller: _controller,
-                      kind: kind,
-                      onTap: () {
-                        unawaited(_audio.noteUserGesture());
-                        final ok = _controller.tryActivatePlace(kind);
-                        if (ok) widget.onFloat(kind.emoji, Offset.zero);
-                      },
+                // Cozy places (пень / камень / тент)
+                for (final kind in props.places.keys)
+                  Positioned(
+                    left: props.places[kind]!.dx * w - 36,
+                    top: props.places[kind]!.dy * h - 32,
+                    child: RepaintBoundary(
+                      child: PlaceSlot(
+                        controller: _controller,
+                        kind: kind,
+                        onTap: () {
+                          unawaited(_audio.noteUserGesture());
+                          final ok = _controller.tryActivatePlace(kind);
+                          if (ok) widget.onFloat(kind.emoji, Offset.zero);
+                        },
+                      ),
                     ),
                   ),
-                ),
-              ...List.generate(props.flowers.length, (i) {
-                final flower = props.flowers[i];
-                return Positioned(
-                  left: flower.dx * w - FlowerDot.hitSize / 2,
-                  top: flower.dy * h - FlowerDot.hitSize / 2,
-                  child: RepaintBoundary(
-                    child: FlowerDot(
-                      color: _flowerColors[i % _flowerColors.length],
-                      swayPhase: i / props.flowers.length,
-                      onTap: _onFlowerTap,
+                ...List.generate(props.flowers.length, (i) {
+                  final flower = props.flowers[i];
+                  return Positioned(
+                    left: flower.dx * w - FlowerDot.hitSize / 2,
+                    top: flower.dy * h - FlowerDot.hitSize / 2,
+                    child: RepaintBoundary(
+                      child: FlowerDot(
+                        color: _flowerColors[i % _flowerColors.length],
+                        swayPhase: i / props.flowers.length,
+                        onTap: _onFlowerTap,
+                      ),
+                    ),
+                  );
+                }),
+                if (view.berry)
+                  Positioned(
+                    left: BalanceV0.berryPosX * w - 60,
+                    top: BalanceV0.berryPosY * h - 44,
+                    child: RepaintBoundary(
+                      child: BerryBasket(
+                        onTap: _onBerryTap,
+                        showHint: !_berryHintSeen,
+                      ),
                     ),
                   ),
-                );
-              }),
-              if (view.berry)
-                Positioned(
-                  left: BalanceV0.berryPosX * w - 60,
-                  top: BalanceV0.berryPosY * h - 44,
-                  child: RepaintBoundary(
-                    child: BerryBasket(
-                      onTap: _onBerryTap,
-                      showHint: !_berryHintSeen,
-                    ),
-                  ),
-                ),
-              if (QuietMergeArc.pairFor(herd, Size(w, h)) case final pair?)
-                QuietMergeArc(from: pair.$1, to: pair.$2),
-              for (final capy in herd)
-                _capy(capy, view, meadowKey, Size(w, h), props),
-            ],
+                if (QuietMergeArc.pairFor(herd, Size(w, h)) case final pair?)
+                  QuietMergeArc(from: pair.$1, to: pair.$2),
+                for (final capy in herd)
+                  _capy(capy, view, meadowKey, Size(w, h), props),
+              ],
+            ),
           ),
         ),
       ),
@@ -352,7 +341,7 @@ class _MeadowLayerState extends State<MeadowLayer> {
       // onto one edge.
       herdCount: meadowKey,
       meadowSize: meadow,
-      meadowOriginGlobal: _meadowOriginGlobal,
+      space: _space,
       onMerge: _onMerge,
       onDropPosition: _controller.updatePosition,
       onMudDrop: _onMudDrop,
