@@ -64,31 +64,6 @@ abstract final class CapyNaming {
     return h;
   }
 
-  /// Transitional merge rule (until spec 006): whose name the merged capy
-  /// keeps. The target's, else the dragged one's; null → both unnamed.
-  static Capybara? mergeKeeps({
-    required Capybara dragged,
-    required Capybara target,
-  }) {
-    if (target.isNamed) return target;
-    if (dragged.isNamed) return dragged;
-    return null;
-  }
-
-  /// [capy] wearing the name, own name and trait of [from].
-  static Capybara inherit(Capybara capy, {required Capybara from}) {
-    return Capybara(
-      id: capy.id,
-      level: capy.level,
-      position: capy.position,
-      role: capy.role,
-      nameKey: from.nameKey,
-      nameEpithet: from.nameEpithet,
-      customName: from.customName,
-      trait: from.trait,
-    );
-  }
-
   /// [capy] with a name and a trait. Already named → returned as is.
   ///
   /// 1. A name nobody on this land wears.

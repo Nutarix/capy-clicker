@@ -17,7 +17,7 @@ export '../core/game_events.dart';
 
 /// The one entry point of the game for the screen and tests.
 ///
-/// A facade: the rules live in parts under `core/` (clock, herd, merge,
+/// A facade: the rules live in parts under `core/` (clock, herd, pile,
 /// meadows, shop, goals, lands, save…), sharing one [GameCore].
 class GameController extends ChangeNotifier {
   GameController({
@@ -51,7 +51,12 @@ class GameController extends ChangeNotifier {
 
   /// Live auto fill rate (fraction/sec) — full stack for HUD «+X%/с».
   double get autoRatePerSecond => _core.rates.autoRatePerSecond;
+  /// Places on the meadow (spec 006, Т5): a single capy or a pile is one.
+  /// Name kept from before the pile.
   int get effectiveMaxHerdSize => _core.rates.effectiveMaxHerdSize;
+
+  /// Places taken on the active meadow.
+  int get placesUsed => _core.herd.placesUsed;
   double get effectiveMagnetRadius => _core.rates.effectiveMagnetRadius;
 
   /// Live RU summary of active role bonuses for Уют / HUD.
@@ -80,11 +85,16 @@ class GameController extends ChangeNotifier {
   double placeCooldownRemaining(CozyPlaceKind kind) =>
       _core.boosts.placeCooldownRemaining(kind);
 
-  // --- Meadow life: puddle, berries, merge flash ---
+  // --- Meadow life: puddle, berries, pile flash ---
 
   String? get wallowingCapyId => _core.puddle.wallowingCapyId;
+
+  /// Everyone in the bath now: one capy or a pile (spec 006, С8).
+  Set<String> get wallowingIds => _core.puddle.wallowingIds;
   bool get isBerryVisible => _core.finds.berryVisible;
-  String? get mergeFlashId => _core.merge.mergeFlashId;
+
+  /// Capy that just sat in a pile or grew (flash).
+  String? get pileFlashId => _core.pile.flashId;
 
   /// Live puddle, or null while it is despawned. Not part of [GameState].
   bool get mudVisible => _core.puddle.present;
@@ -216,14 +226,20 @@ class GameController extends ChangeNotifier {
   /// True if [normalized] is inside the mud puddle hit circle.
   bool isOverMud(Offset normalized) => _core.puddle.isOverMud(normalized);
 
-  /// Drag-merge: same level only → remove both, spawn level+1 at target pos.
-  bool tryMerge(String draggedId, String targetId) =>
-      _core.merge.tryMerge(draggedId, targetId);
+  /// Drop [draggedId] on [targetId] (spec 006, Т1): they sit in a pile.
+  /// False when nothing changed, or the target's pile already holds four —
+  /// then the dragged capy stands beside it on the grass (С4).
+  bool joinPile(String draggedId, String targetId) =>
+      _core.pile.join(draggedId, targetId);
 
-  /// Force a twin mark (tests).
+  /// Members of [pileId] on the active meadow, in herd order.
+  List<Capybara> pileMembers(String pileId) => _core.pile.membersOf(pileId);
+
+  /// Force a «хотят посидеть рядом» pair mark (tests).
   @visibleForTesting
-  void debugMarkTwins(String a, String b) => _core.merge.debugMarkTwins(a, b);
+  void debugMarkTwins(String a, String b) => _core.pile.debugMarkTwins(a, b);
 
+  /// Move a capy. One from a pile stands up there (spec 006, С5).
   void updatePosition(String id, Offset normalized) =>
       _core.herd.updatePosition(id, normalized);
 
@@ -239,7 +255,7 @@ class GameController extends ChangeNotifier {
   FamilyFood get selectedFood => _core.shop.selectedFood;
   void selectFood(FamilyFood food) => _core.shop.selectFood(food);
 
-  /// Spend grass to spawn a Lv.1 capy if under soft herd cap.
+  /// Spend grass to spawn a Lv.1 capy if a place is free.
   bool spendCallCapy() => _core.shop.spendCallCapy();
 
   /// Spend grass for a short auto-progress boost (weaker than mud).

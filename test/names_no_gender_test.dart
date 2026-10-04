@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:capy_clicker/features/game/controllers/game_controller.dart';
+import 'package:capy_clicker/features/game/models/balance.dart';
 import 'package:capy_clicker/features/game/models/capy_names.dart';
 
 import 'support/test_game.dart';
@@ -49,16 +50,14 @@ void main() {
   });
 
   test('the name plate and every epithet read without a gender', () async {
-    SharedPreferences.setMockInitialValues({});
+    SharedPreferences.setMockInitialValues(
+      herdSave([testCapy('e', 3, pile: 'p'), testCapy('b', 1, pile: 'p')]),
+    );
     final c = testController();
     final got = <GameEvent>[];
     c.events.listen(got.add);
     await c.init();
-    for (var i = 0; i < 10 && c.state.herd.length < 2; i++) {
-      c.addProgress(1.0, fromTap: false);
-    }
-    final ones = c.state.herd.where((x) => x.level == 1).toList();
-    c.tryMerge(ones[0].id, ones[1].id);
+    c.debugAdvance(BalanceV0.pileCatchUpSeconds(1) + 1);
     final text = got.whereType<CapyNamed>().single.text;
     expect(text, startsWith('Малыш подрос — теперь это '));
     expect(gendered.hasMatch(text), isFalse);

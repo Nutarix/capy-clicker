@@ -15,31 +15,22 @@ void main() {
     });
 
     test('tier table: family power → glade + rect + zoom', () {
+      const berry = BalanceV0.gladeBerryPower;
+      const sunny = BalanceV0.gladeSunnyPower;
+      const great = BalanceV0.gladeGreatPower;
+      const warmRect = Rect.fromLTRB(0.10, 0.52, 0.86, 0.92);
+      const berryRect = Rect.fromLTRB(0.06, 0.50, 0.90, 0.93);
+      const sunnyRect = Rect.fromLTRB(0.05, 0.40, 0.91, 0.945);
+      const greatRect = Rect.fromLTRB(0.03, 0.34, 0.94, 0.96);
       final cases = <(int herd, String id, Rect rect, double zoom)>[
-        (0, 'warm_edge', const Rect.fromLTRB(0.10, 0.52, 0.86, 0.92), 1.0),
-        (4, 'warm_edge', const Rect.fromLTRB(0.10, 0.52, 0.86, 0.92), 1.0),
-        (5, 'berry_glade', const Rect.fromLTRB(0.06, 0.50, 0.90, 0.93), 0.82),
-        (9, 'berry_glade', const Rect.fromLTRB(0.06, 0.50, 0.90, 0.93), 0.82),
-        (
-          10,
-          'sunny_clearing',
-          const Rect.fromLTRB(0.05, 0.40, 0.91, 0.945),
-          0.66,
-        ),
-        (
-          15,
-          'sunny_clearing',
-          const Rect.fromLTRB(0.05, 0.40, 0.91, 0.945),
-          0.66,
-        ),
-        (16, 'great_meadow', const Rect.fromLTRB(0.03, 0.34, 0.94, 0.96), 0.50),
-        (20, 'great_meadow', const Rect.fromLTRB(0.03, 0.34, 0.94, 0.96), 0.50),
-        (
-          12,
-          'sunny_clearing',
-          const Rect.fromLTRB(0.05, 0.40, 0.91, 0.945),
-          0.66,
-        ),
+        (0, 'warm_edge', warmRect, 1.0),
+        (berry - 1, 'warm_edge', warmRect, 1.0),
+        (berry, 'berry_glade', berryRect, 0.82),
+        (sunny - 1, 'berry_glade', berryRect, 0.82),
+        (sunny, 'sunny_clearing', sunnyRect, 0.66),
+        (great - 1, 'sunny_clearing', sunnyRect, 0.66),
+        (great, 'great_meadow', greatRect, 0.50),
+        (great * 4, 'great_meadow', greatRect, 0.50),
       ];
       for (final (herd, id, rect, zoom) in cases) {
         final g = WorldZones.gladeForHerd(herd);
@@ -93,9 +84,9 @@ void main() {
         WorldZones.clampToMeadow(const Offset(1.0, 1.0), herdCount: 1),
         const Offset(WorldZones.meadowRight, WorldZones.meadowBottom),
       );
-      final great = WorldZones.gladeForHerd(16);
+      final great = WorldZones.gladeForHerd(BalanceV0.gladeGreatPower);
       expect(
-        WorldZones.clampToMeadow(const Offset(0.0, 0.0), herdCount: 16),
+        WorldZones.clampToMeadow(const Offset(0.0, 0.0), herdCount: BalanceV0.gladeGreatPower),
         Offset(great.left, great.top),
       );
     });
@@ -109,8 +100,8 @@ void main() {
     test('expanded glade accepts points outside starter rect', () {
       const side = Offset(0.04, 0.70); // left of starter, inside great meadow
       expect(WorldZones.isInMeadow(side), isFalse);
-      expect(WorldZones.isInMeadow(side, herdCount: 16), isTrue);
-      expect(WorldZones.clampToMeadow(side, herdCount: 16), side);
+      expect(WorldZones.isInMeadow(side, herdCount: BalanceV0.gladeGreatPower), isTrue);
+      expect(WorldZones.clampToMeadow(side, herdCount: BalanceV0.gladeGreatPower), side);
     });
   });
 

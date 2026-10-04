@@ -117,7 +117,7 @@ class _MeadowLayerState extends State<MeadowLayer> {
       placed: state.placedDecor,
       tent: state.tentUnlocked,
       berry: c.isBerryVisible,
-      flash: c.mergeFlashId,
+      flash: c.pileFlashId,
       magnet: c.effectiveMagnetRadius,
     );
   }
@@ -189,13 +189,14 @@ class _MeadowLayerState extends State<MeadowLayer> {
     });
   }
 
+  /// Dropped [a] on [b]: they sit in a pile (spec 006). A full pile says no
+  /// quietly — no buzz, no sound; the capy stands beside it.
   bool _onMerge(String a, String b) {
-    final ok = _controller.tryMerge(a, b);
+    final ok = _controller.joinPile(a, b);
     if (ok) {
       HapticFeedback.mediumImpact();
       unawaited(_audio.noteUserGesture());
-      _audio.playMerge();
-      final flash = _controller.mergeFlashId;
+      final flash = _controller.pileFlashId;
       if (flash != null) {
         _promoteBadge(flash);
         // Who stayed: the merged capy shows its name for a moment.

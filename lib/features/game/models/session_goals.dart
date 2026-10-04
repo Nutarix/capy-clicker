@@ -1,3 +1,4 @@
+import 'balance.dart';
 import 'world_zones.dart';
 
 /// Kind of session milestone the player is aiming for.
@@ -106,9 +107,9 @@ abstract final class SessionGoals {
     SessionGoal(
       id: 'capy_lv4',
       kind: SessionGoalKind.maxLevel,
-      titleRu: 'Капи Lv.4',
-      celebrationRu: 'Цель достигнута: Капи Lv.4!',
-      targetLevel: 4,
+      titleRu: 'Капи Lv.${BalanceV0.goalCapyLevel}',
+      celebrationRu: 'Цель достигнута: Капи Lv.${BalanceV0.goalCapyLevel}!',
+      targetLevel: BalanceV0.goalCapyLevel,
     ),
     SessionGoal(
       id: 'unlock_misty',

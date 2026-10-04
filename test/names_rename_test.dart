@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:capy_clicker/features/game/controllers/game_controller.dart';
+import 'package:capy_clicker/features/game/models/balance.dart';
 import 'package:capy_clicker/features/game/models/capybara.dart';
 import 'package:capy_clicker/features/game/persistence/game_persistence.dart';
 
@@ -19,11 +20,11 @@ void main() {
     for (var i = 0; i < 10 && c.state.herd.length < 3; i++) {
       c.addProgress(1.0, fromTap: false);
     }
-    final ones = [
-      for (final x in c.state.herd)
-        if (x.level == 1) x,
-    ];
-    c.tryMerge(ones[0].id, ones[1].id);
+    // Three babies in a pile grow up together (spec 006).
+    final ids = [for (final x in c.state.herd) x.id];
+    c.joinPile(ids[1], ids[0]);
+    c.joinPile(ids[2], ids[0]);
+    c.debugAdvance(BalanceV0.pilePeerSeconds(1) + 1);
     return (c, c.state.herd.firstWhere((x) => x.level == 2));
   }
 
@@ -85,15 +86,10 @@ void main() {
     final (c, capy) = await grown(GamePersistence());
     // Grow until a second meadow opens, then go there.
     for (var i = 0; i < 400 && c.state.sunnyGladeAnnounced < 1; i++) {
-      if (c.state.herd.length < c.effectiveMaxHerdSize) {
+      if (c.placesUsed < c.effectiveMaxHerdSize) {
         c.addProgress(1.0, fromTap: false);
-      } else {
-        final ones = [
-          for (final x in c.state.herd)
-            if (x.level == 1) x,
-        ];
-        if (ones.length < 2) break;
-        c.tryMerge(ones[0].id, ones[1].id);
+      } else if (!pileStep(c)) {
+        break;
       }
     }
     expect(c.state.sunnyGladeAnnounced, greaterThanOrEqualTo(1));

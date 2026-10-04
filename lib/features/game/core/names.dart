@@ -6,8 +6,8 @@ import '../models/game_state.dart';
 import '../models/meadow_snapshot.dart';
 import 'game_core.dart';
 
-/// Names and traits (spec 004): the name at level two, the quiet naming of
-/// an old save, the player's own name.
+/// Names and traits (spec 004): the name at level two (grown in a pile,
+/// spec 006), the quiet naming of an old save, the player's own name.
 ///
 /// Picks run on [CapyNaming]'s own seed, never on the game's random stream:
 /// the rest of the game draws the same numbers as before (Т3).
@@ -17,38 +17,43 @@ class GameNames extends GamePart {
   /// Level from which a capy has a name.
   static const int namedFromLevel = 2;
 
-  /// Names worn on the live land, all meadows. [except] are not counted
-  /// (the two capys a merge removes).
-  LandNames usedOnLand(GameState state, {Set<String> except = const {}}) {
+  /// Names worn on the live land, all meadows.
+  LandNames usedOnLand(GameState state) {
     final used = LandNames();
     for (final snap in state.withActiveSynced().meadows.values) {
       for (final c in snap.herd) {
-        if (!except.contains(c.id)) used.add(c);
+        used.add(c);
       }
     }
     return used;
   }
 
-  /// A merge made [merged] from [dragged] onto [target] (transitional rule
-  /// until spec 006). Queues «Малыш подрос…» when a new name was given.
-  Capybara nameMerged(
-    Capybara merged, {
-    required Capybara dragged,
-    required Capybara target,
-  }) {
-    final keep = CapyNaming.mergeKeeps(dragged: dragged, target: target);
-    if (keep != null) return CapyNaming.inherit(merged, from: keep);
-    if (!core.namesEnabled || merged.level < namedFromLevel) return merged;
-    final named = CapyNaming.assign(
-      merged,
-      used: usedOnLand(state, except: {dragged.id, target.id}),
-      landChapter: state.landChapter,
+  /// Capys [grown] in a pile on the active meadow of [state] (spec 006, Т4):
+  /// each who reached level two without a name gets one and a trait, and
+  /// «Малыш подрос — теперь это …» is queued. Null when nobody needed one.
+  GameState? nameGrown(GameState state, Set<String> grown) {
+    if (!core.namesEnabled) return null;
+    final needs = [
+      for (final c in state.herd)
+        if (grown.contains(c.id) && !c.isNamed && c.level >= namedFromLevel)
+          c.id,
+    ];
+    if (needs.isEmpty) return null;
+    final used = usedOnLand(state);
+    final named = <String, Capybara>{};
+    for (final c in state.herd) {
+      if (!needs.contains(c.id)) continue;
+      final n = CapyNaming.assign(c, used: used, landChapter: state.landChapter);
+      used.add(n);
+      named[c.id] = n;
+      core.messages.capyNamed(
+        'Малыш подрос — теперь это ${n.listNameRu}',
+        n.id,
+      );
+    }
+    return state.copyWith(
+      herd: [for (final c in state.herd) named[c.id] ?? c],
     );
-    core.messages.capyNamed(
-      'Малыш подрос — теперь это ${named.listNameRu}',
-      named.id,
-    );
-    return named;
   }
 
   /// Old save: every capy of level two and up gets a name, quietly. Each

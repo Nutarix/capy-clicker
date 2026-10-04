@@ -2,6 +2,7 @@ import 'dart:math';
 import 'dart:ui';
 
 import '../models/balance.dart';
+import '../models/capy_pile.dart';
 import '../models/capy_wander.dart';
 import '../models/capybara.dart';
 import '../models/game_state.dart';
@@ -20,7 +21,11 @@ class GameHerd extends GamePart {
     return null;
   }
 
-  /// Add progress; may spawn while under herd cap. Overflow carries over.
+  /// Places taken: a single capy and a pile take one each (spec 006, Т5).
+  int get placesUsed => CapyPiles.placesOf(state.herd);
+
+  /// Add progress; may spawn while a place is free. Overflow carries over.
+  /// With every place taken the bar waits full.
   void addProgress(double amount, {required bool fromTap}) {
     if (amount <= 0) return;
 
@@ -33,8 +38,9 @@ class GameHerd extends GamePart {
     var next = state;
     var spawned = false;
 
-    while (progress >= BalanceV0.spawnThreshold &&
-        herd.length < cap.effectiveMaxHerdSize) {
+    final maxPlaces = cap.effectiveMaxHerdSize;
+    var places = CapyPiles.placesOf(herd);
+    while (progress >= BalanceV0.spawnThreshold && places < maxPlaces) {
       spawned = true;
       progress -= BalanceV0.spawnThreshold;
       next = spawnCapybara(
@@ -43,9 +49,10 @@ class GameHerd extends GamePart {
       );
       herd = List<Capybara>.from(next.herd);
       nextId = next.nextId;
+      places++;
     }
 
-    if (herd.length >= cap.effectiveMaxHerdSize) {
+    if (places >= maxPlaces) {
       progress = progress.clamp(0.0, BalanceV0.spawnThreshold);
     }
 
@@ -100,15 +107,19 @@ class GameHerd extends GamePart {
     );
   }
 
+  /// Move [id] to [normalized]. A capy from a pile stands up there (spec
+  /// 006, С5): drag to the grass, onto the puddle or a place. Its growth
+  /// stays; a pile left with one dissolves.
   void updatePosition(String id, Offset normalized) {
     final clamped = WorldZones.clampToMeadow(
       normalized,
       herdCount: core.meadows.meadowKey,
     );
-    final herd = state.herd.map((c) {
+    var herd = state.herd.map((c) {
       if (c.id != id) return c;
-      return c.copyWith(position: clamped);
+      return c.copyWith(position: clamped, clearPile: true);
     }).toList();
+    herd = CapyPiles.sanitize(herd);
     core.commit(state.copyWith(herd: herd));
   }
 

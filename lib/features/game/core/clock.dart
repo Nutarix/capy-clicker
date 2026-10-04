@@ -75,6 +75,8 @@ class GameClock extends GamePart {
     }
     final amount = BalanceV0.autoProgressPerSecond * offlineMult * seconds;
     core.messages.offlineGranted(amount, seconds);
+    // Piles grew too, by the same seconds (spec 006, С9).
+    core.pile.advanceOffline(seconds);
     // Apply without live-tick dt guards; may spawn under herd cap.
     core.herd.addProgress(amount, fromTap: false);
   }
@@ -87,7 +89,8 @@ class GameClock extends GamePart {
     advance(dt, now);
   }
 
-  /// One step of the game clock: mud, boosts, auto grass, twins, auto bar.
+  /// One step of the game clock: mud, boosts, auto grass, pair, piles,
+  /// auto bar.
   /// Shared by the live tick and [debugAdvance], so tests run the real thing.
   void advance(double dt, DateTime now) {
     var dirty = false;
@@ -116,10 +119,13 @@ class GameClock extends GamePart {
       dirty = true;
     }
 
-    // Twin sparkle reroll.
-    if (core.merge.advanceTwins(dt)) dirty = true;
+    // «Хотят посидеть рядом» pair reroll.
+    if (core.pile.advanceTwins(dt)) dirty = true;
 
     if (dirty) core.notify();
+
+    // Piles grow on the game clock (spec 006, Т3).
+    core.pile.advance(dt);
 
     core.herd.addProgress(core.rates.autoRatePerSecond * dt, fromTap: false);
   }

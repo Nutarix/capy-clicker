@@ -201,30 +201,29 @@ void main() {
     expect(c.state.mistyBiomeUnlocked, isFalse);
     expect(c.switchToMeadow(WorldZones.mistEdgeMeadowId), isFalse);
     expect(c.state.uyut, 0);
-    // Fill soft-cap, then merge+refill until Great (power ≥16) — no Lv.4 yet.
-    for (var i = 0; i < 11; i++) {
-      c.addProgress(1.0, fromTap: true);
-    }
-    var guard = 0;
-    while (c.state.familyPower < 16 && guard < 40) {
-      guard++;
-      final ones = c.state.herd.where((e) => e.level == 1).toList();
-      if (ones.length >= 2) {
-        c.tryMerge(ones[0].id, ones[1].id);
-      } else {
-        final twos = c.state.herd.where((e) => e.level == 2).toList();
-        if (twos.length < 2) break;
-        c.tryMerge(twos[0].id, twos[1].id);
-      }
-      if (c.state.herdCount < BalanceV0.maxHerdSize) {
-        c.addProgress(1.0, fromTap: true);
-      }
-    }
-    expect(c.state.sunnyGladeAnnounced, 3);
-    expect(c.state.maxCapyLevel, lessThan(4));
-    expect(c.state.mistyBiomeUnlocked, isFalse);
-    expect(c.state.uyut, 0);
     c.dispose();
+
+    // Great Meadow open, nobody at the goal level yet: still locked.
+    SharedPreferences.setMockInitialValues(
+      herdSave(
+        [
+          for (var i = 0; i < 4; i++)
+            testCapy('c$i', BalanceV0.goalCapyLevel - 1, pile: 'p'),
+        ],
+        extra: {'sunnyGladeAnnounced': 3, 'sessionGoalIndex': 3},
+      ),
+    );
+    final d = testController();
+    await d.init();
+    expect(d.state.sunnyGladeAnnounced, 3);
+    expect(d.state.maxCapyLevel, lessThan(BalanceV0.goalCapyLevel));
+    expect(d.state.mistyBiomeUnlocked, isFalse);
+    expect(d.state.uyut, 0);
+    // The four peers grow to the goal level: the grove opens.
+    d.debugAdvance(BalanceV0.pilePeerSeconds(BalanceV0.goalCapyLevel - 1) + 1);
+    expect(d.state.mistyBiomeUnlocked, isTrue);
+    expect(d.state.uyut, BalanceV0.firstMistyUyutGrant);
+    d.dispose();
   });
 
   test('no soft-lock after misty unlock — warm_edge still playable', () async {

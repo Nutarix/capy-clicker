@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:capy_clicker/features/game/models/balance.dart';

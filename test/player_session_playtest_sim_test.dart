@@ -208,7 +208,7 @@ void main() {
               b = p[1];
             }
           }
-          if (a != null && b != null && c.tryMerge(a, b)) merges++;
+          if (a != null && b != null && c.joinPile(a, b)) merges++;
         }
 
         if (c.state.mistyBiomeUnlocked &&

@@ -45,6 +45,9 @@ mixin GameMessagesMixin on State<GameScreen> {
         _showGoalComplete(text);
       case RoleAssigned():
         break;
+      case CapyGrew():
+        // Growth in a pile has the old merge sound (spec 006, Т8).
+        audio.playMerge();
       case CapyNamed(:final text):
         _showCapyNamed(text);
     }
@@ -90,7 +93,7 @@ mixin GameMessagesMixin on State<GameScreen> {
     });
   }
 
-  /// «Малыш подрос — теперь это Пуговка» (spec 004, С1). The merge already
+  /// «Малыш подрос — теперь это Пуговка» (spec 004, С1). The growth already
   /// played its sound.
   void _showCapyNamed(String text) {
     _afterFrame(() {

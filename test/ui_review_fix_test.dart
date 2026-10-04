@@ -435,7 +435,7 @@ void main() {
       }
       expect(full.state.grass, greaterThanOrEqualTo(126));
       expect(full.canCallCapy, isFalse);
-      expect(full.callCapyBlockedReason, 'Семья полная');
+      expect(full.callCapyBlockedReason, 'Мест нет — посади капи в кучку');
       full.dispose();
 
       SharedPreferences.setMockInitialValues({});

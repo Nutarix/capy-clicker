@@ -19,9 +19,16 @@ class GamePuddle extends GamePart {
   Offset center = const Offset(BalanceV0.mudCenterX, BalanceV0.mudCenterY);
   double _secondsLeft = 0;
 
-  /// Capy currently playing wallow on the puddle (null = idle puddle).
-  String? wallowingCapyId;
+  /// Capys playing wallow on the puddle now: one, or a pile in the puddle
+  /// (spec 006, С8). A new set on every change (screen compares identity).
+  Set<String> wallowingIds = const {};
   Timer? _wallowTimer;
+
+  /// The first wallowing capy (null = idle puddle).
+  String? get wallowingCapyId =>
+      wallowingIds.isEmpty ? null : wallowingIds.first;
+
+  bool isWallowing(String id) => wallowingIds.contains(id);
 
   /// Puddle anchor whose painted disc does not cover a resting body.
   ///
@@ -121,16 +128,28 @@ class GamePuddle extends GamePart {
       WorldZones.clampToMeadow(center, herdCount: core.meadows.meadowKey),
     );
 
-    wallowingCapyId = capyId;
-    _wallowTimer?.cancel();
-    _wallowTimer = Timer(BalanceV0.mudWallowAnimDuration, () {
-      wallowingCapyId = null;
-      core.notify();
-    });
+    _startBath({capyId});
 
     core.boosts.startMud();
     core.notify();
     return true;
+  }
+
+  /// [capyId] joined a pile that is wallowing: one shared bath. The boost is
+  /// the same as from one capy — not restarted, not stacked (Т7).
+  void joinBath(String capyId) {
+    if (!present || wallowingIds.contains(capyId)) return;
+    _startBath({...wallowingIds, capyId});
+    core.notify();
+  }
+
+  void _startBath(Set<String> ids) {
+    wallowingIds = Set.unmodifiable(ids);
+    _wallowTimer?.cancel();
+    _wallowTimer = Timer(BalanceV0.mudWallowAnimDuration, () {
+      wallowingIds = const {};
+      core.notify();
+    });
   }
 
   /// True if [normalized] is inside the mud puddle hit circle.
@@ -144,7 +163,7 @@ class GamePuddle extends GamePart {
   /// Meadow switch: the wallow stops, a live puddle moves clear of [herd].
   void onMeadowSwitch(List<Capybara> herd) {
     _wallowTimer?.cancel();
-    wallowingCapyId = null;
+    wallowingIds = const {};
     if (present) {
       center = pickCenter(core.meadows.meadowKey, herd: herd);
     }

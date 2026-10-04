@@ -40,38 +40,36 @@ void main() {
     c.dispose();
   });
 
-  test('merge same level yields level+1 with flash id', () async {
+  test('drop on a capy: a pile, nobody disappears, flash id', () async {
     final c = testController();
     await c.init();
     c.addProgress(1.0, fromTap: true); // now 2 capys Lv.1
     expect(c.state.herdCount, 2);
     final a = c.state.herd[0].id;
     final b = c.state.herd[1].id;
-    expect(c.tryMerge(a, b), isTrue);
-    expect(c.state.herdCount, 1);
-    expect(c.state.herd.single.level, 2);
-    expect(c.mergeFlashId, c.state.herd.single.id);
+    expect(c.joinPile(a, b), isTrue);
+    expect(c.state.herdCount, 2);
+    expect(c.placesUsed, 1);
+    expect(c.pileFlashId, a);
     c.dispose();
   });
 
-  test('chain merge reaches higher visual levels', () async {
+  test('peers in a pile reach higher visual levels', () async {
     final c = testController();
     await c.init();
-    // Spawn enough Lv.1 to merge up toward Lv.3+
     for (var i = 0; i < 3; i++) {
       c.addProgress(1.0, fromTap: true);
     }
     expect(c.state.herdCount, 4); // 1 start + 3
-    // Pairwise merge all Lv.1 → 2 Lv.2
-    while (true) {
-      final ones = c.state.herd.where((e) => e.level == 1).toList();
-      if (ones.length < 2) break;
-      expect(c.tryMerge(ones[0].id, ones[1].id), isTrue);
+    final ids = [for (final e in c.state.herd) e.id];
+    for (final id in ids.skip(1)) {
+      expect(c.joinPile(id, ids.first), isTrue);
     }
-    final twos = c.state.herd.where((e) => e.level == 2).toList();
-    expect(twos.length, greaterThanOrEqualTo(2));
-    expect(c.tryMerge(twos[0].id, twos[1].id), isTrue);
-    expect(c.state.herd.any((e) => e.level == 3), isTrue);
+    c.debugAdvance(BalanceV0.pilePeerSeconds(1) + 1);
+    c.debugAdvance(BalanceV0.pilePeerSeconds(2) + 1);
+    for (final id in ids) {
+      expect(c.state.herd.firstWhere((e) => e.id == id).level, 3);
+    }
     expect(
       BalanceV0.capySizeForLevel(5),
       greaterThan(BalanceV0.capySizeForLevel(1)),
@@ -88,7 +86,7 @@ void main() {
     c.dispose();
   });
 
-  test('herd soft-cap is 12', () async {
+  test('soft-cap is 12 places', () async {
     expect(BalanceV0.maxHerdSize, 12);
     final c = testController();
     await c.init();
@@ -149,12 +147,16 @@ void main() {
   test('zoom widens with Sunny Glade circles', () {
     expect(BalanceV0.zoomForHerdCount(1), BalanceV0.zoomClose);
     // Zoom bands follow **family power** (Σ levels), not raw headcount.
-    expect(BalanceV0.zoomForHerdCount(5), BalanceV0.zoomMid); // berry ≥5
-    expect(BalanceV0.zoomForHerdCount(9), BalanceV0.zoomMid);
-    expect(BalanceV0.zoomForHerdCount(10), BalanceV0.zoomFar); // sunny ≥10
-    expect(BalanceV0.zoomForHerdCount(15), BalanceV0.zoomFar);
-    expect(BalanceV0.zoomForHerdCount(16), BalanceV0.zoomWidest); // great ≥16
-    expect(BalanceV0.zoomForHerdCount(20), BalanceV0.zoomWidest);
+    const berry = BalanceV0.gladeBerryPower;
+    const sunny = BalanceV0.gladeSunnyPower;
+    const great = BalanceV0.gladeGreatPower;
+    expect(BalanceV0.zoomForHerdCount(berry - 1), BalanceV0.zoomClose);
+    expect(BalanceV0.zoomForHerdCount(berry), BalanceV0.zoomMid);
+    expect(BalanceV0.zoomForHerdCount(sunny - 1), BalanceV0.zoomMid);
+    expect(BalanceV0.zoomForHerdCount(sunny), BalanceV0.zoomFar);
+    expect(BalanceV0.zoomForHerdCount(great - 1), BalanceV0.zoomFar);
+    expect(BalanceV0.zoomForHerdCount(great), BalanceV0.zoomWidest);
+    expect(BalanceV0.zoomForHerdCount(great * 3), BalanceV0.zoomWidest);
   });
 
   test('glade unlock toast fires once when Berry Glade opens', () async {
@@ -163,12 +165,9 @@ void main() {
     expect(c.currentGlade.id, 'warm_edge');
     expect(c.gladeUnlockToast, isNull);
 
-    // Grow to 5 → unlock Ягодная поляна on forest map (stay on warm_edge).
-    c.addProgress(1.0, fromTap: true);
-    c.addProgress(1.0, fromTap: true);
-    c.addProgress(1.0, fromTap: true);
-    c.addProgress(1.0, fromTap: true);
-    expect(c.state.herdCount, 5);
+    // Grow to the Berry power → unlock Ягодная поляна (stay on warm_edge).
+    growFamily(c, () => c.state.sunnyGladeAnnounced >= 1);
+    expect(c.state.familyPower, BalanceV0.gladeBerryPower);
     expect(c.currentGlade.id, 'warm_edge');
     expect(c.gladeUnlockToast, 'Открылась Ягодная поляна');
     expect(c.state.sunnyGladeAnnounced, 1);
@@ -182,8 +181,8 @@ void main() {
     expect(c.gladeUnlockToast, isNull);
 
     // Further growth on warm — no re-toast.
-    c.addProgress(1.0, fromTap: true);
-    expect(c.state.herdCount, 6);
+    final herd = c.state.herdCount;
+    growFamily(c, () => c.state.herdCount > herd);
     expect(c.gladeUnlockToast, isNull);
     c.dispose();
   });
@@ -300,35 +299,16 @@ void main() {
     for (final capy in c.state.herd) {
       expect(WorldZones.isInMeadow(capy.position, herdCount: warmKey), isTrue);
     }
-    // Fill herd on warm_edge — stays on warm rect; 12×Lv1 = power 12 → Sunny.
+    // Fill places on warm_edge — stays on warm rect.
     for (var i = 0; i < 11; i++) {
       c.addProgress(1.0, fromTap: true);
     }
     expect(c.state.herdCount, BalanceV0.maxHerdSize);
-    expect(c.state.familyPower, 12);
     expect(c.currentGlade.id, 'warm_edge');
-    expect(
-      c.state.sunnyGladeAnnounced,
-      2,
-    ); // Great needs power ≥16 (merge path)
 
-    // Merge + refill until Great unlocks (power ≥16).
-    var guard = 0;
-    while (c.state.familyPower < 16 && guard < 40) {
-      guard++;
-      final ones = c.state.herd.where((e) => e.level == 1).toList();
-      if (ones.length >= 2) {
-        c.tryMerge(ones[0].id, ones[1].id);
-      } else {
-        final twos = c.state.herd.where((e) => e.level == 2).toList();
-        if (twos.length < 2) break;
-        c.tryMerge(twos[0].id, twos[1].id);
-      }
-      if (c.state.herdCount < BalanceV0.maxHerdSize) {
-        c.addProgress(1.0, fromTap: true);
-      }
-    }
-    expect(c.state.familyPower, greaterThanOrEqualTo(16));
+    // Spawn, pile and grow until Great unlocks by family power.
+    growFamily(c, () => c.state.sunnyGladeAnnounced >= 3);
+    expect(c.state.familyPower, greaterThanOrEqualTo(BalanceV0.gladeGreatPower));
     expect(c.state.sunnyGladeAnnounced, 3);
     for (final capy in c.state.herd) {
       expect(
@@ -379,45 +359,22 @@ void main() {
     expect(c.cameraZoom, greaterThanOrEqualTo(BalanceV0.zoomWidest));
 
     // Raise family power to unlock Great, then visit it.
-    var guard = 0;
-    while (c.state.familyPower < 16 && guard < 40) {
-      guard++;
-      final ones = c.state.herd.where((e) => e.level == 1).toList();
-      if (ones.length >= 2) {
-        c.tryMerge(ones[0].id, ones[1].id);
-      } else {
-        final twos = c.state.herd.where((e) => e.level == 2).toList();
-        if (twos.length < 2) break;
-        c.tryMerge(twos[0].id, twos[1].id);
-      }
-      if (c.state.herdCount < BalanceV0.maxHerdSize) {
-        c.addProgress(1.0, fromTap: true);
-      }
-    }
+    growFamily(c, () => c.state.sunnyGladeAnnounced >= 3);
     expect(c.state.sunnyGladeAnnounced, 3);
     expect(c.switchToMeadow('great_meadow'), isTrue);
     expect(c.cameraZoom, lessThanOrEqualTo(BalanceV0.zoomWidest + 0.001));
     c.dispose();
   });
 
-  test('unlocked meadow stays on map after merge shrinks herd', () async {
+  test('unlocked meadow stays on map after the family moves', () async {
     final c = testController();
     await c.init();
-    // Grow to 5 → Berry unlocks on forest map; stay on warm_edge.
-    c.addProgress(1.0, fromTap: true);
-    c.addProgress(1.0, fromTap: true);
-    c.addProgress(1.0, fromTap: true);
-    c.addProgress(1.0, fromTap: true);
-    expect(c.state.herdCount, 5);
+    growFamily(c, () => c.state.sunnyGladeAnnounced >= 1);
     expect(c.currentGlade.id, 'warm_edge');
-    expect(c.state.sunnyGladeAnnounced, 1);
     expect(c.state.isMeadowUnlocked('berry_glade'), isTrue);
 
-    // Merge 5 → 4: unlock is not revoked.
-    final a = c.state.herd[0].id;
-    final b = c.state.herd[1].id;
-    expect(c.tryMerge(a, b), isTrue);
-    expect(c.state.herdCount, 4);
+    // Pile everyone up and stand them back: power and unlock stay.
+    pileStep(c);
     expect(c.state.sunnyGladeAnnounced, 1);
     expect(c.state.isMeadowUnlocked('berry_glade'), isTrue);
     expect(c.switchToMeadow('berry_glade'), isTrue);
@@ -468,12 +425,8 @@ void main() {
     expect(c.currentSessionGoal?.id, 'berry_glade');
     expect(c.sessionGoalProgress, lessThan(1.0));
 
-    // Grow to 5 → Berry Glade + goal complete.
-    c.addProgress(1.0, fromTap: true);
-    c.addProgress(1.0, fromTap: true);
-    c.addProgress(1.0, fromTap: true);
-    c.addProgress(1.0, fromTap: true);
-    expect(c.state.herdCount, 5);
+    // Grow to the Berry power → Berry Glade + goal complete.
+    growFamily(c, () => c.state.sunnyGladeAnnounced >= 1);
     expect(c.state.sunnyGladeAnnounced, 1);
     expect(c.goalCompleteToast, isNotNull);
     expect(c.state.sessionGoalIndex, greaterThanOrEqualTo(1));
@@ -483,7 +436,7 @@ void main() {
     c.dispose();
   });
 
-  test('twin merge grants bonus grass', () async {
+  test('the pair in one pile grants bonus grass', () async {
     final c = testController();
     await c.init();
     c.addProgress(1.0, fromTap: true);
@@ -493,7 +446,7 @@ void main() {
     c.debugMarkTwins(a, b);
     expect(c.state.isTwinMarked(a), isTrue);
     final grassBefore = c.state.grass;
-    expect(c.tryMerge(a, b), isTrue);
+    expect(c.joinPile(a, b), isTrue);
     expect(
       c.state.grass,
       greaterThanOrEqualTo(grassBefore + BalanceV0.twinMergeBonusGrass),

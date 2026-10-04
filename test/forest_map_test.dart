@@ -73,11 +73,9 @@ void main() {
     final c = testController();
     await c.init();
 
-    // Grow warm herd to 5 → unlock berry with starter.
-    for (var i = 0; i < 4; i++) {
-      c.addProgress(1.0, fromTap: true);
-    }
-    expect(c.state.herdCount, 5);
+    // Grow warm family to the Berry power → unlock berry with starter.
+    growFamily(c, () => c.state.sunnyGladeAnnounced >= 1);
+    final warmCount = c.state.herdCount;
     expect(c.state.sunnyGladeAnnounced, 1);
     while (c.state.grass < 5) {
       c.onFlowerTap();
@@ -97,7 +95,7 @@ void main() {
     expect(c.state.herdCount, BalanceV0.meadowStarterHerdSize + 1);
 
     expect(c.switchToMeadow('warm_edge'), isTrue);
-    expect(c.state.herdCount, 5);
+    expect(c.state.herdCount, warmCount);
     expect(c.state.herd.map((e) => e.id).toSet(), warmIds);
     expect(c.state.grass, greaterThanOrEqualTo(grassBefore));
     expect(
@@ -112,9 +110,8 @@ void main() {
     await c.init();
     expect(c.unlockedMeadowIds, ['warm_edge']);
 
-    for (var i = 0; i < 4; i++) {
-      c.addProgress(1.0, fromTap: true);
-    }
+    growFamily(c, () => c.state.sunnyGladeAnnounced >= 1);
+    final warmCount = c.state.herdCount;
     expect(c.unlockedMeadowIds, ['warm_edge', 'berry_glade']);
     expect(
       c.herdCountForMeadow('berry_glade'),
@@ -126,7 +123,7 @@ void main() {
     );
     // Active meadow unchanged.
     expect(c.state.activeMeadowId, 'warm_edge');
-    expect(c.state.herdCount, 5);
+    expect(c.state.herdCount, warmCount);
     c.dispose();
   });
 
@@ -135,9 +132,8 @@ void main() {
     final persistence = GamePersistence();
     final c = testController(persistence: persistence);
     await c.init();
-    for (var i = 0; i < 4; i++) {
-      c.addProgress(1.0, fromTap: true);
-    }
+    growFamily(c, () => c.state.sunnyGladeAnnounced >= 1);
+    final warmCount = c.state.herdCount;
     expect(c.switchToMeadow('berry_glade'), isTrue);
     c.addProgress(1.0, fromTap: true);
     final berryCount = c.state.herdCount;
@@ -150,7 +146,7 @@ void main() {
     expect(c2.state.activeMeadowId, 'berry_glade');
     expect(c2.state.herdCount, berryCount);
     expect(c2.state.grass, grass);
-    expect(c2.herdCountForMeadow('warm_edge'), 5);
+    expect(c2.herdCountForMeadow('warm_edge'), warmCount);
     c2.dispose();
   });
 
@@ -184,9 +180,7 @@ void main() {
   test('grass never goes negative when switching meadows', () async {
     final c = testController();
     await c.init();
-    for (var i = 0; i < 4; i++) {
-      c.addProgress(1.0, fromTap: true);
-    }
+    growFamily(c, () => c.state.sunnyGladeAnnounced >= 1);
     expect(c.state.grass, greaterThanOrEqualTo(0));
     c.switchToMeadow('berry_glade');
     expect(c.state.grass, greaterThanOrEqualTo(0));
@@ -199,28 +193,22 @@ void main() {
     c.dispose();
   });
 
-  test('unlock thresholds by family power 5 / 10 / 16', () async {
+  test('unlock thresholds by family power (spec 006 numbers)', () async {
     final c = testController();
     await c.init();
     expect(c.state.sunnyGladeAnnounced, 0);
     expect(c.unlockedMeadowIds, ['warm_edge']);
 
-    // Start with 1; +4 → power 5 (5×Lv1) → berry.
-    for (var i = 0; i < 4; i++) {
-      c.addProgress(1.0, fromTap: true);
-    }
-    expect(c.state.herdCount, 5);
-    expect(c.state.familyPower, 5);
+    bool berry() => c.state.familyPower >= BalanceV0.gladeBerryPower;
+    growFamily(c, () => c.state.familyPower >= BalanceV0.gladeBerryPower - 1);
+    expect(berry(), isFalse);
+    expect(c.state.sunnyGladeAnnounced, 0);
+    growFamily(c, berry);
     expect(c.state.sunnyGladeAnnounced, 1);
     expect(c.state.isMeadowUnlocked('berry_glade'), isTrue);
     expect(c.state.isMeadowUnlocked('sunny_clearing'), isFalse);
 
-    // +5 → power 10 (10×Lv1) → sunny_clearing.
-    for (var i = 0; i < 5; i++) {
-      c.addProgress(1.0, fromTap: true);
-    }
-    expect(c.state.herdCount, 10);
-    expect(c.state.familyPower, 10);
+    growFamily(c, () => c.state.familyPower >= BalanceV0.gladeSunnyPower);
     expect(c.state.sunnyGladeAnnounced, 2);
     expect(c.state.isMeadowUnlocked('sunny_clearing'), isTrue);
     expect(c.state.isMeadowUnlocked('great_meadow'), isFalse);
@@ -228,49 +216,12 @@ void main() {
       c.herdCountForMeadow('sunny_clearing'),
       BalanceV0.meadowStarterHerdSize,
     );
+    // Places, not bodies: more capys than places.
+    expect(c.placesUsed, lessThanOrEqualTo(c.effectiveMaxHerdSize));
 
-    // Soft-cap bodies at 12 (= power 12) is not enough for Great (needs 16).
-    for (var i = 0; i < 2; i++) {
-      c.addProgress(1.0, fromTap: true);
-    }
-    expect(c.state.herdCount, 12);
-    expect(c.state.familyPower, 12);
-    expect(c.state.sunnyGladeAnnounced, 2);
-
-    // Merge + refill raises family power: each merge+spawn nets +1 power.
-    var guard = 0;
-    while (c.state.familyPower < 16 && guard < 40) {
-      guard++;
-      final ones = c.state.herd.where((e) => e.level == 1).toList();
-      if (ones.length >= 2) {
-        expect(c.tryMerge(ones[0].id, ones[1].id), isTrue);
-      } else {
-        final twos = c.state.herd.where((e) => e.level == 2).toList();
-        if (twos.length >= 2) {
-          expect(c.tryMerge(twos[0].id, twos[1].id), isTrue);
-        } else {
-          break;
-        }
-      }
-      // Freed soft-cap slot → spawn another Lv1.
-      if (c.state.herdCount < BalanceV0.maxHerdSize) {
-        c.addProgress(1.0, fromTap: true);
-      }
-    }
-    expect(c.state.familyPower, greaterThanOrEqualTo(16));
+    growFamily(c, () => c.state.familyPower >= BalanceV0.gladeGreatPower);
     expect(c.state.sunnyGladeAnnounced, 3);
-    expect(c.unlockedMeadowIds, [
-      'warm_edge',
-      'berry_glade',
-      'sunny_clearing',
-      'great_meadow',
-    ]);
-    expect(
-      c.herdCountForMeadow('great_meadow'),
-      BalanceV0.meadowStarterHerdSize,
-    );
-    // Active meadow still warm — unlock does not force switch.
-    expect(c.state.activeMeadowId, 'warm_edge');
+    expect(c.state.herdCount, greaterThan(BalanceV0.maxHerdSize));
     c.dispose();
   });
 
@@ -301,11 +252,13 @@ void main() {
   test('shared grass spend visible after meadow switch', () async {
     final c = testController();
     await c.init();
-    for (var i = 0; i < 4; i++) {
-      c.addProgress(1.0, fromTap: true);
-    }
+    growFamily(c, () => c.state.sunnyGladeAnnounced >= 1);
     while (c.state.grass < BalanceV0.callCapyGrassCost + 5) {
       c.onFlowerTap();
+    }
+    // A free place for the call: a single sits in a pile.
+    for (var i = 0; i < 5 && c.placesUsed >= c.effectiveMaxHerdSize; i++) {
+      pileStep(c);
     }
     final before = c.state.grass;
     expect(c.spendCallCapy(), isTrue);
@@ -330,11 +283,9 @@ void main() {
     await c.init();
 
     // Unlock berry on warm.
-    for (var i = 0; i < 4; i++) {
-      c.addProgress(1.0, fromTap: true);
-    }
+    growFamily(c, () => c.state.sunnyGladeAnnounced >= 1);
     final warmHerd = c.state.herdCount;
-    expect(warmHerd, 5);
+    expect(c.state.familyPower, BalanceV0.gladeBerryPower);
 
     // Visit berry, grow local herd, grass shared wallet grows via flowers.
     expect(c.switchToMeadow('berry_glade'), isTrue);
@@ -354,12 +305,12 @@ void main() {
     expect(c.state.grass, grassMid);
     expect(c.herdCountForMeadow('berry_glade'), berryHerd);
 
-    // Push warm to power 10 (10×Lv1) → unlock sunny_clearing without visiting.
-    for (var i = 0; i < 5; i++) {
-      c.addProgress(1.0, fromTap: true);
-    }
-    expect(c.state.herdCount, 10);
-    expect(c.state.familyPower, 10);
+    // Push warm to the Sunny power → unlock sunny_clearing without visiting.
+    growFamily(c, () => c.state.sunnyGladeAnnounced >= 2);
+    expect(
+      c.state.familyPower,
+      greaterThanOrEqualTo(BalanceV0.gladeSunnyPower),
+    );
     expect(c.state.sunnyGladeAnnounced, 2);
     expect(c.switchToMeadow('sunny_clearing'), isTrue);
     expect(c.state.herdCount, BalanceV0.meadowStarterHerdSize);

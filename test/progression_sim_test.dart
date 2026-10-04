@@ -144,7 +144,7 @@ void main() {
         if (a != null && b != null) {
           final beforeGrass = c.state.grass;
           final wasTwin = c.state.isTwinMarked(a) && c.state.isTwinMarked(b);
-          if (c.tryMerge(a, b)) {
+          if (c.joinPile(a, b)) {
             mergesDone++;
             if (wasTwin &&
                 c.state.grass >= beforeGrass + BalanceV0.twinMergeBonusGrass) {
