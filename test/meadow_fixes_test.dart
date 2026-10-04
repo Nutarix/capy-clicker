@@ -1,12 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'package:capy_clicker/features/game/audio/game_audio.dart';
+import 'package:capy_clicker/features/game/controllers/game_controller.dart';
+import 'package:capy_clicker/features/game/game_screen.dart';
+import 'package:capy_clicker/features/game/persistence/game_persistence.dart';
 
 import 'package:capy_clicker/features/game/models/multipliers/multipliers.dart';
 import 'package:capy_clicker/features/game/widgets/capybara_placeholder.dart';
 import 'package:capy_clicker/features/game/widgets/draggable_capybara.dart';
 import 'package:capy_clicker/features/game/widgets/floating_gain.dart';
 import 'package:capy_clicker/features/game/widgets/flower_dot.dart';
+import 'package:capy_clicker/features/game/widgets/morning_cozy_sheet.dart';
 import 'package:capy_clicker/features/game/widgets/screen/place_slot.dart';
 
 import 'support/meadow_harness.dart';
@@ -253,6 +260,44 @@ void main() {
       expect(h.controller.activePlaceBoost, CozyPlaceKind.pen);
       expect(n, 1);
       await h.dispose(tester);
+    });
+  });
+
+  group('С6 утренний уют', () {
+    testWidgets('🎁 right after the start: one sheet', (tester) async {
+      GameAudio.forceSilent = true;
+      SharedPreferences.setMockInitialValues(
+        meadowPrefs(herd: const [('c1', 1, 0.4, 0.7)], dailyTaken: false),
+      );
+      final c = GameController(
+        persistence: GamePersistence(),
+        now: () => meadowNow,
+        autoTick: false,
+      );
+      final audio = GameAudio(silent: true);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: GameScreen(controller: c, audio: audio),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(c.isDailyBonusAvailable, isTrue);
+      expect(find.byType(MorningCozySheet), findsNothing);
+
+      // The sheet would open by itself at ~700 ms; the player is faster.
+      await tester.tap(find.byTooltip('Утренний уют'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.byType(MorningCozySheet), findsOneWidget);
+      await tester.pump(const Duration(milliseconds: 1500));
+      expect(find.byType(MorningCozySheet), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox());
+      c.dispose();
+      audio.dispose();
+      await tester.pump(const Duration(seconds: 1));
+      GameAudio.forceSilent = false;
     });
   });
 }
