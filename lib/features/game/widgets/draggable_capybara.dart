@@ -112,8 +112,9 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
   /// True after a mid-drag magnet merge so onDragEnd skips drop/mud.
   bool _mergedDuringDrag = false;
 
-  /// Extra offset applied to feedback when soft-pulling toward a magnet.
-  Offset _pullOffset = Offset.zero;
+  /// Soft pull toward the magnet target, meadow pixels. The feedback is
+  /// built once at drag start, so it listens to this (spec 003, Т4).
+  final ValueNotifier<Offset> _pull = ValueNotifier(Offset.zero);
 
   /// Last finger point in meadow space (hit mud even if the sprite center misses).
   Offset? _lastPointerNorm;
@@ -326,6 +327,7 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
     _walkCycle.dispose();
     _walk.dispose();
     _dragScale.dispose();
+    _pull.dispose();
     super.dispose();
   }
 
@@ -518,9 +520,7 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
   void _updateMagnetVisual(MergeMagnetHit? hit, Offset dragNormalized) {
     if (hit == null) {
       _notifyMagnet(null);
-      if (_pullOffset != Offset.zero && mounted) {
-        setState(() => _pullOffset = Offset.zero);
-      }
+      _pull.value = Offset.zero;
       return;
     }
 
@@ -534,9 +534,7 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
     final dy = (pulled.dy - dragNormalized.dy) * widget.meadowSize.height;
     final nextPull = Offset(dx, dy);
     _notifyMagnet(hit.target.id);
-    if (_pullOffset != nextPull && mounted) {
-      setState(() => _pullOffset = nextPull);
-    }
+    _pull.value = nextPull;
   }
 
   void _onDragStarted() {
@@ -544,7 +542,7 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
     _lastPointerNorm = null;
     _cancelWalk(commit: false);
     _mergedDuringDrag = false;
-    _pullOffset = Offset.zero;
+    _pull.value = Offset.zero;
     _notifyMagnet(null);
     widget.onDragBadge?.call();
   }
@@ -571,7 +569,7 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
       if (_tryMagnetMerge(hit)) {
         _mergedDuringDrag = true;
         _notifyMagnet(null);
-        if (mounted) setState(() => _pullOffset = Offset.zero);
+        _pull.value = Offset.zero;
       }
     }
   }
@@ -581,7 +579,7 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
     _mergedDuringDrag = false;
     _dragging = false;
     _notifyMagnet(null);
-    if (mounted) setState(() => _pullOffset = Offset.zero);
+    _pull.value = Offset.zero;
 
     if (mergedAlready || details.wasAccepted) {
       _scheduleWander(CapyWander.pauseBetweenWalks(_rng.nextDouble));
@@ -706,14 +704,26 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
                 dragAnchorStrategy: _dragAnchorStrategy,
                 // Built once at drag start: what changes later is listened to.
                 feedback: ValueListenableBuilder<double>(
+                  key: const ValueKey('capy-drag-feedback'),
                   valueListenable: _dragScale,
                   builder: (context, scale, child) => Transform.scale(
                     scale: scale,
                     alignment: Alignment.topLeft,
                     child: child,
                   ),
-                  child: Transform.translate(
-                    offset: _pullOffset,
+                  // Pull in meadow pixels, inside the scale; eased so the
+                  // lean is soft, not a jump at the magnet edge.
+                  child: ValueListenableBuilder<Offset>(
+                    valueListenable: _pull,
+                    builder: (context, pull, child) =>
+                        TweenAnimationBuilder<Offset>(
+                          tween: Tween(begin: Offset.zero, end: pull),
+                          duration: const Duration(milliseconds: 140),
+                          curve: Curves.easeOut,
+                          builder: (context, offset, child) =>
+                              Transform.translate(offset: offset, child: child),
+                          child: child,
+                        ),
                     child: Material(
                       color: Colors.transparent,
                       child: Opacity(
