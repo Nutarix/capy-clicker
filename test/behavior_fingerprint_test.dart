@@ -131,7 +131,7 @@ void main() {
     final h5 = [for (final x in c.state.herd) x.id];
     fp.mark('pile', c, extra: {'ok': c.joinPile(h5[1], h5[0])});
     await tester.pump(
-      BalanceV0.mergeFlashDuration + const Duration(milliseconds: 20),
+      BalanceV0.pileFlashDuration + const Duration(milliseconds: 20),
     );
     fp.mark('pile flash over', c);
     fp.mark('pile same', c, extra: {'ok': c.joinPile(h5[0], h5[1])});

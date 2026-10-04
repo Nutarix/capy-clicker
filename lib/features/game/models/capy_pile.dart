@@ -148,3 +148,34 @@ abstract final class CapyPiles {
     return (herd: next, grown: order);
   }
 }
+
+/// The family as the meadow draws it: equal when everything but growth is
+/// equal (spec 006). Growth moves every tick and is not shown, so the meadow
+/// does not rebuild for it.
+class HerdLook {
+  const HerdLook(this.herd);
+
+  final List<Capybara> herd;
+
+  static bool _same(Capybara a, Capybara b) =>
+      identical(a, b) || a == b || a.copyWith(growth: b.growth) == b;
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! HerdLook) return false;
+    final a = herd;
+    final b = other.herd;
+    if (identical(a, b)) return true;
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (!_same(a[i], b[i])) return false;
+    }
+    return true;
+  }
+
+  @override
+  int get hashCode => Object.hashAll([
+    for (final c in herd) Object.hash(c.id, c.level, c.position, c.pileId),
+  ]);
+}

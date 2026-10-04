@@ -219,17 +219,17 @@ abstract final class BalanceV0 {
   /// Alternate flavor (docs): mud-boost equivalent duration if we ever switch reward.
   static const Duration dailyBonusMudBoostEquivalent = Duration(seconds: 30);
 
-  // --- Soft magnetic merge (drag assist only) ---
+  // --- Soft magnet (drag assist only; spec 006: toward capys and piles) ---
 
   /// Normalized meadow distance within which a dragged capy gently attracts
-  /// toward the nearest same-level neighbour and can complete a merge.
+  /// toward the nearest capy or pile and can seat it there.
   /// Tuned local (~1/10 meadow) — does NOT magnet across the whole field.
   /// Compare: minSpawnSeparation = 0.14; mudHitRadius = 0.11.
-  /// Playtest P1: slightly tighter than 0.10 to cut accidental mid-drag merges.
+  /// Playtest P1: slightly tighter than 0.10 to cut accidental mid-drag seats.
   static const double magnetRadius = 0.085;
 
   /// Mid-drag auto-complete when distance ≤ magnetRadius * this fraction.
-  /// Drag-end still merges for any hit within the full [magnetRadius].
+  /// Drag-end still seats for any hit within the full [magnetRadius].
   /// Mid-drag auto-complete band (tighter → more release-to-snap).
   static const double magnetSnapFraction = 0.42;
 
@@ -256,8 +256,9 @@ abstract final class BalanceV0 {
   /// Showable v1: 6 → 10 — funds first permanent right after wow.
   static const int gladeUnlockGrass = 10;
 
-  /// Bonus grass for merging a marked twin-sparkle pair.
-  static const int twinMergeBonusGrass = 5;
+  /// Bonus grass when the marked «хотят посидеть рядом» pair sits in one
+  /// pile (spec 006; was the twin merge).
+  static const int pairBonusGrass = 5;
 
   /// Soft celebration grass when a session goal completes.
   /// Showable v1: 4 → 6.
@@ -272,14 +273,14 @@ abstract final class BalanceV0 {
   static const double grassBoostMultiplier = 1.5;
   static const Duration grassBoostDuration = Duration(seconds: 6);
 
-  // --- Twin sparkle (merge skill window) ---
+  // --- «Хотят посидеть рядом» pair (former twin sparkle) ---
 
   /// How often we try to mark a same-level pair (seconds).
   /// Playtest v1.1: 18 → 36 — rare skill window (~30–60s feel), not permanent glow.
   static const int twinRerollSeconds = 36;
 
-  /// After a successful twin-merge bonus, delay before next mark attempt.
-  static const int twinPostMergeCooldownSeconds = 28;
+  /// After the pair bonus, delay before next mark attempt.
+  static const int pairPostBonusCooldownSeconds = 28;
 
   /// Chance to actually mark a pair on a reroll (else quiet gap).
   static const double twinMarkChance = 0.55;
@@ -425,8 +426,8 @@ abstract final class BalanceV0 {
 
   // --- Juice / tips ---
 
-  /// Brief merge flash duration on the new merged capy.
-  static const Duration mergeFlashDuration = Duration(milliseconds: 520);
+  /// Brief flash on a capy that sat in a pile or grew.
+  static const Duration pileFlashDuration = Duration(milliseconds: 520);
 
   /// SharedPreferences key: first-launch tip overlay dismissed.
   static const String tipsSeenKey = 'capy_clicker_tips_seen_v1_2';

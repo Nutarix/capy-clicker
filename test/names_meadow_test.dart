@@ -110,14 +110,14 @@ void main() {
     );
     expect(h.controller.joinPile('c1', 'c2'), isTrue);
     h.controller.debugAdvance(BalanceV0.pileCatchUpSeconds(1) + 1);
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
     final grown = h.controller.state.herd.firstWhere((x) => x.id == 'c1');
     expect(grown.level, 2);
-    expect(
-      find.text('Малыш подрос — теперь это ${grown.displayNameRu}'),
-      findsOneWidget,
-    );
+    // Plates queue (a puddle may come first): wait for ours.
+    final plate = find.text('Малыш подрос — теперь это ${grown.displayNameRu}');
+    for (var i = 0; i < 200 && plate.evaluate().isEmpty; i++) {
+      await tester.pump(const Duration(milliseconds: 250));
+    }
+    expect(plate, findsOneWidget);
     await h.dispose(tester);
   });
 

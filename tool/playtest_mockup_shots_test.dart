@@ -23,7 +23,7 @@ import 'package:capy_clicker/features/game/models/balance.dart';
 import 'package:capy_clicker/features/game/persistence/game_persistence.dart';
 import 'package:capy_clicker/features/game/widgets/home_meadow_scene.dart';
 import 'package:capy_clicker/features/game/widgets/mud_puddle.dart';
-import 'package:capy_clicker/features/game/widgets/quiet_merge_arc.dart';
+import 'package:capy_clicker/features/game/widgets/quiet_pair_arc.dart';
 import 'package:capy_clicker/theme/cozy_theme.dart';
 
 String _today() => GameController.calendarDayKey(DateTime.now());
@@ -212,7 +212,10 @@ void main() {
       reason: 'puddle should sit on the grass',
     );
 
-    expect(find.byType(QuietMergeArc), findsOneWidget);
+    // The arc joins the «хотят посидеть рядом» pair (spec 006).
+    c.debugMarkTwins('c1', 'c2');
+    await tester.pump(const Duration(milliseconds: 40));
+    expect(find.byType(QuietPairArc), findsOneWidget);
     await _shoot(tester, '02-meadow-early');
 
     // Drag the pair even closer without releasing into a merge, then drop

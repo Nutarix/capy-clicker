@@ -220,7 +220,7 @@ void main() {
       c.debugMarkTwins('c1', 'c2');
       final grass = c.state.grass;
       expect(c.joinPile('c1', 'c2'), isTrue);
-      expect(c.state.grass, grass + BalanceV0.twinMergeBonusGrass);
+      expect(c.state.grass, grass + BalanceV0.pairBonusGrass);
       expect(c.state.twinIdA, isNull);
       c.dispose();
     });
@@ -234,7 +234,7 @@ void main() {
       c.debugMarkTwins('c2', 'c3');
       final grass = c.state.grass;
       expect(c.joinPile('c3', 'c1'), isTrue);
-      expect(c.state.grass, grass + BalanceV0.twinMergeBonusGrass);
+      expect(c.state.grass, grass + BalanceV0.pairBonusGrass);
       c.dispose();
     });
 

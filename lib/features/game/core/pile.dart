@@ -78,12 +78,12 @@ class GamePile extends GamePart {
       state.copyWith(
         herd: herd,
         nextId: nextId,
-        grass: state.grass + (pair ? BalanceV0.twinMergeBonusGrass : 0),
+        grass: state.grass + (pair ? BalanceV0.pairBonusGrass : 0),
         clearTwin: pair,
       ),
     );
     if (pair) {
-      twinRerollIn = BalanceV0.twinPostMergeCooldownSeconds.toDouble();
+      twinRerollIn = BalanceV0.pairPostBonusCooldownSeconds.toDouble();
     }
     // A pile in the puddle: one shared bath, the boost as from one (С8).
     if (core.puddle.isWallowing(targetId)) core.puddle.joinBath(draggedId);
@@ -122,7 +122,7 @@ class GamePile extends GamePart {
   void _flash(String id) {
     flashId = id;
     _flashTimer?.cancel();
-    _flashTimer = Timer(BalanceV0.mergeFlashDuration, () {
+    _flashTimer = Timer(BalanceV0.pileFlashDuration, () {
       flashId = null;
       core.notify();
     });

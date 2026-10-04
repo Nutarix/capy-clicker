@@ -48,7 +48,7 @@ void main() {
                   herd: [capy],
                   herdCount: 1,
                   meadowSize: const Size(360, 640),
-                  onMerge: (a, b) => false,
+                  onSit: (a, b) => false,
                   onDropPosition: (id, p) {},
                   onMudDrop: (_) => false,
                   isOverMud: (_) => false,

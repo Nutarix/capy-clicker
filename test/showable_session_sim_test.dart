@@ -246,7 +246,7 @@ void main() {
           if (c.joinPile(a, b)) {
             merges++;
             if (wasTwin &&
-                c.state.grass >= beforeGrass + BalanceV0.twinMergeBonusGrass) {
+                c.state.grass >= beforeGrass + BalanceV0.pairBonusGrass) {
               twinMerges++;
               twinBonusAt ??= simSeconds;
             }

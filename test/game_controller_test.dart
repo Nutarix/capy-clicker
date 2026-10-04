@@ -449,7 +449,7 @@ void main() {
     expect(c.joinPile(a, b), isTrue);
     expect(
       c.state.grass,
-      greaterThanOrEqualTo(grassBefore + BalanceV0.twinMergeBonusGrass),
+      greaterThanOrEqualTo(grassBefore + BalanceV0.pairBonusGrass),
     );
     expect(c.state.twinIdA, isNull);
     c.dispose();
