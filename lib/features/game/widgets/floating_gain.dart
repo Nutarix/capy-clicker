@@ -103,21 +103,24 @@ class _FloatingGainPopupState extends State<_FloatingGainPopup>
     super.dispose();
   }
 
-  Offset _toLayer(Offset global) {
+  /// The layer's stack, not this popup: the popup has no box on its first
+  /// build, and its own box moves with the label. A layer born in this very
+  /// frame is not laid out yet: use the screen point once, ask again.
+  Offset _anchor() {
+    final cached = _local;
+    if (cached != null) return cached;
+    final global = widget.event.globalAnchor;
     final layer = context.findAncestorRenderObjectOfType<RenderStack>();
-    if (layer == null || !layer.attached) return global;
-    return layer.globalToLocal(global);
+    if (layer == null || !layer.attached || !layer.hasSize) return global;
+    return _local = layer.globalToLocal(global);
   }
 
   @override
   Widget build(BuildContext context) {
-    // The layer's stack, not this popup: the popup has no box on its
-    // first build, and its own box moves with the label.
-    final local = _local ??= _toLayer(widget.event.globalAnchor);
-
     return AnimatedBuilder(
       animation: _ctrl,
       builder: (context, _) {
+        final local = _anchor();
         return Positioned(
           left: local.dx - 36,
           top: local.dy - 18 + _dy.value,
