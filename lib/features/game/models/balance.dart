@@ -363,6 +363,66 @@ abstract final class BalanceV0 {
   static const double researchBerryRespawnFactor = 0.85;
   static const double researchFoodDropBonus = 0.10;
 
+  // --- Pile (spec 006, docs/BALANCE_KUCHKA.md) ---
+
+  /// At most this many capys sit in one pile; the next one is softly refused.
+  static const int pileMaxSize = 4;
+
+  /// Seconds for one catch-up step in a pile (a younger capy toward the
+  /// eldest), by the capy's current level. Index 0 = level 1 → 2.
+  static const List<double> pileCatchUpSecondsByLevel = [
+    120,
+    180,
+    300,
+    480,
+    720,
+  ];
+
+  /// Seconds for one step of three or more peers (the eldest level of the
+  /// pile grows), by their current level. Index 0 = level 1 → 2.
+  static const List<double> pilePeerSecondsByLevel = [
+    300,
+    1200,
+    2700,
+    4800,
+    7200,
+  ];
+
+  /// Past the tables each level takes this much longer than the last.
+  static const double pileLevelTimeGrowth = 1.5;
+
+  /// A nanny in the pile: the whole pile grows this much faster.
+  static const double pileNanyaGrowBonus = 0.5;
+
+  static double _byLevel(List<double> table, int level) {
+    final i = level < 1 ? 0 : level - 1;
+    if (i < table.length) return table[i];
+    var s = table.last;
+    for (var k = table.length - 1; k < i; k++) {
+      s *= pileLevelTimeGrowth;
+    }
+    return s;
+  }
+
+  /// One catch-up step for a capy of [level] (spec 006, Т3).
+  static double pileCatchUpSeconds(int level) =>
+      _byLevel(pileCatchUpSecondsByLevel, level);
+
+  /// One peer step for capys of [level] (spec 006, Т3).
+  static double pilePeerSeconds(int level) =>
+      _byLevel(pilePeerSecondsByLevel, level);
+
+  // --- Glades and goals by family power (spec 006, Т9) ---
+
+  /// Family power (sum of levels on the meadow) that opens each glade.
+  static const int gladeBerryPower = 30;
+  static const int gladeSunnyPower = 80;
+  static const int gladeGreatPower = 150;
+
+  /// Session goal «Капи Lv.N» after the Great Meadow; with it the misty
+  /// grove opens.
+  static const int goalCapyLevel = 4;
+
   // --- Juice / tips ---
 
   /// Brief merge flash duration on the new merged capy.

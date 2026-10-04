@@ -14,6 +14,8 @@ class Capybara {
     this.nameEpithet = false,
     this.customName,
     this.trait,
+    this.pileId,
+    this.growth = 0,
   });
 
   final String id;
@@ -37,7 +39,17 @@ class Capybara {
   /// One trait per named capy: meadow behavior only.
   final CapyTrait? trait;
 
+  /// The pile this capy sits in (spec 006), or null on its own.
+  /// Everyone with the same id on a meadow is one pile.
+  final String? pileId;
+
+  /// Growth toward the next level, 0–1. Grows only in a pile; kept when the
+  /// capy stands up.
+  final double growth;
+
   bool get isNamed => nameKey != null;
+
+  bool get inPile => pileId != null;
 
   /// Shown name: the player's own, else the game name in RU. Null for a baby.
   String? get displayNameRu {
@@ -64,6 +76,9 @@ class Capybara {
     String? customName,
     bool clearCustomName = false,
     CapyTrait? trait,
+    String? pileId,
+    bool clearPile = false,
+    double? growth,
   }) {
     return Capybara(
       id: id ?? this.id,
@@ -74,11 +89,13 @@ class Capybara {
       nameEpithet: nameEpithet ?? this.nameEpithet,
       customName: clearCustomName ? null : (customName ?? this.customName),
       trait: trait ?? this.trait,
+      pileId: clearPile ? null : (pileId ?? this.pileId),
+      growth: growth ?? this.growth,
     );
   }
 
-  /// Name fields go last and only when set: an unnamed capy writes the same
-  /// JSON as before spec 004.
+  /// Name and pile fields go last and only when set: an unnamed capy on its
+  /// own writes the same JSON as before specs 004 and 006.
   Map<String, dynamic> toJson() => {
     'id': id,
     'level': level,
@@ -89,6 +106,8 @@ class Capybara {
     if (nameEpithet) 'epithet': true,
     if (customName != null) 'customName': customName,
     if (trait != null) 'trait': trait!.id,
+    if (pileId != null) 'pile': pileId,
+    if (growth > 0) 'grow': growth,
   };
 
   factory Capybara.fromJson(Map<String, dynamic> json) {
@@ -104,6 +123,8 @@ class Capybara {
       nameEpithet: json['epithet'] as bool? ?? false,
       customName: json['customName'] as String?,
       trait: CapyTraitX.tryParse(json['trait'] as String?),
+      pileId: json['pile'] as String?,
+      growth: (json['grow'] as num?)?.toDouble() ?? 0,
     );
   }
 
@@ -119,7 +140,9 @@ class Capybara {
           nameKey == other.nameKey &&
           nameEpithet == other.nameEpithet &&
           customName == other.customName &&
-          trait == other.trait;
+          trait == other.trait &&
+          pileId == other.pileId &&
+          growth == other.growth;
 
   @override
   int get hashCode => Object.hash(
@@ -131,5 +154,7 @@ class Capybara {
     nameEpithet,
     customName,
     trait,
+    pileId,
+    growth,
   );
 }
