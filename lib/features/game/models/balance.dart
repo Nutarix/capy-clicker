@@ -416,13 +416,13 @@ abstract final class BalanceV0 {
   // --- Glades and goals by family power (spec 006, Т9) ---
 
   /// Family power (sum of levels on the meadow) that opens each glade.
-  static const int gladeBerryPower = 30;
-  static const int gladeSunnyPower = 80;
-  static const int gladeGreatPower = 150;
+  static const int gladeBerryPower = 75;
+  static const int gladeSunnyPower = 115;
+  static const int gladeGreatPower = 160;
 
   /// Session goal «Капи Lv.N» after the Great Meadow; with it the misty
   /// grove opens.
-  static const int goalCapyLevel = 4;
+  static const int goalCapyLevel = 5;
 
   // --- Juice / tips ---
 

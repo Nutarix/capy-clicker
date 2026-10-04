@@ -167,7 +167,10 @@ void main() {
 
     // Grow to the Berry power → unlock Ягодная поляна (stay on warm_edge).
     growFamily(c, () => c.state.sunnyGladeAnnounced >= 1);
-    expect(c.state.familyPower, BalanceV0.gladeBerryPower);
+    expect(
+      c.state.familyPower,
+      greaterThanOrEqualTo(BalanceV0.gladeBerryPower),
+    );
     expect(c.currentGlade.id, 'warm_edge');
     expect(c.gladeUnlockToast, 'Открылась Ягодная поляна');
     expect(c.state.sunnyGladeAnnounced, 1);
@@ -181,8 +184,8 @@ void main() {
     expect(c.gladeUnlockToast, isNull);
 
     // Further growth on warm — no re-toast.
-    final herd = c.state.herdCount;
-    growFamily(c, () => c.state.herdCount > herd);
+    c.addProgress(0.5, fromTap: true);
+    c.debugAdvance(5);
     expect(c.gladeUnlockToast, isNull);
     c.dispose();
   });

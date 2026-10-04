@@ -105,7 +105,7 @@ abstract final class SessionGoals {
       gladeIndex: 3,
     ),
     SessionGoal(
-      id: 'capy_lv4',
+      id: 'capy_level',
       kind: SessionGoalKind.maxLevel,
       titleRu: 'Капи Lv.${BalanceV0.goalCapyLevel}',
       celebrationRu: 'Цель достигнута: Капи Lv.${BalanceV0.goalCapyLevel}!',

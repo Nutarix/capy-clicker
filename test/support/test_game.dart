@@ -111,12 +111,22 @@ bool pileStep(GameController c) {
   }
   if (c.placesUsed < c.effectiveMaxHerdSize) return false;
   // Every place taken by piles: the smallest pile's youngest moves on.
-  final small = piles.entries.where((e) => e.value.length < 3).toList()
+  final small = piles.entries
+      .where((e) => e.value.length < BalanceV0.pileMaxSize)
+      .toList()
     ..sort((a, b) => a.value.length.compareTo(b.value.length));
   for (final e in small) {
     final young = e.value.reduce((a, b) => a.level <= b.level ? a : b);
     final target = pileFor(young, notPile: e.key);
     if (target != null) return c.joinPile(young.id, target);
+  }
+  // Nothing sensible: any pile with room takes the smallest pile's youngest.
+  for (final e in small) {
+    final young = e.value.reduce((a, b) => a.level <= b.level ? a : b);
+    for (final o in small) {
+      if (o.key == e.key) continue;
+      if (c.joinPile(young.id, o.value.first.id)) return true;
+    }
   }
   return false;
 }
@@ -135,4 +145,27 @@ void growFamily(
       c.debugAdvance(20);
     }
   }
+}
+
+/// The marked «хотят посидеть рядом» pair sits together when there is room.
+bool sitThePair(GameController c) {
+  final a = c.state.twinIdA;
+  final b = c.state.twinIdB;
+  if (a == null || b == null) return false;
+  return c.joinPile(a, b) || c.joinPile(b, a);
+}
+
+/// The nanny goes to the pile with the highest eldest (it speeds that pile).
+/// Returns true when the nanny moved.
+bool nannyToTopPile(GameController c) {
+  final piles = CapyPiles.groups(c.state.herd).values.toList();
+  if (piles.isEmpty) return false;
+  int top(List<Capybara> m) => m.map((x) => x.level).reduce(max);
+  piles.sort((x, y) => top(y).compareTo(top(x)));
+  final pile = piles.first;
+  if (pile.any((x) => x.role == CapyRole.nanya)) return false;
+  final eldest = pile.reduce((x, y) => x.level >= y.level ? x : y);
+  if (eldest.role != null) return false;
+  c.clearRole(CapyRole.nanya);
+  return c.assignRole(eldest.id, CapyRole.nanya);
 }

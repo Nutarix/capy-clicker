@@ -69,7 +69,7 @@ void main() {
   });
 
   test(
-    'Great Glade + Lv.4 grants first Уют and unlocks Туманный бор',
+    'Great Glade + the goal level grants first Уют and unlocks Туманный бор',
     () async {
       SharedPreferences.setMockInitialValues({
         'capy_clicker_game_state_v1': jsonEncode({
@@ -77,19 +77,19 @@ void main() {
           'nextId': 30,
           'sunnyGladeAnnounced': 3,
           'grass': 12,
-          'sessionGoalIndex': 3, // capy_lv4 pending
+          'sessionGoalIndex': 3, // capy_level pending
           'activeMeadowId': 'warm_edge',
           'uyut': 0,
           'mistyBiomeUnlocked': false,
           'herd': [
-            {'id': 'c1', 'level': 4, 'x': 0.5, 'y': 0.7},
+            {'id': 'c1', 'level': BalanceV0.goalCapyLevel, 'x': 0.5, 'y': 0.7},
             {'id': 'c2', 'level': 1, 'x': 0.4, 'y': 0.65},
           ],
           'meadows': {
             'warm_edge': {
               'herdProgress': 0.0,
               'herd': [
-                {'id': 'c1', 'level': 4, 'x': 0.5, 'y': 0.7},
+                {'id': 'c1', 'level': BalanceV0.goalCapyLevel, 'x': 0.5, 'y': 0.7},
                 {'id': 'c2', 'level': 1, 'x': 0.4, 'y': 0.65},
               ],
             },
@@ -130,7 +130,7 @@ void main() {
       );
       // Goals advanced past unlock; not «closed».
       expect(c.currentSessionGoal, isNotNull);
-      expect(c.currentSessionGoal!.id, isNot('capy_lv4'));
+      expect(c.currentSessionGoal!.id, isNot('capy_level'));
       expect(c.currentSessionGoal!.titleRu, isNot('Цели закрыты'));
 
       // Enter misty — fresh starter family; sunny meadows keep theirs.

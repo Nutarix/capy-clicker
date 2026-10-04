@@ -85,13 +85,7 @@ void main() {
   test('a capy on another meadow can be renamed', () async {
     final (c, capy) = await grown(GamePersistence());
     // Grow until a second meadow opens, then go there.
-    for (var i = 0; i < 400 && c.state.sunnyGladeAnnounced < 1; i++) {
-      if (c.placesUsed < c.effectiveMaxHerdSize) {
-        c.addProgress(1.0, fromTap: false);
-      } else if (!pileStep(c)) {
-        break;
-      }
-    }
+    growFamily(c, () => c.state.sunnyGladeAnnounced >= 1);
     expect(c.state.sunnyGladeAnnounced, greaterThanOrEqualTo(1));
     final home = c.state.activeMeadowId;
     final named = c.state.herd.firstWhere((x) => x.isNamed);

@@ -7,6 +7,7 @@ import 'package:capy_clicker/features/game/models/balance.dart';
 import 'package:capy_clicker/features/game/models/capybara.dart';
 import 'package:capy_clicker/features/game/models/game_state.dart';
 import 'package:capy_clicker/features/game/models/meadow_snapshot.dart';
+import 'package:capy_clicker/features/game/models/multipliers/family_food.dart';
 import 'package:capy_clicker/features/game/models/world_zones.dart';
 import 'package:capy_clicker/features/game/persistence/game_persistence.dart';
 
@@ -199,11 +200,12 @@ void main() {
     expect(c.state.sunnyGladeAnnounced, 0);
     expect(c.unlockedMeadowIds, ['warm_edge']);
 
-    bool berry() => c.state.familyPower >= BalanceV0.gladeBerryPower;
-    growFamily(c, () => c.state.familyPower >= BalanceV0.gladeBerryPower - 1);
-    expect(berry(), isFalse);
-    expect(c.state.sunnyGladeAnnounced, 0);
-    growFamily(c, berry);
+    // Below the Berry power nothing opens; at it, Ягодная does.
+    growFamily(c, () {
+      final berry = c.state.familyPower >= BalanceV0.gladeBerryPower;
+      if (!berry) expect(c.state.sunnyGladeAnnounced, 0);
+      return berry;
+    });
     expect(c.state.sunnyGladeAnnounced, 1);
     expect(c.state.isMeadowUnlocked('berry_glade'), isTrue);
     expect(c.state.isMeadowUnlocked('sunny_clearing'), isFalse);
@@ -256,13 +258,10 @@ void main() {
     while (c.state.grass < BalanceV0.callCapyGrassCost + 5) {
       c.onFlowerTap();
     }
-    // A free place for the call: a single sits in a pile.
-    for (var i = 0; i < 5 && c.placesUsed >= c.effectiveMaxHerdSize; i++) {
-      pileStep(c);
-    }
+    // The meadow may be full by now (places): spend on food instead.
     final before = c.state.grass;
-    expect(c.spendCallCapy(), isTrue);
-    expect(c.state.grass, before - BalanceV0.callCapyGrassCost);
+    expect(c.buyFood(FamilyFood.travka), isTrue);
+    expect(c.state.grass, before - BalanceV0.grassToTravkaCost);
     final afterSpend = c.state.grass;
 
     expect(c.switchToMeadow('berry_glade'), isTrue);
@@ -285,7 +284,10 @@ void main() {
     // Unlock berry on warm.
     growFamily(c, () => c.state.sunnyGladeAnnounced >= 1);
     final warmHerd = c.state.herdCount;
-    expect(c.state.familyPower, BalanceV0.gladeBerryPower);
+    expect(
+      c.state.familyPower,
+      greaterThanOrEqualTo(BalanceV0.gladeBerryPower),
+    );
 
     // Visit berry, grow local herd, grass shared wallet grows via flowers.
     expect(c.switchToMeadow('berry_glade'), isTrue);
