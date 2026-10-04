@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:capy_clicker/features/game/controllers/game_controller.dart';
+import 'package:capy_clicker/features/game/widgets/draggable_capybara.dart';
 
 import 'support/meadow_harness.dart';
 
@@ -35,6 +36,25 @@ void main() {
     expect(find.text('Пуговка · Lv.2'), findsOneWidget, reason: 'lingers');
     await tester.pump(const Duration(milliseconds: 1200));
     expect(find.text('Пуговка · Lv.2'), findsNothing);
+    await h.dispose(tester);
+  });
+
+  testWidgets('the touched capy paints over the others: chip never covered', (
+    tester,
+  ) async {
+    final h = await MeadowHarness.pump(tester, prefs());
+    List<String> order() => [
+      for (final e in find.byType(MeadowDraggableCapybara).evaluate())
+        (e.widget as MeadowDraggableCapybara).capybara.id,
+    ];
+    expect(order().last, isNot('c1'), reason: 'c1 is not last at rest');
+
+    final g = await tester.startGesture(tester.getCenter(h.capy('c1')));
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(order().last, 'c1', reason: 'touched: painted last');
+    await g.up();
+    await tester.pump(const Duration(milliseconds: 2500));
+    expect(order().last, isNot('c1'), reason: 'chip gone: back in line');
     await h.dispose(tester);
   });
 

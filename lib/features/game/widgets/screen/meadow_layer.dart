@@ -353,7 +353,9 @@ class _MeadowLayerState extends State<MeadowLayer> {
                   ),
                 if (QuietMergeArc.pairFor(herd, Size(w, h)) case final pair?)
                   QuietMergeArc(from: pair.$1, to: pair.$2),
-                for (final capy in herd)
+                // A capy showing its name (touched, merge target) paints last,
+                // so passing capys never cover the chip. Keys keep state.
+                for (final capy in _paintOrder(herd))
                   _capy(capy, view, meadowKey, Size(w, h), props),
               ],
             ),
@@ -361,6 +363,13 @@ class _MeadowLayerState extends State<MeadowLayer> {
         ),
       ),
     );
+  }
+
+  List<Capybara> _paintOrder(List<Capybara> herd) {
+    bool onTop(Capybara c) =>
+        _namesShown.contains(c.id) || _magnetAttractedId == c.id;
+    if (!herd.any(onTop)) return herd;
+    return [...herd.where((c) => !onTop(c)), ...herd.where(onTop)];
   }
 
   Widget _capy(
