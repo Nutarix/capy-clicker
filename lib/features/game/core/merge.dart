@@ -32,14 +32,20 @@ class GameMerge extends GamePart {
         .where((c) => c.id != draggedId && c.id != targetId)
         .toList();
 
-    final merged = Capybara(
-      id: 'c${state.nextId}',
-      level: newLevel,
-      position: WorldZones.clampToMeadow(
-        target.position,
-        herdCount: core.meadows.meadowKey,
+    // Name: the target's, else the dragged one's, else a new one (spec 004,
+    // transitional rule until the pile of spec 006).
+    final merged = core.names.nameMerged(
+      Capybara(
+        id: 'c${state.nextId}',
+        level: newLevel,
+        position: WorldZones.clampToMeadow(
+          target.position,
+          herdCount: core.meadows.meadowKey,
+        ),
+        role: target.role ?? dragged.role,
       ),
-      role: target.role ?? dragged.role,
+      dragged: dragged,
+      target: target,
     );
 
     var grass = state.grass;

@@ -24,6 +24,7 @@ class GameController extends ChangeNotifier {
     Random? random,
     DateTime Function()? now,
     this.autoTick = true,
+    @visibleForTesting bool debugNames = true,
   }) {
     _core = GameCore(
       persistence: persistence ?? GamePersistence(),
@@ -33,6 +34,7 @@ class GameController extends ChangeNotifier {
       now: now ?? DateTime.now,
       autoTick: autoTick,
       onNotify: notifyListeners,
+      namesEnabled: debugNames,
     );
   }
 
@@ -223,6 +225,13 @@ class GameController extends ChangeNotifier {
 
   void updatePosition(String id, Offset normalized) =>
       _core.herd.updatePosition(id, normalized);
+
+  // --- Names (spec 004) ---
+
+  /// The player's own name for a named capy, on any meadow of this land.
+  /// Trimmed, up to 16 characters; empty → false, the old name stays.
+  bool renameCapy(String capyId, String name) =>
+      _core.names.rename(capyId, name);
 
   // --- Spending ---
 
