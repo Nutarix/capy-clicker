@@ -109,9 +109,7 @@ void main() {
     fp.mark('flower taps', c);
 
     // Berry through its own timer.
-    await tester.pump(
-      BalanceV0.berryFirstSpawnMax + const Duration(seconds: 1),
-    );
+    await tester.pump(BalanceV0.berryFirstSpawnMax + const Duration(seconds: 1));
     fp.mark('berry timer', c);
     fp.mark('berry tap', c, extra: {'gain': c.onBerryTap()});
     fp.mark('berry tap again', c, extra: {'gain': c.onBerryTap()});
@@ -153,11 +151,9 @@ void main() {
       BalanceV0.mergeFlashDuration + const Duration(milliseconds: 20),
     );
     fp.mark('merge flash over', c);
-    fp.mark(
-      'merge mismatch',
-      c,
-      extra: {'ok': c.tryMerge(c.state.herd.first.id, c.state.herd.last.id)},
-    );
+    fp.mark('merge mismatch', c, extra: {
+      'ok': c.tryMerge(c.state.herd.first.id, c.state.herd.last.id),
+    });
     final pair = lowestPair();
     if (pair != null) {
       c.debugMarkTwins(pair.$1, pair.$2);
@@ -175,11 +171,9 @@ void main() {
     c.selectFood(FamilyFood.yagody);
     fp.mark('feed yagody', c, extra: {'ok': c.feedFamily()});
     fp.mark('feed oreshki', c, extra: {'ok': c.feedFamily(FamilyFood.oreshki)});
-    fp.mark(
-      'feed oreshki empty',
-      c,
-      extra: {'ok': c.feedFamily(FamilyFood.oreshki)},
-    );
+    fp.mark('feed oreshki empty', c, extra: {
+      'ok': c.feedFamily(FamilyFood.oreshki),
+    });
     adv(6);
     fp.mark('food mid', c);
     fp.mark('feed travka', c, extra: {'ok': c.feedFamily(FamilyFood.travka)});
@@ -188,70 +182,48 @@ void main() {
 
     // --- Cozy places ---
     final standId = c.state.herd.last.id;
-    fp.mark(
-      'pen with capy',
-      c,
-      extra: {
-        'ok': c.tryActivatePlace(
-          CozyPlaceKind.pen,
-          capyId: standId,
-          standAt: const Offset(0.25, 0.66),
-        ),
-      },
-    );
-    fp.mark(
-      'pen again',
-      c,
-      extra: {'ok': c.tryActivatePlace(CozyPlaceKind.pen)},
-    );
-    fp.mark(
-      'tent locked',
-      c,
-      extra: {'ok': c.tryActivatePlace(CozyPlaceKind.tent)},
-    );
+    fp.mark('pen with capy', c, extra: {
+      'ok': c.tryActivatePlace(
+        CozyPlaceKind.pen,
+        capyId: standId,
+        standAt: const Offset(0.25, 0.66),
+      ),
+    });
+    fp.mark('pen again', c, extra: {
+      'ok': c.tryActivatePlace(CozyPlaceKind.pen),
+    });
+    fp.mark('tent locked', c, extra: {
+      'ok': c.tryActivatePlace(CozyPlaceKind.tent),
+    });
     adv(9);
-    fp.mark(
-      'warm stone',
-      c,
-      extra: {'ok': c.tryActivatePlace(CozyPlaceKind.warmStone)},
-    );
+    fp.mark('warm stone', c, extra: {
+      'ok': c.tryActivatePlace(CozyPlaceKind.warmStone),
+    });
     adv(30);
     fp.mark('places over', c);
 
     // --- Roles ---
     final herd = c.state.herd;
-    fp.mark(
-      'role nanya',
-      c,
-      extra: {'ok': c.assignRole(herd[0].id, CapyRole.nanya)},
-    );
-    fp.mark(
-      'role over slots',
-      c,
-      extra: {'ok': c.assignRole(herd[1].id, CapyRole.sobiratel)},
-    );
-    fp.mark(
-      'role swap',
-      c,
-      extra: {'ok': c.assignRole(herd[0].id, CapyRole.storozh)},
-    );
-    fp.mark(
-      'role free',
-      c,
-      extra: {'ok': c.assignRoleToFreeCapy(CapyRole.storozh)},
-    );
+    fp.mark('role nanya', c, extra: {
+      'ok': c.assignRole(herd[0].id, CapyRole.nanya),
+    });
+    fp.mark('role over slots', c, extra: {
+      'ok': c.assignRole(herd[1].id, CapyRole.sobiratel),
+    });
+    fp.mark('role swap', c, extra: {
+      'ok': c.assignRole(herd[0].id, CapyRole.storozh),
+    });
+    fp.mark('role free', c, extra: {
+      'ok': c.assignRoleToFreeCapy(CapyRole.storozh),
+    });
     fp.mark('role clear', c, extra: {'ok': c.clearRole(CapyRole.storozh)});
     fp.mark('role clear none', c, extra: {'ok': c.clearRole(CapyRole.nanya)});
-    fp.mark(
-      'role free nanya',
-      c,
-      extra: {'ok': c.assignRoleToFreeCapy(CapyRole.nanya)},
-    );
-    fp.mark(
-      'role unassign',
-      c,
-      extra: {'ok': c.assignRole(c.state.herd.first.id, null)},
-    );
+    fp.mark('role free nanya', c, extra: {
+      'ok': c.assignRoleToFreeCapy(CapyRole.nanya),
+    });
+    fp.mark('role unassign', c, extra: {
+      'ok': c.assignRole(c.state.herd.first.id, null),
+    });
 
     // --- First glade ---
     grow(() => c.state.sunnyGladeAnnounced >= 1);
@@ -263,21 +235,15 @@ void main() {
     // --- Decor ---
     tapUntilGrass(40);
     fp.mark('buy fonarik', c, extra: {'ok': c.buyDecor(HomeDecor.fonarik)});
-    fp.mark(
-      'buy fonarik twice',
-      c,
-      extra: {'ok': c.buyDecor(HomeDecor.fonarik)},
-    );
-    fp.mark(
-      'unplace fonarik',
-      c,
-      extra: {'ok': c.togglePlaceDecor(HomeDecor.fonarik)},
-    );
-    fp.mark(
-      'place fonarik',
-      c,
-      extra: {'ok': c.togglePlaceDecor(HomeDecor.fonarik)},
-    );
+    fp.mark('buy fonarik twice', c, extra: {
+      'ok': c.buyDecor(HomeDecor.fonarik),
+    });
+    fp.mark('unplace fonarik', c, extra: {
+      'ok': c.togglePlaceDecor(HomeDecor.fonarik),
+    });
+    fp.mark('place fonarik', c, extra: {
+      'ok': c.togglePlaceDecor(HomeDecor.fonarik),
+    });
     for (final decor in HomeDecor.values) {
       tapUntilGrass(decor.grassCost);
       fp.mark('buy ${decor.name}', c, extra: {'ok': c.buyDecor(decor)});
@@ -291,38 +257,32 @@ void main() {
     }
     fp.mark('research unknown', c, extra: {'ok': c.unlockResearch('nope')});
     adv(45);
-    fp.mark('tent', c, extra: {'ok': c.tryActivatePlace(CozyPlaceKind.tent)});
+    fp.mark('tent', c, extra: {
+      'ok': c.tryActivatePlace(CozyPlaceKind.tent),
+    });
     for (var i = 0; i < 200 && !c.mudVisible; i++) {
       adv(0.25);
     }
-    fp.mark(
-      'longer mud',
-      c,
-      extra: {'ok': c.tryMudWallow(c.state.herd.first.id)},
-    );
+    fp.mark('longer mud', c, extra: {
+      'ok': c.tryMudWallow(c.state.herd.first.id),
+    });
     await tester.pump(
       BalanceV0.mudWallowAnimDuration + const Duration(milliseconds: 50),
     );
 
     // --- Forest map ---
-    fp.mark(
-      'switch berry glade',
-      c,
-      extra: {'ok': c.switchToMeadow('berry_glade')},
-    );
+    fp.mark('switch berry glade', c, extra: {
+      'ok': c.switchToMeadow('berry_glade'),
+    });
     adv(5);
     fp.mark('berry glade ticks', c);
-    fp.mark(
-      'switch locked',
-      c,
-      extra: {'ok': c.switchToMeadow(WorldZones.mistEdgeMeadowId)},
-    );
+    fp.mark('switch locked', c, extra: {
+      'ok': c.switchToMeadow(WorldZones.mistEdgeMeadowId),
+    });
     fp.mark('switch same', c, extra: {'ok': c.switchToMeadow('berry_glade')});
-    fp.mark(
-      'switch home',
-      c,
-      extra: {'ok': c.switchToMeadow(WorldZones.starterMeadowId)},
-    );
+    fp.mark('switch home', c, extra: {
+      'ok': c.switchToMeadow(WorldZones.starterMeadowId),
+    });
 
     // --- More glades, mist ---
     grow(() => c.state.sunnyGladeAnnounced >= 2);
@@ -333,11 +293,9 @@ void main() {
     fp.mark('mist unlocked', c);
     c.acknowledgeGladeUnlock();
     c.acknowledgeGoalComplete();
-    fp.mark(
-      'switch mist',
-      c,
-      extra: {'ok': c.switchToMeadow(WorldZones.mistEdgeMeadowId)},
-    );
+    fp.mark('switch mist', c, extra: {
+      'ok': c.switchToMeadow(WorldZones.mistEdgeMeadowId),
+    });
     adv(10);
     fp.mark('mist ticks', c);
 
