@@ -16,6 +16,7 @@ import 'package:capy_clicker/features/game/widgets/flower_dot.dart';
 import 'package:capy_clicker/features/game/widgets/morning_cozy_sheet.dart';
 import 'package:capy_clicker/features/game/widgets/screen/place_slot.dart';
 import 'package:capy_clicker/features/game/widgets/uyut/uyut_hub_sheet.dart';
+import 'package:capy_clicker/widgets/portrait_phone_frame.dart';
 
 import 'support/meadow_harness.dart';
 
@@ -457,6 +458,31 @@ void main() {
       expect(c.isAnimating, isFalse);
       expect(c.duration, const Duration(milliseconds: 200));
       c.dispose();
+    });
+  });
+
+  group('Т11 рамка телефона', () {
+    bool web(Size size) => PortraitPhoneFrame.useFrameFor(size, isWeb: true);
+    bool app(Size size, TargetPlatform p) =>
+        PortraitPhoneFrame.useFrameFor(size, isWeb: false, platform: p);
+
+    test('phone browser: full screen', () {
+      expect(web(const Size(390, 844)), isFalse);
+      expect(web(const Size(412, 915)), isFalse);
+      expect(web(const Size(360, 640)), isFalse);
+    });
+
+    test('wide browser: the frame', () {
+      expect(web(const Size(1280, 800)), isTrue);
+      expect(web(const Size(1920, 1080)), isTrue);
+      // A phone turned sideways: the portrait game sits in the frame.
+      expect(web(const Size(844, 390)), isTrue);
+    });
+
+    test('desktop app framed, phone app not', () {
+      expect(app(const Size(1280, 800), TargetPlatform.windows), isTrue);
+      expect(app(const Size(390, 844), TargetPlatform.android), isFalse);
+      expect(app(const Size(390, 844), TargetPlatform.iOS), isFalse);
     });
   });
 }
