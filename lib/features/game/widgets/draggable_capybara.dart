@@ -805,10 +805,13 @@ class _MergePunchState extends State<_MergePunch>
       vsync: this,
       duration: BalanceV0.mergeFlashDuration,
     )..forward();
+    // The bounce is in the sequence. A curve that overshoots 1 (easeOutBack)
+    // would push the sequence past its end: an error box, gray in release
+    // (spec 003, Т12).
     _scale = TweenSequence<double>([
       TweenSequenceItem(tween: Tween(begin: 0.7, end: 1.22), weight: 40),
       TweenSequenceItem(tween: Tween(begin: 1.22, end: 1.0), weight: 60),
-    ]).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutBack));
+    ]).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOut));
   }
 
   @override

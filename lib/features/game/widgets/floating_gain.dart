@@ -84,10 +84,12 @@ class _FloatingGainPopupState extends State<_FloatingGainPopup>
       TweenSequenceItem(tween: ConstantTween(1), weight: 45),
       TweenSequenceItem(tween: Tween(begin: 1, end: 0), weight: 40),
     ]).animate(_ctrl);
+    // The pop is in the sequence; the curve must stay within 0–1 (spec 003,
+    // Т12: easeOutBack overshot it and the label became an error box).
     _scale = TweenSequence<double>([
       TweenSequenceItem(tween: Tween(begin: 0.7, end: 1.12), weight: 25),
       TweenSequenceItem(tween: Tween(begin: 1.12, end: 1.0), weight: 75),
-    ]).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutBack));
+    ]).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOut));
   }
 
   @override
