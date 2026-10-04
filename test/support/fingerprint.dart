@@ -15,6 +15,9 @@ import 'package:capy_clicker/features/game/models/world_zones.dart';
 ///
 /// Write the files anew only on purpose (balance or rule change):
 /// `CAPY_FINGERPRINT_UPDATE=1 flutter test`.
+///
+/// Spec 004 rewrote them once for the capy name fields only; proof:
+/// `python tool/fingerprint_names_diff.py main` (the rest is byte-identical).
 class Fingerprint {
   Fingerprint(this.name);
 
