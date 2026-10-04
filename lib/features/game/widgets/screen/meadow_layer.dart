@@ -376,7 +376,10 @@ class _MeadowLayerState extends State<MeadowLayer> {
           capyId: id,
           standAt: props.places[kind],
         );
-        if (ok) _floatAtPlace(kind, props);
+        if (ok) {
+          HapticFeedback.mediumImpact();
+          _floatAtPlace(kind, props);
+        }
         return ok;
       },
       onLongPress: () {

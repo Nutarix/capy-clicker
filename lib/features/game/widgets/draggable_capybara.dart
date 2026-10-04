@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../models/balance.dart';
 import '../models/capy_wander.dart';
@@ -596,9 +595,9 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
     }
 
     if (_droppedOnMud(normalized)) {
+      // Haptics live in the meadow's callbacks: one per action (Т5).
       final ok = widget.onMudDrop(widget.capybara.id);
       if (ok) {
-        HapticFeedback.mediumImpact();
         _scheduleWander(CapyWander.pauseBetweenWalks(_rng.nextDouble));
         return;
       }
@@ -607,7 +606,6 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
     if (place != null && widget.onPlaceDrop != null) {
       final ok = widget.onPlaceDrop!(widget.capybara.id, place);
       if (ok) {
-        HapticFeedback.mediumImpact();
         _scheduleWander(CapyWander.pauseBetweenWalks(_rng.nextDouble));
         return;
       }
@@ -693,10 +691,9 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
           child: DragTarget<String>(
             onWillAcceptWithDetails: (details) =>
                 details.data != widget.capybara.id,
-            onAcceptWithDetails: (details) {
-              final ok = widget.onMerge(details.data, widget.capybara.id);
-              if (ok) HapticFeedback.mediumImpact();
-            },
+            // The meadow's onMerge buzzes, as for the magnet.
+            onAcceptWithDetails: (details) =>
+                widget.onMerge(details.data, widget.capybara.id),
             builder: (context, candidate, _) {
               final highlight = candidate.isNotEmpty || magnetHighlight;
               return Draggable<String>(

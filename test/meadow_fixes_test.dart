@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:capy_clicker/features/game/models/multipliers/multipliers.dart';
@@ -150,6 +151,107 @@ void main() {
       expect(h.controller.activePlaceBoost, CozyPlaceKind.pen);
       final label = tester.getCenter(floatText(CozyPlaceKind.pen.emoji));
       expect((label - at).distance, lessThan(60), reason: '$at $label');
+      await h.dispose(tester);
+    });
+  });
+
+  group('С5 вибрация', () {
+    /// Counts haptic calls on the platform channel while [body] runs.
+    Future<int> haptics(
+      WidgetTester tester,
+      Future<void> Function() body,
+    ) async {
+      var n = 0;
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'HapticFeedback.vibrate') n++;
+          return null;
+        },
+      );
+      try {
+        await body();
+      } finally {
+        tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        );
+      }
+      return n;
+    }
+
+    const herd = <SavedCapy>[
+      ('c1', 1, 0.30, 0.72),
+      ('c2', 1, 0.62, 0.72),
+      ('c3', 2, 0.45, 0.86),
+    ];
+
+    testWidgets('merge by dropping on the peer: one', (tester) async {
+      final h = await MeadowHarness.pump(tester, meadowPrefs(herd: herd));
+      final n = await haptics(tester, () async {
+        // Jump onto the peer's body, outside the snap band: the drop target
+        // takes it, not the mid-drag magnet.
+        final peer = tester.getCenter(h.capy('c2'));
+        final g = await tester.startGesture(tester.getCenter(h.capy('c1')));
+        await tester.pump(const Duration(milliseconds: 16));
+        await g.moveBy(const Offset(0, 60));
+        await tester.pump(const Duration(milliseconds: 16));
+        await g.moveTo(peer + const Offset(0, 30));
+        await tester.pump(const Duration(milliseconds: 16));
+        expect(h.controller.state.herd.length, 3, reason: 'no snap');
+        await g.up();
+        await tester.pump();
+      });
+      expect(h.controller.state.herd.length, 2);
+      expect(n, 1);
+      await h.dispose(tester);
+    });
+
+    testWidgets('merge by the magnet: one', (tester) async {
+      final h = await MeadowHarness.pump(tester, meadowPrefs(herd: herd));
+      final n = await haptics(tester, () async {
+        await h.drag(
+          tester,
+          tester.getCenter(h.capy('c1')),
+          tester.getCenter(h.capy('c2')),
+        );
+      });
+      expect(h.controller.state.herd.length, 2);
+      expect(n, 1);
+      await h.dispose(tester);
+    });
+
+    testWidgets('puddle: one', (tester) async {
+      final h = await MeadowHarness.pump(tester, meadowPrefs(herd: herd));
+      const mud = Offset(0.75, 0.86);
+      h.controller.debugPlaceMud(mud, seconds: 60);
+      await tester.pump();
+      final n = await haptics(tester, () async {
+        await h.drag(
+          tester,
+          tester.getCenter(h.capy('c3')),
+          h.screenAt(tester, mud),
+        );
+      });
+      expect(h.controller.wallowingCapyId, 'c3');
+      expect(n, 1);
+      await h.dispose(tester);
+    });
+
+    testWidgets('place by drop: one', (tester) async {
+      final h = await MeadowHarness.pump(tester, meadowPrefs(herd: herd));
+      final pen = find.byWidgetPredicate(
+        (w) => w is PlaceSlot && w.kind == CozyPlaceKind.pen,
+      );
+      final n = await haptics(tester, () async {
+        await h.drag(
+          tester,
+          tester.getCenter(h.capy('c3')),
+          tester.getCenter(pen),
+        );
+      });
+      expect(h.controller.activePlaceBoost, CozyPlaceKind.pen);
+      expect(n, 1);
       await h.dispose(tester);
     });
   });
