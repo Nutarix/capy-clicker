@@ -5,7 +5,8 @@ import 'package:flutter/material.dart';
 
 import 'portrait_phone_frame.dart';
 
-/// Centers menu UI in a full-height **9:16** column on web/desktop.
+/// Centers menu UI in a full-height **9:16** column on desktop and a wide
+/// browser window.
 ///
 /// Side gutters keep the forest backdrop (soft blur + green wash) — no phone
 /// bezel, border, or dark letterbox. On mobile phones the child fills the
@@ -20,9 +21,10 @@ class PortraitMenuStage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (!PortraitPhoneFrame.useFrame) return child;
-
     final size = MediaQuery.sizeOf(context);
+    // Same rule as the game frame: a phone browser gets the whole screen.
+    if (!PortraitPhoneFrame.useFrameFor(size)) return child;
+
     // Full-height 9:16 — use as much vertical space as possible.
     final frameH = size.height;
     final frameW = math.min(size.width, frameH * 9 / 16);

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 
 /// One floating «+N%» / «×2» popup over the meadow or HUD.
 class FloatingGainEvent {
@@ -64,6 +65,10 @@ class _FloatingGainPopupState extends State<_FloatingGainPopup>
   late final Animation<double> _opacity;
   late final Animation<double> _scale;
 
+  /// Anchor in the layer's own coordinates, worked out once: the label then
+  /// only rises, whatever rebuilds the layer later (spec 003, Т3).
+  Offset? _local;
+
   @override
   void initState() {
     super.initState();
@@ -84,10 +89,12 @@ class _FloatingGainPopupState extends State<_FloatingGainPopup>
       TweenSequenceItem(tween: ConstantTween(1), weight: 45),
       TweenSequenceItem(tween: Tween(begin: 1, end: 0), weight: 40),
     ]).animate(_ctrl);
+    // The pop is in the sequence; the curve must stay within 0–1 (spec 003,
+    // Т12: easeOutBack overshot it and the label became an error box).
     _scale = TweenSequence<double>([
       TweenSequenceItem(tween: Tween(begin: 0.7, end: 1.12), weight: 25),
       TweenSequenceItem(tween: Tween(begin: 1.12, end: 1.0), weight: 75),
-    ]).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutBack));
+    ]).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOut));
   }
 
   @override
@@ -96,16 +103,24 @@ class _FloatingGainPopupState extends State<_FloatingGainPopup>
     super.dispose();
   }
 
+  /// The layer's stack, not this popup: the popup has no box on its first
+  /// build, and its own box moves with the label. A layer born in this very
+  /// frame is not laid out yet: use the screen point once, ask again.
+  Offset _anchor() {
+    final cached = _local;
+    if (cached != null) return cached;
+    final global = widget.event.globalAnchor;
+    final layer = context.findAncestorRenderObjectOfType<RenderStack>();
+    if (layer == null || !layer.attached || !layer.hasSize) return global;
+    return _local = layer.globalToLocal(global);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final box = context.findRenderObject() as RenderBox?;
-    final local = box != null && box.hasSize
-        ? box.globalToLocal(widget.event.globalAnchor)
-        : widget.event.globalAnchor;
-
     return AnimatedBuilder(
       animation: _ctrl,
       builder: (context, _) {
+        final local = _anchor();
         return Positioned(
           left: local.dx - 36,
           top: local.dy - 18 + _dy.value,

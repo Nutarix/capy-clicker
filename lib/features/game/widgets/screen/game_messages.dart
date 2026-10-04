@@ -173,7 +173,8 @@ mixin GameMessagesMixin on State<GameScreen> {
     _afterFrame(() async {
       // Delay slightly so first-launch tips can appear above without stacking.
       await Future<void>.delayed(const Duration(milliseconds: 700));
-      if (!mounted || !game.isDailyBonusAvailable) return;
+      // 🎁 may have opened it meanwhile (spec 003, Т6).
+      if (!mounted || !game.isDailyBonusAvailable || _dailySheetOpen) return;
       await _showDailySheet();
     });
   }
@@ -184,7 +185,9 @@ mixin GameMessagesMixin on State<GameScreen> {
     await _showDailySheet();
   }
 
+  /// One sheet at a time, whoever asks.
   Future<void> _showDailySheet() async {
+    if (_dailySheetOpen) return;
     _dailySheetOpen = true;
     final claimed = await MorningCozySheet.show(
       context,

@@ -4,8 +4,9 @@ import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, kIsWeb, TargetPlatform;
 import 'package:flutter/material.dart';
 
-/// Centers the game in a 9:16 phone frame on web/desktop with dark letterboxing.
-/// On mobile phones the child fills the screen (SystemChrome portrait lock applies).
+/// Centers the game in a 9:16 phone frame on desktop and on a wide browser
+/// window, with dark letterboxing. On phones — the app or a phone browser —
+/// the child fills the screen (spec 003, Т11).
 class PortraitPhoneFrame extends StatelessWidget {
   const PortraitPhoneFrame({super.key, required this.child});
 
@@ -14,9 +15,16 @@ class PortraitPhoneFrame extends StatelessWidget {
   static const _letterbox = Color(0xFF121212);
   static const _frameBorder = Color(0xFF2A2A2A);
 
-  static bool get useFrame {
-    if (kIsWeb) return true;
-    switch (defaultTargetPlatform) {
+  /// A browser this wide (logical px) is not a phone held upright.
+  static const double wideWebWidth = 600;
+
+  /// Desktop app: always. Browser: only a wide window (≥ [wideWebWidth], or
+  /// landscape) — a phone browser gets the whole screen. Phone app: never.
+  static bool useFrameFor(Size size, {bool? isWeb, TargetPlatform? platform}) {
+    if (isWeb ?? kIsWeb) {
+      return size.width >= wideWebWidth || size.width > size.height;
+    }
+    switch (platform ?? defaultTargetPlatform) {
       case TargetPlatform.windows:
       case TargetPlatform.linux:
       case TargetPlatform.macOS:
@@ -28,9 +36,9 @@ class PortraitPhoneFrame extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (!useFrame) return child;
-
     final size = MediaQuery.sizeOf(context);
+    if (!useFrameFor(size)) return child;
+
     // Playtest P2: use more of the window (was 0.90 height-only → huge bars).
     final maxW = size.width * 0.97;
     final maxH = size.height * 0.97;

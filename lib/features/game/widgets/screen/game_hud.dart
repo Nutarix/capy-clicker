@@ -130,13 +130,15 @@ class GameBottomBar extends StatelessWidget {
     required this.controller,
     required this.audio,
     required this.onForest,
-    required this.onFloat,
+    required this.onCapyCalled,
   });
 
   final GameController controller;
   final GameAudio audio;
   final VoidCallback onForest;
-  final void Function(String label, Offset globalAnchor) onFloat;
+
+  /// A capy came on the call: the screen shows «+капи» over it.
+  final VoidCallback onCapyCalled;
 
   @override
   Widget build(BuildContext context) {
@@ -177,7 +179,7 @@ class GameBottomBar extends StatelessWidget {
               unawaited(audio.noteUserGesture());
               if (controller.spendCallCapy()) {
                 HapticFeedback.lightImpact();
-                onFloat('+капи', Offset.zero);
+                onCapyCalled();
               }
             },
             onBoost: () {

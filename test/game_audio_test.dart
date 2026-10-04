@@ -1,8 +1,11 @@
 import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:capy_clicker/app.dart';
 import 'package:capy_clicker/features/game/audio/game_audio.dart';
+import 'package:capy_clicker/features/game/models/balance.dart';
 
 /// Records what the game asks of a player; no platform channels.
 class _FakePlayer extends Fake implements AudioPlayer {
@@ -19,7 +22,9 @@ class _FakePlayer extends Fake implements AudioPlayer {
   Future<void> setVolume(double volume) async {}
 
   @override
-  Future<void> setSource(Source source) async {}
+  Future<void> setSource(Source source) async {
+    calls.add('setSource');
+  }
 
   @override
   Future<void> resume() async {
@@ -153,6 +158,49 @@ void main() {
 
       await audio.setInBackground(false);
       expect(bgm.state, PlayerState.playing);
+      audio.dispose();
+    });
+  });
+
+  group('С8 музыка при входе', () {
+    test('a second init leaves the playing music alone', () async {
+      final bgm = _FakePlayer();
+      final audio = GameAudio(bgm: bgm, sfx: _FakePlayer());
+      await audio.init();
+      expect(bgm.calls, ['setSource', 'resume']);
+      await audio.init();
+      await audio.init();
+      expect(bgm.calls, ['setSource', 'resume']);
+      expect(bgm.state, PlayerState.playing);
+      audio.dispose();
+    });
+
+    testWidgets('«Играть» from the menu: the music goes on', (tester) async {
+      SharedPreferences.setMockInitialValues({BalanceV0.tipsSeenKey: true});
+      final bgm = _FakePlayer();
+      final audio = GameAudio(bgm: bgm, sfx: _FakePlayer());
+      await tester.pumpWidget(
+        CapyClickerApp(audio: audio, now: () => DateTime.utc(2026, 9, 21, 9)),
+      );
+      for (var i = 0; i < 3; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      expect(bgm.calls, ['setSource', 'resume']);
+
+      await tester.tap(find.text('Играть'));
+      for (var i = 0; i < 5; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      expect(find.text('Лес'), findsOneWidget, reason: 'in the game');
+      expect(bgm.calls, ['setSource', 'resume']);
+      expect(bgm.state, PlayerState.playing);
+
+      // Leave before the soft daily sheet's timer fires.
+      await tester.tap(find.byIcon(Icons.pause_rounded));
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      await tester.pumpWidget(const SizedBox());
       audio.dispose();
     });
   });

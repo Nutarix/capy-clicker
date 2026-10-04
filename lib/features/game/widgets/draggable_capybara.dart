@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../models/balance.dart';
 import '../models/capy_wander.dart';
@@ -13,6 +13,7 @@ import 'uyut/multiplier_icon.dart';
 import '../models/multipliers/cozy_place.dart';
 import '../models/merge_magnet.dart';
 import 'capybara_placeholder.dart';
+import 'meadow_space.dart';
 import 'mud_puddle.dart';
 
 /// Meadow-aware draggable: merge on same-level drop, soft magnet assist,
@@ -23,7 +24,7 @@ class MeadowDraggableCapybara extends StatefulWidget {
     required this.capybara,
     required this.herd,
     required this.meadowSize,
-    required this.meadowOriginGlobal,
+    this.space,
     required this.onMerge,
     required this.onDropPosition,
     required this.onMudDrop,
@@ -48,8 +49,10 @@ class MeadowDraggableCapybara extends StatefulWidget {
   final List<Capybara> herd;
   final Size meadowSize;
 
-  /// Meadow top-left in global coordinates, read when a drag needs it.
-  final Offset Function() meadowOriginGlobal;
+  /// Screen ↔ meadow (spec 003, Т2), read when a drag needs it: the camera
+  /// may still be easing. Null or not laid out: the meadow starts at the
+  /// screen origin, unscaled (bare widget tests).
+  final MeadowSpace? space;
   final bool Function(String draggedId, String targetId) onMerge;
   final void Function(String id, Offset normalized) onDropPosition;
   final bool Function(String id) onMudDrop;
@@ -85,7 +88,8 @@ class MeadowDraggableCapybara extends StatefulWidget {
   /// Resolve place under normalized point.
   final CozyPlaceKind? Function(Offset normalized)? placeAt;
 
-  /// Long-press → role menu.
+  /// Held still ≥ [kLongPressTimeout] and let go → role menu. A finger that
+  /// moves is always a drag, even after a pause (spec 003, Т9).
   final VoidCallback? onLongPress;
 
   /// Live puddle center, so wander does not park a body on the stump-top.
@@ -109,11 +113,19 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
   /// True after a mid-drag magnet merge so onDragEnd skips drop/mud.
   bool _mergedDuringDrag = false;
 
-  /// Extra offset applied to feedback when soft-pulling toward a magnet.
-  Offset _pullOffset = Offset.zero;
+  /// Soft pull toward the magnet target, meadow pixels. The feedback is
+  /// built once at drag start, so it listens to this (spec 003, Т4).
+  final ValueNotifier<Offset> _pull = ValueNotifier(Offset.zero);
 
   /// Last finger point in meadow space (hit mud even if the sprite center misses).
   Offset? _lastPointerNorm;
+
+  /// Screen pixels per meadow pixel when this drag started (camera zoom).
+  /// The feedback is drawn at this size, so it matches the capy on the meadow.
+  final ValueNotifier<double> _dragScale = ValueNotifier(1);
+
+  /// Finger inside the sprite at drag start, meadow pixels.
+  Offset _dragAnchor = Offset.zero;
 
   late final AnimationController _idleBob;
   late final AnimationController _walk;
@@ -217,18 +229,18 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
     if (widget.mergeFlash && !oldWidget.mergeFlash) {
       _cancelWalk(commit: false);
     }
-    // Role / level change → switch walk sheet + idle flavour.
+    // Role / level change → switch walk sheet + idle flavour, in the new
+    // tempo right away (a running loop keeps its old period otherwise).
     if (widget.capybara.role != oldWidget.capybara.role ||
         widget.capybara.level != oldWidget.capybara.level) {
-      _idleBob.duration = CapyWalk.idlePeriod(_sheet, widget.capybara.id);
-      if (!_idleBob.isAnimating) {
-        _idleBob.repeat(reverse: true);
-      }
+      final idle = CapyWalk.idlePeriod(_sheet, widget.capybara.id);
+      retimeLoop(_idleBob, idle, reverse: true);
+      if (!_idleBob.isAnimating) _idleBob.repeat(reverse: true);
       if (_walking) {
+        retimeLoop(_walkCycle, CapyWalk.loopDuration(_sheet));
+        if (!_walkCycle.isAnimating) _walkCycle.repeat();
+      } else {
         _walkCycle.duration = CapyWalk.loopDuration(_sheet);
-        if (!_walkCycle.isAnimating) {
-          _walkCycle.repeat();
-        }
       }
     }
     // External position change (merge spawn, mud snap, load) — sync when idle.
@@ -315,6 +327,8 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
     _idleBob.dispose();
     _walkCycle.dispose();
     _walk.dispose();
+    _dragScale.dispose();
+    _pull.dispose();
     super.dispose();
   }
 
@@ -446,20 +460,41 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
     }
   }
 
+  /// Screen point → meadow pixels (live transform: offset, zoom, center).
+  Offset _meadowLocal(Offset global) =>
+      widget.space?.globalToLocal(global) ?? global;
+
+  Offset _normalized(Offset local) => Offset(
+    local.dx / widget.meadowSize.width,
+    local.dy / widget.meadowSize.height,
+  );
+
+  /// Where the sprite center lands: the finger keeps its spot in the sprite.
+  /// [feedbackTopLeft] is the drag's top-left on screen (finger − anchor).
   Offset _normalizedFromFeedbackTopLeft(Offset feedbackTopLeft) {
+    final finger = feedbackTopLeft + _dragAnchor * _dragScale.value;
     final footprint = _footprint;
-    final local = feedbackTopLeft - widget.meadowOriginGlobal();
-    final nx = (local.dx + footprint.width / 2) / widget.meadowSize.width;
-    final ny = (local.dy + footprint.height / 2) / widget.meadowSize.height;
-    return Offset(nx, ny);
+    final local =
+        _meadowLocal(finger) -
+        _dragAnchor +
+        Offset(footprint.width / 2, footprint.height / 2);
+    return _normalized(local);
   }
 
-  Offset _normalizedFromPointer(Offset globalPointer) {
-    final local = globalPointer - widget.meadowOriginGlobal();
-    return Offset(
-      local.dx / widget.meadowSize.width,
-      local.dy / widget.meadowSize.height,
-    );
+  Offset _normalizedFromPointer(Offset globalPointer) =>
+      _normalized(_meadowLocal(globalPointer));
+
+  /// Grab point: the finger in the sprite, scaled like the feedback, so the
+  /// feedback lies exactly over the capy at drag start at any zoom.
+  Offset _dragAnchorStrategy(
+    Draggable<Object> draggable,
+    BuildContext context,
+    Offset position,
+  ) {
+    final box = context.findRenderObject() as RenderBox?;
+    _dragAnchor = box == null ? Offset.zero : box.globalToLocal(position);
+    _dragScale.value = widget.space?.scale ?? 1;
+    return _dragAnchor * _dragScale.value;
   }
 
   MergeMagnetHit? _hitAt(Offset dragNormalized) {
@@ -486,9 +521,7 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
   void _updateMagnetVisual(MergeMagnetHit? hit, Offset dragNormalized) {
     if (hit == null) {
       _notifyMagnet(null);
-      if (_pullOffset != Offset.zero && mounted) {
-        setState(() => _pullOffset = Offset.zero);
-      }
+      _pull.value = Offset.zero;
       return;
     }
 
@@ -502,9 +535,7 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
     final dy = (pulled.dy - dragNormalized.dy) * widget.meadowSize.height;
     final nextPull = Offset(dx, dy);
     _notifyMagnet(hit.target.id);
-    if (_pullOffset != nextPull && mounted) {
-      setState(() => _pullOffset = nextPull);
-    }
+    _pull.value = nextPull;
   }
 
   void _onDragStarted() {
@@ -512,7 +543,7 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
     _lastPointerNorm = null;
     _cancelWalk(commit: false);
     _mergedDuringDrag = false;
-    _pullOffset = Offset.zero;
+    _pull.value = Offset.zero;
     _notifyMagnet(null);
     widget.onDragBadge?.call();
   }
@@ -539,7 +570,7 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
       if (_tryMagnetMerge(hit)) {
         _mergedDuringDrag = true;
         _notifyMagnet(null);
-        if (mounted) setState(() => _pullOffset = Offset.zero);
+        _pull.value = Offset.zero;
       }
     }
   }
@@ -549,7 +580,7 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
     _mergedDuringDrag = false;
     _dragging = false;
     _notifyMagnet(null);
-    if (mounted) setState(() => _pullOffset = Offset.zero);
+    _pull.value = Offset.zero;
 
     if (mergedAlready || details.wasAccepted) {
       _scheduleWander(CapyWander.pauseBetweenWalks(_rng.nextDouble));
@@ -566,9 +597,9 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
     }
 
     if (_droppedOnMud(normalized)) {
+      // Haptics live in the meadow's callbacks: one per action (Т5).
       final ok = widget.onMudDrop(widget.capybara.id);
       if (ok) {
-        HapticFeedback.mediumImpact();
         _scheduleWander(CapyWander.pauseBetweenWalks(_rng.nextDouble));
         return;
       }
@@ -577,7 +608,6 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
     if (place != null && widget.onPlaceDrop != null) {
       final ok = widget.onPlaceDrop!(widget.capybara.id, place);
       if (ok) {
-        HapticFeedback.mediumImpact();
         _scheduleWander(CapyWander.pauseBetweenWalks(_rng.nextDouble));
         return;
       }
@@ -658,30 +688,58 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
       top: top,
       // Bob and walk repaint this capy only (spec 002, Т8).
       child: RepaintBoundary(
-        child: GestureDetector(
-          onLongPress: widget.onLongPress,
+        child: RawGestureDetector(
+          gestures: {
+            if (widget.onLongPress != null)
+              HoldStillRecognizer:
+                  GestureRecognizerFactoryWithHandlers<HoldStillRecognizer>(
+                    () => HoldStillRecognizer(debugOwner: this),
+                    (r) => r.onHold = widget.onLongPress,
+                  ),
+          },
           child: DragTarget<String>(
             onWillAcceptWithDetails: (details) =>
                 details.data != widget.capybara.id,
-            onAcceptWithDetails: (details) {
-              final ok = widget.onMerge(details.data, widget.capybara.id);
-              if (ok) HapticFeedback.mediumImpact();
-            },
+            // The meadow's onMerge buzzes, as for the magnet.
+            onAcceptWithDetails: (details) =>
+                widget.onMerge(details.data, widget.capybara.id),
             builder: (context, candidate, _) {
               final highlight = candidate.isNotEmpty || magnetHighlight;
               return Draggable<String>(
                 data: widget.capybara.id,
-                feedback: Transform.translate(
-                  offset: _pullOffset,
-                  child: Material(
-                    color: Colors.transparent,
-                    child: Opacity(
-                      opacity: 0.92,
-                      child: CapybaraPlaceholder(
-                        level: widget.capybara.level,
-                        role: widget.capybara.role,
-                        walkFrame: 0,
-                        compactLabel: false,
+                dragAnchorStrategy: _dragAnchorStrategy,
+                // Built once at drag start: what changes later is listened to.
+                feedback: ValueListenableBuilder<double>(
+                  key: const ValueKey('capy-drag-feedback'),
+                  valueListenable: _dragScale,
+                  builder: (context, scale, child) => Transform.scale(
+                    scale: scale,
+                    alignment: Alignment.topLeft,
+                    child: child,
+                  ),
+                  // Pull in meadow pixels, inside the scale; eased so the
+                  // lean is soft, not a jump at the magnet edge.
+                  child: ValueListenableBuilder<Offset>(
+                    valueListenable: _pull,
+                    builder: (context, pull, child) =>
+                        TweenAnimationBuilder<Offset>(
+                          tween: Tween(begin: Offset.zero, end: pull),
+                          duration: const Duration(milliseconds: 140),
+                          curve: Curves.easeOut,
+                          builder: (context, offset, child) =>
+                              Transform.translate(offset: offset, child: child),
+                          child: child,
+                        ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: Opacity(
+                        opacity: 0.92,
+                        child: CapybaraPlaceholder(
+                          level: widget.capybara.level,
+                          role: widget.capybara.role,
+                          walkFrame: 0,
+                          compactLabel: false,
+                        ),
                       ),
                     ),
                   ),
@@ -731,6 +789,70 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
   }
 }
 
+/// New period for a looping controller, applied now (spec 003, Т10).
+///
+/// [AnimationController.repeat] keeps the period it started with; a new
+/// [AnimationController.duration] alone does nothing to a running loop.
+/// A running loop restarts from where it is, a stopped one stays stopped.
+void retimeLoop(
+  AnimationController controller,
+  Duration period, {
+  bool reverse = false,
+}) {
+  controller.duration = period;
+  if (!controller.isAnimating) return;
+  controller.repeat(reverse: reverse);
+}
+
+/// A long press that never beats a drag (spec 003, Т9).
+///
+/// [LongPressGestureRecognizer] wins the arena at its deadline; after that a
+/// [Draggable] cannot start, so «hold, then pull» opened the sheet instead.
+/// This one only notes the deadline. A move past the slop leaves the arena
+/// to the drag. A release without moving, after the deadline, is the hold.
+class HoldStillRecognizer extends PrimaryPointerGestureRecognizer {
+  HoldStillRecognizer({super.debugOwner}) : super(deadline: kLongPressTimeout);
+
+  VoidCallback? onHold;
+  bool _held = false;
+
+  @override
+  void addAllowedPointer(PointerDownEvent event) {
+    _held = false;
+    super.addAllowedPointer(event);
+  }
+
+  @override
+  void didExceedDeadline() {
+    _held = true;
+  }
+
+  @override
+  void handlePrimaryPointer(PointerEvent event) {
+    if (event is PointerUpEvent) {
+      if (_held) {
+        _held = false;
+        resolve(GestureDisposition.accepted);
+        if (onHold != null) invokeCallback<void>('onHold', onHold!);
+      } else {
+        resolve(GestureDisposition.rejected);
+      }
+    } else if (event is PointerCancelEvent) {
+      _held = false;
+      resolve(GestureDisposition.rejected);
+    }
+  }
+
+  @override
+  void rejectGesture(int pointer) {
+    _held = false;
+    super.rejectGesture(pointer);
+  }
+
+  @override
+  String get debugDescription => 'hold still';
+}
+
 /// Brief scale punch when a merge creates this capy.
 class _MergePunch extends StatefulWidget {
   const _MergePunch({required this.child});
@@ -753,10 +875,13 @@ class _MergePunchState extends State<_MergePunch>
       vsync: this,
       duration: BalanceV0.mergeFlashDuration,
     )..forward();
+    // The bounce is in the sequence. A curve that overshoots 1 (easeOutBack)
+    // would push the sequence past its end: an error box, gray in release
+    // (spec 003, Т12).
     _scale = TweenSequence<double>([
       TweenSequenceItem(tween: Tween(begin: 0.7, end: 1.22), weight: 40),
       TweenSequenceItem(tween: Tween(begin: 1.22, end: 1.0), weight: 60),
-    ]).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutBack));
+    ]).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOut));
   }
 
   @override
