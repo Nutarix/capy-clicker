@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import '../core/game_core.dart';
 import '../core/game_events.dart';
 import '../core/goals.dart';
+import '../models/capybara.dart';
 import '../models/game_state.dart';
 import '../models/multipliers/multipliers.dart';
 import '../models/session_goals.dart';
@@ -299,6 +300,12 @@ class GameController extends ChangeNotifier {
 
   /// Arrival meadow: the newest land, before its own glades open.
   bool get onFreshNewLand => _core.lands.onFreshNewLand;
+
+  /// Who the rocket would take now (the youngest). Null when nobody is home.
+  Capybara? get nextTraveler => _core.lands.nextTraveler;
+
+  /// The traveler's name for the rocket chapter; null for a baby (Т10).
+  String? get nextTravelerName => nextTraveler?.displayNameRu;
 
   /// Send the youngest capy on. Grass and sparks stay. Old land is archived.
   bool launchToNewLand() => _core.lands.launchToNewLand();

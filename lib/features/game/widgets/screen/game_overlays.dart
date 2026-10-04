@@ -42,6 +42,7 @@ mixin GameOverlaysMixin on State<GameScreen> {
       if (_rocketPhase == _RocketPhase.farewell)
         Positioned.fill(
           child: RocketFarewell(
+            travelerName: game.nextTravelerName,
             onStay: () => setState(() => _rocketPhase = _RocketPhase.none),
             onSend: () => setState(() => _rocketPhase = _RocketPhase.flight),
           ),
@@ -49,6 +50,7 @@ mixin GameOverlaysMixin on State<GameScreen> {
       if (_rocketPhase == _RocketPhase.flight)
         Positioned.fill(
           child: RocketFlight(
+            travelerName: game.nextTravelerName,
             onArrive: () {
               final ok = game.launchToNewLand();
               setState(() => _rocketPhase = _RocketPhase.none);

@@ -39,11 +39,11 @@ class GameLands extends GamePart {
       state.sunnyGladeAnnounced == 0 &&
       !state.mistyBiomeUnlocked;
 
-  /// Send the youngest capy on. Grass and sparks stay. Old land is archived.
-  bool launchToNewLand() {
-    if (!core.ready || !rocketUnlocked) return false;
-    final synced = state.withActiveSynced();
-    if (synced.totalHerdAcrossMeadows < 2) return false;
+  /// Who the rocket would take now: the youngest (first found on a tie).
+  /// Null when nobody is home.
+  Capybara? get nextTraveler => _pickTraveler(state.withActiveSynced())?.$1;
+
+  (Capybara, String)? _pickTraveler(GameState synced) {
     Capybara? traveler;
     String? fromMeadow;
     for (final entry in synced.meadows.entries) {
@@ -54,7 +54,18 @@ class GameLands extends GamePart {
         }
       }
     }
-    if (traveler == null || fromMeadow == null) return false;
+    if (traveler == null || fromMeadow == null) return null;
+    return (traveler, fromMeadow);
+  }
+
+  /// Send the youngest capy on. Grass and sparks stay. Old land is archived.
+  bool launchToNewLand() {
+    if (!core.ready || !rocketUnlocked) return false;
+    final synced = state.withActiveSynced();
+    if (synced.totalHerdAcrossMeadows < 2) return false;
+    final pick = _pickTraveler(synced);
+    if (pick == null) return false;
+    final (traveler, fromMeadow) = pick;
 
     final meadows = Map<String, MeadowSnapshot>.from(synced.meadows);
     final snap = meadows[fromMeadow]!;
