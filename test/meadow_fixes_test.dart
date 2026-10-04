@@ -420,4 +420,43 @@ void main() {
       await h.dispose(tester);
     });
   });
+
+  group('Т10 темп анимации', () {
+    Future<double> stepAfterRetime(
+      WidgetTester tester, {
+      required bool reverse,
+    }) async {
+      final c = AnimationController(
+        vsync: const TestVSync(),
+        duration: const Duration(seconds: 1),
+      );
+      c.repeat(reverse: reverse);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      retimeLoop(c, const Duration(milliseconds: 200), reverse: reverse);
+      await tester.pump();
+      final before = c.value;
+      await tester.pump(const Duration(milliseconds: 40));
+      final step = (c.value - before).abs();
+      c.dispose();
+      return step;
+    }
+
+    testWidgets('a running loop takes the new period at once', (tester) async {
+      // 40 ms of a 200 ms loop: 0.2. The old 1 s loop would move 0.04.
+      expect(await stepAfterRetime(tester, reverse: false), closeTo(0.2, 0.01));
+      expect(await stepAfterRetime(tester, reverse: true), closeTo(0.2, 0.01));
+    });
+
+    testWidgets('a stopped loop stays stopped', (tester) async {
+      final c = AnimationController(
+        vsync: const TestVSync(),
+        duration: const Duration(seconds: 1),
+      );
+      retimeLoop(c, const Duration(milliseconds: 200));
+      expect(c.isAnimating, isFalse);
+      expect(c.duration, const Duration(milliseconds: 200));
+      c.dispose();
+    });
+  });
 }

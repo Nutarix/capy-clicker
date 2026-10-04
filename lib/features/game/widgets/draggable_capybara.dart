@@ -229,18 +229,18 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
     if (widget.mergeFlash && !oldWidget.mergeFlash) {
       _cancelWalk(commit: false);
     }
-    // Role / level change → switch walk sheet + idle flavour.
+    // Role / level change → switch walk sheet + idle flavour, in the new
+    // tempo right away (a running loop keeps its old period otherwise).
     if (widget.capybara.role != oldWidget.capybara.role ||
         widget.capybara.level != oldWidget.capybara.level) {
-      _idleBob.duration = CapyWalk.idlePeriod(_sheet, widget.capybara.id);
-      if (!_idleBob.isAnimating) {
-        _idleBob.repeat(reverse: true);
-      }
+      final idle = CapyWalk.idlePeriod(_sheet, widget.capybara.id);
+      retimeLoop(_idleBob, idle, reverse: true);
+      if (!_idleBob.isAnimating) _idleBob.repeat(reverse: true);
       if (_walking) {
+        retimeLoop(_walkCycle, CapyWalk.loopDuration(_sheet));
+        if (!_walkCycle.isAnimating) _walkCycle.repeat();
+      } else {
         _walkCycle.duration = CapyWalk.loopDuration(_sheet);
-        if (!_walkCycle.isAnimating) {
-          _walkCycle.repeat();
-        }
       }
     }
     // External position change (merge spawn, mud snap, load) — sync when idle.
@@ -787,6 +787,21 @@ class _MeadowDraggableCapybaraState extends State<MeadowDraggableCapybara>
       ),
     );
   }
+}
+
+/// New period for a looping controller, applied now (spec 003, Т10).
+///
+/// [AnimationController.repeat] keeps the period it started with; a new
+/// [AnimationController.duration] alone does nothing to a running loop.
+/// A running loop restarts from where it is, a stopped one stays stopped.
+void retimeLoop(
+  AnimationController controller,
+  Duration period, {
+  bool reverse = false,
+}) {
+  controller.duration = period;
+  if (!controller.isAnimating) return;
+  controller.repeat(reverse: reverse);
 }
 
 /// A long press that never beats a drag (spec 003, Т9).
