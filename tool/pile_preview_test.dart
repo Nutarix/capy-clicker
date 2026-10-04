@@ -6,6 +6,9 @@
 // mixed looks and levels on the starter meadow, as on a phone) and
 // preview-piles-names.png (the same with one pile touched: names shown).
 // Real art and the fonts bundled in assets/google_fonts/.
+//
+// Test-only hooks are fine here: this file is a test, just outside test/.
+// ignore_for_file: invalid_use_of_visible_for_testing_member
 import 'dart:convert';
 import 'dart:io';
 

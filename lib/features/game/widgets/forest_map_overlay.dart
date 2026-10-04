@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../../../theme/cozy_theme.dart';
 import '../../../widgets/cozy_pixel_button.dart';
+import '../models/balance.dart';
 import '../models/world_zones.dart';
 
 /// Soft full-screen forest map: biomes with unlocked meadows as cozy chips.
@@ -130,7 +131,9 @@ class ForestMapOverlay extends StatelessWidget {
                               herdCount: mistyBiomeUnlocked
                                   ? herdCountFor(WorldZones.mistEdgeMeadowId)
                                   : 0,
-                              lockedHintRu: 'После Большого луга и Капи Lv.4',
+                              lockedHintRu:
+                                  'После Большого луга и Капи '
+                                  'Lv.${BalanceV0.goalCapyLevel}',
                               onTap: mistyBiomeUnlocked
                                   ? () {
                                       HapticFeedback.selectionClick();

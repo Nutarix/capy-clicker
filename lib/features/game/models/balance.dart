@@ -430,5 +430,6 @@ abstract final class BalanceV0 {
   static const Duration pileFlashDuration = Duration(milliseconds: 520);
 
   /// SharedPreferences key: first-launch tip overlay dismissed.
-  static const String tipsSeenKey = 'capy_clicker_tips_seen_v1_2';
+  /// Spec 006: `_v1_3` — the pile replaced the merge tip; shown once more.
+  static const String tipsSeenKey = 'capy_clicker_tips_seen_v1_3';
 }

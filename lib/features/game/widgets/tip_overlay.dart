@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/balance.dart';
 import '../../../widgets/cozy_pixel_button.dart';
 
-/// First-launch tip cards: merge + mud. Dismiss once → persisted.
+/// First-launch tip cards: the pile + mud. Dismiss once → persisted.
 class FirstLaunchTipOverlay extends StatefulWidget {
   const FirstLaunchTipOverlay({super.key});
 
@@ -19,8 +19,8 @@ class _FirstLaunchTipOverlayState extends State<FirstLaunchTipOverlay> {
 
   static const _tips = <({String title, String body, IconData icon})>[
     (
-      title: 'Слияние',
-      body: 'Перетащи капибар друг на друга',
+      title: 'Кучка',
+      body: 'Перетащи капи на капи — сядут в кучку и подрастут',
       icon: Icons.swipe_rounded,
     ),
     (
@@ -30,7 +30,7 @@ class _FirstLaunchTipOverlayState extends State<FirstLaunchTipOverlay> {
     ),
     (
       title: 'Ягоды',
-      body: 'Корзина ягод появляется редко — нажми, пока она тут',
+      body: 'Корзина ягод появляется ненадолго — успей нажать',
       icon: Icons.spa_rounded,
     ),
     (

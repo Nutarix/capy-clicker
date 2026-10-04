@@ -36,9 +36,19 @@ void main() {
     'lib/features/game/widgets/rocket_chapter.dart',
     'lib/features/game/widgets/uyut/uyut_hub_sheet.dart',
     'lib/features/game/widgets/capybara_placeholder.dart',
+    // Spec 006: the pile.
+    'lib/features/game/core/pile.dart',
+    'lib/features/game/core/shop.dart',
+    'lib/features/game/models/capy_pile.dart',
+    'lib/features/game/widgets/pile_caption.dart',
+    'lib/features/game/widgets/tip_overlay.dart',
+    'lib/features/game/widgets/screen/game_hud.dart',
+    'lib/features/game/widgets/forest_map_overlay.dart',
+    'lib/features/game/models/multipliers/cozy_place.dart',
+    'lib/features/game/models/multipliers/family_food.dart',
   ];
 
-  test('no gendered word in the strings of spec 004 files', () {
+  test('no gendered word in the strings of spec 004 and 006 files', () {
     final literal = RegExp(r"'([^'\\]|\\.)*'");
     for (final path in files) {
       final source = File(path).readAsStringSync();

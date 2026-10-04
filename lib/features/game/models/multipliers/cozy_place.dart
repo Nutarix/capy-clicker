@@ -33,7 +33,7 @@ extension CozyPlaceKindX on CozyPlaceKind {
   };
 
   String get effectRu => switch (this) {
-    CozyPlaceKind.pen => 'магнит слияния / близнецы',
+    CozyPlaceKind.pen => 'магнит кучки / пара рядом',
     CozyPlaceKind.warmStone => 'авто-трава',
     CozyPlaceKind.tent => 'спавн / оффлайн-наклон',
   };
