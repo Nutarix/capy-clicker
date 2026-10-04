@@ -7,6 +7,8 @@ import '../../../../theme/cozy_theme.dart';
 import '../../../../widgets/cozy_pixel_button.dart';
 import '../../controllers/game_controller.dart';
 import '../../models/balance.dart';
+import '../../models/capy_names.dart';
+import '../../models/capybara.dart';
 import '../../models/multipliers/multipliers.dart';
 import '../game_selector.dart';
 import 'multiplier_icon.dart';
@@ -125,10 +127,13 @@ class _UyutHubSheetState extends State<UyutHubSheet>
 
   @override
   Widget build(BuildContext context) {
-    final height = MediaQuery.sizeOf(context).height * 0.72;
+    final screen = MediaQuery.sizeOf(context).height;
+    // The rename field (spec 004) lifts the sheet over the keyboard.
+    final keyboard = MediaQuery.viewInsetsOf(context).bottom;
+    final height = (screen * 0.72).clamp(0.0, screen - keyboard - 48);
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+        padding: EdgeInsets.fromLTRB(12, 0, 12, 12 + keyboard),
         child: DecoratedBox(
           decoration: BoxDecoration(
             color: const Color(0xFFFFF8EC),
@@ -316,8 +321,42 @@ class _RolesTab extends StatelessWidget {
   /// A plate over the sheet (why a role could not be given).
   final ValueChanged<String> onPlate;
 
-  /// Kept so a long-press still opens this tab. Roles are not listed by id.
+  /// The capy a long press came from: first in the family list.
   final String? focusCapyId;
+
+  /// Who holds [role] on this land, or null.
+  Capybara? _holder(CapyRole role) {
+    final state = controller.state;
+    for (final capy in state.herd) {
+      if (capy.role == role) return capy;
+    }
+    for (final entry in state.meadows.entries) {
+      if (entry.key == state.activeMeadowId) continue;
+      for (final capy in entry.value.herd) {
+        if (capy.role == role) return capy;
+      }
+    }
+    return null;
+  }
+
+  /// The family on this meadow, the long-pressed one first.
+  List<Capybara> _family() {
+    final herd = controller.state.herd;
+    final focus = focusCapyId;
+    return [
+      for (final c in herd)
+        if (c.id == focus) c,
+      for (final c in herd)
+        if (c.id != focus) c,
+    ];
+  }
+
+  /// What the list shows, as a value: a tick that moved the bar or a capy's
+  /// spot does not rebuild it (spec 002, Т7).
+  String _familyView() => [
+    for (final c in _family())
+      '${c.id}|${c.listNameRu}|${c.level}|${c.role?.id}|${c.trait?.id}',
+  ].join(';');
 
   bool _held(CapyRole role) {
     final state = controller.state;
@@ -347,12 +386,13 @@ class _RolesTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GameSelector<(bool, bool, bool)>(
+    return GameSelector<(bool, bool, bool, String)>(
       listenable: controller,
       select: () => (
         _held(CapyRole.nanya),
         _held(CapyRole.sobiratel),
         _held(CapyRole.storozh),
+        _familyView(),
       ),
       builder: (context, _) => _list(),
     );
@@ -360,9 +400,30 @@ class _RolesTab extends StatelessWidget {
 
   Widget _list() {
     final any = CapyRole.values.any(_held);
+    final family = _family();
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
       children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 6),
+          child: Text(
+            'Семья на поляне · имя можно поменять',
+            style: CozyTheme.hudChipMutedStyle(fontSize: 12),
+          ),
+        ),
+        for (final capy in family) ...[
+          _CapyRow(
+            key: ValueKey('family-${capy.id}'),
+            capy: capy,
+            focused: capy.id == focusCapyId,
+            onRename: (name) {
+              HapticFeedback.lightImpact();
+              return controller.renameCapy(capy.id, name);
+            },
+          ),
+          const SizedBox(height: 6),
+        ],
+        const SizedBox(height: 8),
         if (!any)
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
@@ -375,6 +436,7 @@ class _RolesTab extends StatelessWidget {
           _RoleCard(
             role: role,
             held: _held(role),
+            holderName: _holder(role)?.listNameRu,
             onAssign: () {
               HapticFeedback.lightImpact();
               // Success shows the role's own plate (RoleAssigned).
@@ -398,10 +460,14 @@ class _RoleCard extends StatelessWidget {
     required this.held,
     required this.onAssign,
     required this.onClear,
+    this.holderName,
   });
 
   final CapyRole role;
   final bool held;
+
+  /// Who holds the role («Пуговка», «Малыш»).
+  final String? holderName;
   final VoidCallback onAssign;
   final VoidCallback onClear;
 
@@ -431,6 +497,11 @@ class _RoleCard extends StatelessWidget {
                     role.tipRu,
                     style: CozyTheme.hudChipMutedStyle(fontSize: 11),
                   ),
+                  if (holderName != null)
+                    Text(
+                      'Сейчас: $holderName',
+                      style: CozyTheme.hudChipStyle(fontSize: 12),
+                    ),
                 ],
               ),
             ),
@@ -445,6 +516,139 @@ class _RoleCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// One capy of the family: «Пуговка — няня», «Lv.2 · непоседа». Tap the
+/// name of a named capy to give your own (spec 004, С3): at once, free.
+class _CapyRow extends StatefulWidget {
+  const _CapyRow({
+    super.key,
+    required this.capy,
+    required this.focused,
+    required this.onRename,
+  });
+
+  final Capybara capy;
+  final bool focused;
+
+  /// False: refused (empty), the old name stays.
+  final bool Function(String name) onRename;
+
+  @override
+  State<_CapyRow> createState() => _CapyRowState();
+}
+
+class _CapyRowState extends State<_CapyRow> {
+  final TextEditingController _text = TextEditingController();
+  bool _editing = false;
+
+  Capybara get capy => widget.capy;
+
+  @override
+  void dispose() {
+    _text.dispose();
+    super.dispose();
+  }
+
+  void _edit() {
+    if (!capy.isNamed) return;
+    _text.text = capy.displayNameRu ?? '';
+    _text.selection = TextSelection(
+      baseOffset: 0,
+      extentOffset: _text.text.length,
+    );
+    setState(() => _editing = true);
+  }
+
+  void _done() {
+    if (!_editing) return;
+    widget.onRename(_text.text);
+    if (mounted) setState(() => _editing = false);
+  }
+
+  String get _title {
+    final role = capy.role;
+    final name = capy.listNameRu;
+    return role == null ? name : '$name — ${role.labelRu.toLowerCase()}';
+  }
+
+  String get _subtitle {
+    final trait = capy.trait;
+    return trait == null
+        ? 'Lv.${capy.level}'
+        : 'Lv.${capy.level} · ${trait.labelRu}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: widget.focused
+            ? const Color(0xFFFFF0D0)
+            : const Color(0xFFFFF8EC),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: widget.focused
+              ? const Color(0xFFC47820)
+              : const Color(0xFFE2CFA8),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        child: _editing ? _field() : _label(),
+      ),
+    );
+  }
+
+  Widget _label() {
+    return InkWell(
+      onTap: capy.isNamed ? _edit : null,
+      borderRadius: BorderRadius.circular(10),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(_title, style: CozyTheme.hudChipStyle(fontSize: 14)),
+                Text(
+                  _subtitle,
+                  style: CozyTheme.hudChipMutedStyle(fontSize: 11),
+                ),
+              ],
+            ),
+          ),
+          if (capy.isNamed)
+            Icon(
+              Icons.edit,
+              size: 16,
+              color: Colors.brown.withValues(alpha: 0.45),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _field() {
+    return TextField(
+      controller: _text,
+      autofocus: true,
+      maxLines: 1,
+      textInputAction: TextInputAction.done,
+      textCapitalization: TextCapitalization.sentences,
+      inputFormatters: [
+        LengthLimitingTextInputFormatter(CapyNames.maxCustomLength),
+      ],
+      style: CozyTheme.hudChipStyle(fontSize: 14),
+      decoration: const InputDecoration(
+        isDense: true,
+        hintText: 'Своё имя',
+        border: InputBorder.none,
+      ),
+      onSubmitted: (_) => _done(),
+      onTapOutside: (_) => _done(),
     );
   }
 }
